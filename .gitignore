@@ -1,1 +1,26 @@
 ref/
+
+# Rust
+target/
+src-tauri/target/
+
+# Node / frontend
+node_modules/
+dist/
+.npm/
+.pnpm-store/
+
+# Tauri / local app data
+src-tauri/gen/
+.tauri/
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
