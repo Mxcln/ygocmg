@@ -2,10 +2,15 @@
 name = "ygocmg-core"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
 
 [lib]
 name = "ygocmg_core"
 path = "src/lib.rs"
+
+[dependencies.tauri]
+version = "2"
+features = []
 
 [dependencies]
 chrono = { version = "0.4.44", features = ["clock", "serde"] }
@@ -13,6 +18,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 uuid = { version = "1.23.1", features = ["serde", "std", "v4", "v7"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
