@@ -4,8 +4,8 @@ use std::fs;
 use tempfile::tempdir;
 use ygocmg_core::bootstrap::wiring::build_app_state;
 use ygocmg_core::application::dto::card::{
-    CardSortFieldDto, CreateCardInput, GetCardInput, ListCardsInput, SortDirectionDto,
-    SuggestCodeInput, UpdateCardInput,
+    CardSortFieldDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, GetCardInput,
+    ListCardsInput, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
 };
 use ygocmg_core::application::dto::common::WriteResultDto;
 use ygocmg_core::domain::card::model::{
@@ -92,11 +92,22 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     )
     .unwrap()
     {
-        WriteResultDto::Ok { data, warnings } => {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            warnings,
+            ..
+        } => {
             assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
-            data.card
+            app_commands::confirm_card_write(
+                &state,
+                ConfirmCardWriteInput {
+                    confirmation_token,
+                },
+            )
+            .unwrap()
+            .card
         }
-        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
 
     let original_script = script_path(&pack_path, card.code);
@@ -141,11 +152,22 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     )
     .unwrap()
     {
-        WriteResultDto::Ok { data, warnings } => {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            warnings,
+            ..
+        } => {
             assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
-            data.card
+            app_commands::confirm_card_write(
+                &state,
+                ConfirmCardWriteInput {
+                    confirmation_token,
+                },
+            )
+            .unwrap()
+            .card
         }
-        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
 
     assert_eq!(updated.code, 201_000_010);
@@ -269,6 +291,376 @@ fn workspace_id_mismatch_rejected_for_card_commands() {
     )
     .unwrap_err();
     assert_eq!(error.code, "workspace.mismatch");
+}
+
+#[test]
+fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-confirmation");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack One",
+        "Max",
+        "0.1.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: "测试怪兽".to_string(),
+            desc: "需要确认".to_string(),
+            strings: vec![],
+        },
+    );
+
+    let confirmation_token = match app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: CardUpdateInput {
+                code: 201_000_000,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type: PrimaryType::Monster,
+                texts: texts.clone(),
+                monster_flags: Some(vec![MonsterFlag::Effect]),
+                atk: Some(1500),
+                def: Some(1200),
+                race: Some(Race::Warrior),
+                attribute: Some(Attribute::Light),
+                level: Some(4),
+                pendulum: None,
+                link: None,
+                spell_subtype: None,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            ..
+        } => confirmation_token,
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+
+    let created = app_commands::confirm_card_write(
+        &state,
+        ConfirmCardWriteInput {
+            confirmation_token: confirmation_token.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(created.card.code, 201_000_000);
+
+    let consumed_error = app_commands::confirm_card_write(
+        &state,
+        ConfirmCardWriteInput {
+            confirmation_token: confirmation_token.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(consumed_error.code, "confirmation.invalid_token");
+
+    let stale_token = match app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: CardUpdateInput {
+                code: 201_000_020,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type: PrimaryType::Monster,
+                texts,
+                monster_flags: Some(vec![MonsterFlag::Effect]),
+                atk: Some(1700),
+                def: Some(1200),
+                race: Some(Race::Warrior),
+                attribute: Some(Attribute::Light),
+                level: Some(4),
+                pendulum: None,
+                link: None,
+                spell_subtype: None,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            ..
+        } => confirmation_token,
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+
+    let mut clean_texts = BTreeMap::new();
+    clean_texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: "正常卡".to_string(),
+            desc: "无 warning".to_string(),
+            strings: vec![],
+        },
+    );
+    let create_ok = app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: CardUpdateInput {
+                code: 100_000_200,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type: PrimaryType::Monster,
+                texts: clean_texts,
+                monster_flags: Some(vec![MonsterFlag::Effect]),
+                atk: Some(1800),
+                def: Some(1000),
+                race: Some(Race::Warrior),
+                attribute: Some(Attribute::Light),
+                level: Some(4),
+                pendulum: None,
+                link: None,
+                spell_subtype: None,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap();
+    match create_ok {
+        WriteResultDto::Ok { .. } => {}
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let stale_error = app_commands::confirm_card_write(
+        &state,
+        ConfirmCardWriteInput {
+            confirmation_token: stale_token,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(stale_error.code, "confirmation.invalid_token");
+}
+
+#[test]
+fn create_confirmation_reuses_staged_card_identity() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-confirmation-identity");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack One",
+        "Max",
+        "0.1.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: "确认身份复用".to_string(),
+            desc: "warning create should keep staged identity".to_string(),
+            strings: vec![],
+        },
+    );
+
+    let confirmation_token = match app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: CardUpdateInput {
+                code: 201_000_100,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type: PrimaryType::Monster,
+                texts,
+                monster_flags: Some(vec![MonsterFlag::Effect]),
+                atk: Some(1500),
+                def: Some(1200),
+                race: Some(Race::Warrior),
+                attribute: Some(Attribute::Light),
+                level: Some(4),
+                pendulum: None,
+                link: None,
+                spell_subtype: None,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            ..
+        } => confirmation_token,
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+
+    let staged_entry = state
+        .confirmation_cache
+        .read()
+        .unwrap()
+        .debug_get_card_entry(&confirmation_token)
+        .cloned()
+        .expect("confirmation entry should exist");
+    let staged_card = staged_entry
+        .input_snapshot
+        .create_card_seed
+        .expect("staged create entry should carry card seed");
+
+    let confirmed = app_commands::confirm_card_write(
+        &state,
+        ConfirmCardWriteInput {
+            confirmation_token,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(confirmed.card.id, staged_card.id);
+    assert_eq!(confirmed.card.created_at, staged_card.created_at);
+}
+
+#[test]
+fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-delete-card");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack One",
+        "Max",
+        "0.1.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: "正常卡".to_string(),
+            desc: "删除测试".to_string(),
+            strings: vec![],
+        },
+    );
+
+    let created = match app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: CardUpdateInput {
+                code: 100_000_300,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type: PrimaryType::Monster,
+                texts,
+                monster_flags: Some(vec![MonsterFlag::Effect]),
+                atk: Some(1900),
+                def: Some(1000),
+                race: Some(Race::Warrior),
+                attribute: Some(Attribute::Light),
+                level: Some(4),
+                pendulum: None,
+                link: None,
+                spell_subtype: None,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data.card,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    };
+
+    let delete_result = app_commands::delete_card(
+        &state,
+        DeleteCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: created.id.clone(),
+        },
+    )
+    .unwrap();
+    match delete_result {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(warnings.is_empty());
+            assert_eq!(data.deleted_card_id, created.id);
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let rows = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            keyword: None,
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 50,
+        },
+    )
+    .unwrap();
+    assert_eq!(rows.total, 0);
+
+    let mismatch_error = app_commands::delete_card(
+        &state,
+        DeleteCardInput {
+            workspace_id: format!("{}-wrong", workspace.id),
+            pack_id: pack.id,
+            card_id: created.id,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(mismatch_error.code, "workspace.mismatch");
 }
 
 #[test]

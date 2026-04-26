@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::bootstrap::AppState;
 use crate::application::dto::card::{
-    CardDetailDto, CardListPageDto, CreateCardInput, GetCardInput, ListCardsInput,
-    SuggestCodeInput, UpdateCardInput,
+    CardDetailDto, CardListPageDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput,
+    DeleteCardResultDto, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::WriteResultDto;
 use crate::domain::common::error::AppResult;
@@ -140,45 +140,38 @@ pub fn update_card(
     state: &AppState,
     input: UpdateCardInput,
 ) -> AppResult<WriteResultDto<CardDetailDto>> {
-    let query = crate::application::card::service::CardService::new(state);
-    let code_context = query.build_code_context(&input.pack_id, Some(&input.card_id))?;
-    let (_session, updated, warnings) = crate::application::pack::write_service::PackWriteService::new(state)
-        .update_card(
-            &input.workspace_id,
-            &input.pack_id,
-            &input.card_id,
-            input.card,
-            code_context,
-        )?;
-    let detail = query.get_card(GetCardInput {
-        workspace_id: input.workspace_id,
-        pack_id: input.pack_id,
-        card_id: updated.id.clone(),
-    })?;
-    Ok(WriteResultDto::Ok { data: detail, warnings })
+    crate::application::card::confirmation_service::CardWriteConfirmationService::new(state)
+        .update_card(input)
 }
 
 pub fn create_card(
     state: &AppState,
     input: CreateCardInput,
 ) -> AppResult<WriteResultDto<CardDetailDto>> {
-    let query = crate::application::card::service::CardService::new(state);
-    let code_context = query.build_code_context(&input.pack_id, None)?;
-    let (_session, created, warnings) = crate::application::pack::write_service::PackWriteService::new(state)
-        .create_card(&input.workspace_id, &input.pack_id, input.card, code_context)?;
-    let detail = query.get_card(GetCardInput {
-        workspace_id: input.workspace_id,
-        pack_id: input.pack_id,
-        card_id: created.id.clone(),
-    })?;
-    Ok(WriteResultDto::Ok { data: detail, warnings })
+    crate::application::card::confirmation_service::CardWriteConfirmationService::new(state)
+        .create_card(input)
 }
 
-pub fn delete_card(state: &AppState, pack_id: &str, card_id: &str) -> AppResult<()> {
-    let workspace_id = crate::application::pack::service::current_workspace_id(state)?;
+pub fn delete_card(
+    state: &AppState,
+    input: DeleteCardInput,
+) -> AppResult<WriteResultDto<DeleteCardResultDto>> {
     crate::application::pack::write_service::PackWriteService::new(state)
-        .delete_card(&workspace_id, pack_id, card_id)
-        .map(|_| ())
+        .delete_card(&input.workspace_id, &input.pack_id, &input.card_id)?;
+    Ok(WriteResultDto::Ok {
+        data: DeleteCardResultDto {
+            deleted_card_id: input.card_id,
+        },
+        warnings: Vec::new(),
+    })
+}
+
+pub fn confirm_card_write(
+    state: &AppState,
+    input: ConfirmCardWriteInput,
+) -> AppResult<CardDetailDto> {
+    crate::application::card::confirmation_service::CardWriteConfirmationService::new(state)
+        .confirm_card_write(input)
 }
 
 pub fn suggest_card_code(

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { PackMetadata, PackOverview } from "../contracts/pack";
+import type { ValidationIssue } from "../contracts/common";
 
 export type ModalType =
   | "workspace"
@@ -16,6 +17,31 @@ export interface ModalState {
   addPackTab?: AddPackTab;
 }
 
+type DialogConfirmHandler = () => void | Promise<void>;
+
+interface DialogBaseState {
+  title: string;
+  message: string;
+  errorMessage?: string | null;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: DialogConfirmHandler;
+}
+
+export interface ConfirmDialogState {
+  kind: "confirm";
+  danger?: boolean;
+}
+
+export interface WarningDialogState {
+  kind: "warning";
+  warnings: ValidationIssue[];
+}
+
+export type DialogState =
+  | (DialogBaseState & ConfirmDialogState)
+  | (DialogBaseState & WarningDialogState);
+
 interface ShellState {
   workspaceId: string | null;
   workspaceName: string | null;
@@ -27,11 +53,17 @@ interface ShellState {
   packOverviews: PackOverview[];
 
   modal: ModalState | null;
+  dialog: DialogState | null;
+  dialogBusy: boolean;
 
   openModal: (type: ModalType) => void;
   closeModal: () => void;
   setWorkspaceSubView: (view: WorkspaceSubView) => void;
   setAddPackTab: (tab: AddPackTab) => void;
+  openDialog: (dialog: DialogState) => void;
+  closeDialog: () => void;
+  setDialogBusy: (busy: boolean) => void;
+  setDialogError: (message: string | null) => void;
 
   setWorkspace: (id: string, name: string) => void;
   clearWorkspace: () => void;
@@ -56,6 +88,8 @@ export const useShellStore = create<ShellState>()((set) => ({
   packOverviews: [],
 
   modal: null,
+  dialog: null,
+  dialogBusy: false,
 
   openModal: (type) =>
     set({
@@ -67,6 +101,19 @@ export const useShellStore = create<ShellState>()((set) => ({
     }),
 
   closeModal: () => set({ modal: null }),
+  openDialog: (dialog) => set({ dialog: { ...dialog, errorMessage: null }, dialogBusy: false }),
+  closeDialog: () => set({ dialog: null, dialogBusy: false }),
+  setDialogBusy: (busy) => set({ dialogBusy: busy }),
+  setDialogError: (message) =>
+    set((state) => {
+      if (!state.dialog) return state;
+      return {
+        dialog: {
+          ...state.dialog,
+          errorMessage: message,
+        },
+      };
+    }),
 
   setWorkspaceSubView: (view) =>
     set((state) => {
@@ -88,6 +135,8 @@ export const useShellStore = create<ShellState>()((set) => ({
       activePackId: null,
       packMetadataMap: {},
       packOverviews: [],
+      dialog: null,
+      dialogBusy: false,
     }),
 
   clearWorkspace: () =>
@@ -98,6 +147,8 @@ export const useShellStore = create<ShellState>()((set) => ({
       activePackId: null,
       packMetadataMap: {},
       packOverviews: [],
+      dialog: null,
+      dialogBusy: false,
     }),
 
   setPackOverviews: (overviews) => set({ packOverviews: overviews }),

@@ -177,8 +177,17 @@ export interface UpdateCardInput {
 }
 
 export interface DeleteCardInput {
+  workspaceId: string;
   packId: string;
   cardId: string;
+}
+
+export interface DeleteCardResult {
+  deleted_card_id: string;
+}
+
+export interface ConfirmCardWriteInput {
+  confirmationToken: string;
 }
 
 export interface SuggestCodeInput {
@@ -202,5 +211,5 @@ export type WriteResult<T> =
       status: "needs_confirmation";
       confirmation_token: string;
       warnings: ValidationIssue[];
-      preview: unknown;
+      preview: unknown | null;
     };

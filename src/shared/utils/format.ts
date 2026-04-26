@@ -1,3 +1,5 @@
+import type { ValidationIssue } from "../contracts/common";
+
 export function normalizeNullablePath(value: string): string | null {
   const trimmed = value.trim();
   return trimmed || null;
@@ -52,4 +54,31 @@ export function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
 
   return "An unknown error occurred.";
+}
+
+function formatIssueParams(params: Record<string, unknown>): string {
+  const entries = Object.entries(params);
+  if (entries.length === 0) return "";
+
+  return entries
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(", ");
+}
+
+export function formatValidationIssue(issue: ValidationIssue): string {
+  if (issue.code === "card.code_outside_recommended_range") {
+    const min = issue.params.recommended_min;
+    const max = issue.params.recommended_max;
+    return `Code is outside the recommended custom range (${min} - ${max}).`;
+  }
+
+  if (issue.code === "card.code_gap_too_small") {
+    const gap = issue.params.nearest_gap;
+    const minGap = issue.params.min_gap;
+    return `Code is very close to an existing card code (gap ${gap}, recommended at least ${minGap}).`;
+  }
+
+  const formattedParams = formatIssueParams(issue.params);
+  if (!formattedParams) return issue.code;
+  return `${issue.code} (${formattedParams})`;
 }

@@ -16,6 +16,7 @@ import { AddPackModal } from "../features/pack/AddPackModal";
 import { CardListPanel } from "../features/card/CardListPanel";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardEditDrawer } from "../features/card/CardEditDrawer";
+import { AppDialog } from "../features/dialogs/AppDialog";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -88,8 +89,11 @@ export function App() {
   }, [queryClient, handleDrawerClose]);
 
   const modal = useShellStore((s) => s.modal);
+  const dialog = useShellStore((s) => s.dialog);
   const openModal = useShellStore((s) => s.openModal);
   const closeModal = useShellStore((s) => s.closeModal);
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
   const openPackIds = useShellStore((s) => s.openPackIds);
   const activePackId = useShellStore((s) => s.activePackId);
   const packMetadataMap = useShellStore((s) => s.packMetadataMap);
@@ -469,6 +473,7 @@ export function App() {
   async function handleDeletePack(packId: string) {
     try {
       await packApi.deletePack({ packId });
+      closeDialog();
       removeOpenPack(packId);
       const overviews = await packApi.listPackOverviews();
       setPackOverviews(overviews);
@@ -848,9 +853,18 @@ export function App() {
                               type="button"
                               className="ghost-button danger-ghost"
                               onClick={() => {
-                                if (window.confirm(`Delete pack "${activeMeta.name}"? This cannot be undone.`)) {
-                                  void handleDeletePack(activePackId);
-                                }
+                                const packId = activePackId!;
+                                openDialog({
+                                  kind: "confirm",
+                                  title: "Delete pack",
+                                  message: `Delete pack "${activeMeta.name}"? This cannot be undone.`,
+                                  confirmLabel: "Delete Pack",
+                                  cancelLabel: "Cancel",
+                                  danger: true,
+                                  onConfirm: async () => {
+                                    await handleDeletePack(packId);
+                                  },
+                                });
                               }}
                             >
                               Delete Pack
@@ -930,6 +944,9 @@ export function App() {
             )}
           </section>
         </div>
+      )}
+      {dialog && (
+        <AppDialog />
       )}
     </div>
   );

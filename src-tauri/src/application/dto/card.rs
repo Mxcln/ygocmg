@@ -6,7 +6,7 @@ use crate::domain::card::model::{
     Attribute, CardEntity, CardListRow, CardTexts, CardUpdateInput, LinkData, MonsterFlag, Ot,
     Pendulum, PrimaryType, Race, SpellSubtype, TrapSubtype,
 };
-use crate::domain::common::ids::{CardId, LanguageCode, PackId, WorkspaceId};
+use crate::domain::common::ids::{CardId, ConfirmationToken, LanguageCode, PackId, WorkspaceId};
 use crate::domain::resource::model::CardAssetState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,6 +145,25 @@ pub struct UpdateCardInput {
     pub pack_id: PackId,
     pub card_id: CardId,
     pub card: CardUpdateInput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteCardInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub card_id: CardId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteCardResultDto {
+    pub deleted_card_id: CardId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmCardWriteInput {
+    pub confirmation_token: ConfirmationToken,
 }
 
 impl From<CardListRow> for CardListRowDto {

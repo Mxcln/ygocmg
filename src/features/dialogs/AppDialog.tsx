@@ -1,0 +1,111 @@
+import { useEffect } from "react";
+import { useShellStore } from "../../shared/stores/shellStore";
+import { formatError, formatValidationIssue } from "../../shared/utils/format";
+
+export function AppDialog() {
+  const dialogState = useShellStore((s) => s.dialog);
+  const busy = useShellStore((s) => s.dialogBusy);
+  const closeDialog = useShellStore((s) => s.closeDialog);
+  const setDialogBusy = useShellStore((s) => s.setDialogBusy);
+  const setDialogError = useShellStore((s) => s.setDialogError);
+
+  if (!dialogState) return null;
+  const dialog = dialogState;
+
+  async function handleConfirm() {
+    try {
+      setDialogBusy(true);
+      setDialogError(null);
+      await dialog.onConfirm();
+    } catch (error) {
+      setDialogError(formatError(error));
+    } finally {
+      setDialogBusy(false);
+    }
+  }
+
+  const canClose = !busy;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (canClose) {
+          event.preventDefault();
+          closeDialog();
+        }
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          (target.tagName === "TEXTAREA" ||
+            target.tagName === "BUTTON" ||
+            target.tagName === "A")
+        ) {
+          return;
+        }
+        event.preventDefault();
+        void handleConfirm();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canClose, closeDialog, dialog]);
+
+  return (
+    <div className="dialog-layer">
+      <div
+        className="modal-backdrop"
+        onClick={() => {
+          if (canClose) closeDialog();
+        }}
+      />
+      <section className="dialog-box" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
+        <header className="modal-header">
+          <div>
+            <h2 id="app-dialog-title">{dialog.title}</h2>
+            <p className="dialog-summary">{dialog.message}</p>
+          </div>
+        </header>
+        {dialog.kind === "warning" && (
+          <div className="dialog-warning-list">
+            <ul>
+              {dialog.warnings.map((warning, index) => (
+                <li key={`${warning.code}-${index}`}>
+                  <strong>{warning.code}</strong>
+                  <span>{formatValidationIssue(warning)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {dialog.errorMessage && (
+          <div className="dialog-error" role="alert">
+            {dialog.errorMessage}
+          </div>
+        )}
+        <div className="dialog-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={closeDialog}
+            disabled={!canClose}
+          >
+            {dialog.cancelLabel}
+          </button>
+          <button
+            type="button"
+            className={dialog.kind === "confirm" && dialog.danger ? "danger-button" : "primary-button"}
+            onClick={() => void handleConfirm()}
+            disabled={busy}
+          >
+            {busy ? "Working..." : dialog.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}

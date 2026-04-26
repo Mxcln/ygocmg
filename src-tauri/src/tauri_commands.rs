@@ -4,7 +4,8 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::application::dto::card::{
-    CreateCardInput, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
+    ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, DeleteCardResultDto, GetCardInput,
+    ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
 use crate::bootstrap::AppState;
 use crate::application::dto::common::WriteResultDto;
@@ -87,13 +88,6 @@ pub struct UpdatePackMetadataInput {
 #[serde(rename_all = "camelCase")]
 pub struct DeletePackInput {
     pack_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeleteCardInput {
-    pack_id: String,
-    card_id: String,
 }
 
 #[tauri::command]
@@ -263,12 +257,16 @@ pub fn update_card(
 pub fn delete_card(
     state: State<'_, AppState>,
     input: DeleteCardInput,
-) -> CommandResult<()> {
-    crate::presentation::commands::app_commands::delete_card(
-        &state,
-        &input.pack_id,
-        &input.card_id,
-    )
+) -> CommandResult<WriteResultDto<DeleteCardResultDto>> {
+    crate::presentation::commands::app_commands::delete_card(&state, input)
+}
+
+#[tauri::command]
+pub fn confirm_card_write(
+    state: State<'_, AppState>,
+    input: ConfirmCardWriteInput,
+) -> CommandResult<crate::application::dto::card::CardDetailDto> {
+    crate::presentation::commands::app_commands::confirm_card_write(&state, input)
 }
 
 #[tauri::command]

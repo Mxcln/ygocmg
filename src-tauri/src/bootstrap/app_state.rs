@@ -2,12 +2,14 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 use crate::domain::common::error::{AppError, AppResult};
+use crate::runtime::confirmation_cache::ConfirmationCache;
 use crate::runtime::sessions::SessionManager;
 
 #[derive(Debug)]
 pub struct AppState {
     app_data_dir: PathBuf,
     pub sessions: RwLock<SessionManager>,
+    pub confirmation_cache: RwLock<ConfirmationCache>,
 }
 
 impl AppState {
@@ -20,6 +22,7 @@ impl AppState {
         Ok(Self {
             app_data_dir,
             sessions: RwLock::new(SessionManager::default()),
+            confirmation_cache: RwLock::new(ConfirmationCache::default()),
         })
     }
 

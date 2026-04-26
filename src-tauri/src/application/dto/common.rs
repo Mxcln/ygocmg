@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::common::error::AppError;
+use crate::domain::common::ids::ConfirmationToken;
 use crate::domain::common::issue::ValidationIssue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,7 +23,7 @@ pub enum WriteResultDto<T> {
         warnings: Vec<ValidationIssue>,
     },
     NeedsConfirmation {
-        confirmation_token: String,
+        confirmation_token: ConfirmationToken,
         warnings: Vec<ValidationIssue>,
         preview: Option<serde_json::Value>,
     },

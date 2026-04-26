@@ -76,6 +76,8 @@ export function CardEditDrawer({
   const activeMeta = useShellStore((s) =>
     s.activePackId ? s.packMetadataMap[s.activePackId] : null,
   );
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
   const displayLanguageOrder = activeMeta?.display_language_order ?? [];
 
   const { data: cardDetail, isLoading: loadingDetail } = useQuery({
@@ -166,6 +168,34 @@ export function CardEditDrawer({
         }
         onSaved();
         handleAnimatedClose();
+      } else {
+        setErrorMsg(null);
+        openDialog({
+          kind: "warning",
+          title: isCreate ? "Review card warnings" : "Review save warnings",
+          message: "This write produced warnings. Continue to apply the change?",
+          confirmLabel: "Continue",
+          cancelLabel: "Cancel",
+          warnings: result.warnings,
+          onConfirm: async () => {
+            try {
+              const detail = await cardApi.confirmCardWrite({
+                confirmationToken: result.confirmation_token,
+              });
+              setWarnings([]);
+              setDraft(detail.card);
+              setAssetState(detail.asset_state);
+              setAvailableLanguages(detail.available_languages);
+              closeDialog();
+              onSaved();
+              handleAnimatedClose();
+            } catch (err) {
+              setErrorMsg(formatError(err));
+            }
+          },
+        });
+        setSaving(false);
+        return;
       }
     } catch (err) {
       setErrorMsg(formatError(err));
@@ -176,19 +206,33 @@ export function CardEditDrawer({
 
   async function handleDelete() {
     if (!cardId) return;
-    if (!window.confirm("Delete this card? This cannot be undone.")) return;
-
-    setDeleting(true);
+    const deleteCardId = cardId;
     setErrorMsg(null);
-    try {
-      await cardApi.deleteCard({ packId, cardId });
-      onSaved();
-      handleAnimatedClose();
-    } catch (err) {
-      setErrorMsg(formatError(err));
-    } finally {
-      setDeleting(false);
-    }
+    openDialog({
+      kind: "confirm",
+      title: "Delete card",
+      message: "This card will be permanently removed from the pack.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        setDeleting(true);
+        setErrorMsg(null);
+        try {
+          const result = await cardApi.deleteCard({ workspaceId, packId, cardId: deleteCardId });
+          if (result.status !== "ok") {
+            throw new Error("Delete card returned an unsupported confirmation state.");
+          }
+          closeDialog();
+          onSaved();
+          handleAnimatedClose();
+        } catch (err) {
+          setErrorMsg(formatError(err));
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
   }
 
   const showLoading = !isCreate && loadingDetail && !draft;

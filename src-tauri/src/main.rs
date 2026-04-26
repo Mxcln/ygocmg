@@ -37,6 +37,7 @@ fn main() {
             tauri_commands::create_card,
             tauri_commands::update_card,
             tauri_commands::delete_card,
+            tauri_commands::confirm_card_write,
             tauri_commands::suggest_card_code
         ])
         .run(tauri::generate_context!())

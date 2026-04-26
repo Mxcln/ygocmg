@@ -111,6 +111,16 @@ impl<'a> PackService<'a> {
 
         self.refresh_current_workspace_summary()?;
         self.persist_session_state(&workspace_path)?;
+        self.state
+            .confirmation_cache
+            .write()
+            .map_err(|_| {
+                AppError::new(
+                    "confirmation.cache_lock_poisoned",
+                    "confirmation cache lock poisoned",
+                )
+            })?
+            .invalidate_pack(&workspace_id, pack_id);
         Ok(response)
     }
 
@@ -124,6 +134,18 @@ impl<'a> PackService<'a> {
             })?;
             sessions.remove_pack(pack_id);
         }
+
+        let workspace_id = self.current_workspace_id()?;
+        self.state
+            .confirmation_cache
+            .write()
+            .map_err(|_| {
+                AppError::new(
+                    "confirmation.cache_lock_poisoned",
+                    "confirmation cache lock poisoned",
+                )
+            })?
+            .invalidate_pack(&workspace_id, pack_id);
 
         self.persist_session_state(&workspace_path)
     }
@@ -239,6 +261,18 @@ impl<'a> PackService<'a> {
             })?;
             sessions.remove_pack(pack_id);
         }
+
+        let workspace_id = self.current_workspace_id()?;
+        self.state
+            .confirmation_cache
+            .write()
+            .map_err(|_| {
+                AppError::new(
+                    "confirmation.cache_lock_poisoned",
+                    "confirmation cache lock poisoned",
+                )
+            })?
+            .invalidate_pack(&workspace_id, pack_id);
 
         self.refresh_current_workspace_summary()
     }

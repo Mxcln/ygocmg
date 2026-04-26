@@ -2,8 +2,10 @@ import { invokeApi } from "./invoke";
 import type {
   CardDetail,
   CardListPage,
+  ConfirmCardWriteInput,
   CreateCardInput,
   DeleteCardInput,
+  DeleteCardResult,
   GetCardInput,
   ListCardsInput,
   SuggestCodeInput,
@@ -34,6 +36,10 @@ export const cardApi = {
   },
 
   deleteCard(input: DeleteCardInput) {
-    return invokeApi<void>("delete_card", { input });
+    return invokeApi<WriteResult<DeleteCardResult>>("delete_card", { input });
+  },
+
+  confirmCardWrite(input: ConfirmCardWriteInput) {
+    return invokeApi<CardDetail>("confirm_card_write", { input });
   },
 };

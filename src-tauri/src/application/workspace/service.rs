@@ -103,6 +103,16 @@ impl<'a> WorkspaceService<'a> {
             })?;
             sessions.set_workspace(session.clone());
         }
+        self.state
+            .confirmation_cache
+            .write()
+            .map_err(|_| {
+                AppError::new(
+                    "confirmation.cache_lock_poisoned",
+                    "confirmation cache lock poisoned",
+                )
+            })?
+            .clear();
 
         self.upsert_registry_entry(WorkspaceRegistryEntry {
             workspace_id: meta.id,
@@ -186,6 +196,20 @@ impl<'a> WorkspaceService<'a> {
 
         if should_clear {
             sessions.clear_workspace();
+        }
+
+        drop(sessions);
+        if should_clear {
+            self.state
+                .confirmation_cache
+                .write()
+                .map_err(|_| {
+                    AppError::new(
+                        "confirmation.cache_lock_poisoned",
+                        "confirmation cache lock poisoned",
+                    )
+                })?
+                .invalidate_workspace(workspace_id);
         }
 
         Ok(())
