@@ -111,6 +111,22 @@ impl<'a> WorkspaceService<'a> {
         Ok(session)
     }
 
+    pub fn delete_workspace(
+        &self,
+        workspace_id: &str,
+        workspace_path: &Path,
+        delete_directory: bool,
+    ) -> AppResult<()> {
+        if delete_directory {
+            self.delete_workspace_directory(workspace_path)?;
+            self.remove_workspace_record(workspace_id)?;
+            self.clear_current_workspace_if_matches(workspace_id, workspace_path)?;
+            return Ok(());
+        }
+
+        self.remove_workspace_record(workspace_id)
+    }
+
     pub fn remove_workspace_record(&self, workspace_id: &str) -> AppResult<()> {
         let mut registry = json_store::load_workspace_registry(self.state.app_data_dir())?;
         registry.workspaces.retain(|entry| entry.workspace_id != workspace_id);
@@ -146,5 +162,29 @@ impl<'a> WorkspaceService<'a> {
             .as_ref()
             .map(|session| session.workspace_path.clone())
             .ok_or_else(|| AppError::new("workspace.not_open", "no workspace is currently open"))
+    }
+
+    fn clear_current_workspace_if_matches(
+        &self,
+        workspace_id: &str,
+        workspace_path: &Path,
+    ) -> AppResult<()> {
+        let mut sessions = self.state.sessions.write().map_err(|_| {
+            AppError::new("workspace.session_lock_poisoned", "workspace session lock poisoned")
+        })?;
+
+        let should_clear = sessions
+            .current_workspace
+            .as_ref()
+            .map(|session| {
+                session.meta.id == workspace_id || session.workspace_path.as_path() == workspace_path
+            })
+            .unwrap_or(false);
+
+        if should_clear {
+            sessions.clear_workspace();
+        }
+
+        Ok(())
     }
 }

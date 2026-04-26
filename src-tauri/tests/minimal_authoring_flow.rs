@@ -128,3 +128,56 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     assert_eq!(rows[0].code, 100_000_010);
     assert!(rows[0].has_script);
 }
+
+#[test]
+fn removing_workspace_record_keeps_workspace_directory() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-record-only");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(
+        &state,
+        workspace_path.clone(),
+        "Workspace Record Only",
+        None,
+    )
+    .unwrap();
+
+    let recent_before = app_commands::list_recent_workspaces(&state).unwrap();
+    assert_eq!(recent_before.workspaces.len(), 1);
+
+    app_commands::delete_workspace(&state, &workspace.id, workspace_path.clone(), false).unwrap();
+
+    assert!(workspace_path.exists());
+    let recent_after = app_commands::list_recent_workspaces(&state).unwrap();
+    assert!(recent_after.workspaces.is_empty());
+}
+
+#[test]
+fn deleting_workspace_directory_removes_directory_and_clears_session() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-delete-dir");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(
+        &state,
+        workspace_path.clone(),
+        "Workspace Delete Dir",
+        None,
+    )
+    .unwrap();
+
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    app_commands::delete_workspace(&state, &workspace.id, workspace_path.clone(), true).unwrap();
+
+    assert!(!workspace_path.exists());
+    let recent_after = app_commands::list_recent_workspaces(&state).unwrap();
+    assert!(recent_after.workspaces.is_empty());
+
+    let sessions = state.sessions.read().unwrap();
+    assert!(sessions.current_workspace.is_none());
+}

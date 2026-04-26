@@ -14,8 +14,15 @@
 
 1. 作者态 Rust 后端最小闭环已继续保持可用
 2. `P0 工程启动包` 已完成，当前仓库已经具备可启动的 Tauri + React 最小应用壳
-3. 前端目前仍停留在 bootstrap / 初始化页面阶段，业务页面与交互闭环尚未开始
-4. 下一步建议从 `P1 设置与 Workspace 页面` 开始推进
+3. `P1 设置与 Workspace 页面` 已部分完成：
+   - 前端技术栈已确定并落地：Zustand（全局 UI 状态）+ TanStack Query（服务端数据缓存）+ CSS Modules
+   - 前端 App shell 已重构为线稿图布局：自定义标题栏 + 紧凑侧边栏（图标按钮 + pack 列表）+ 右侧 pack 工作区（元数据栏 + Cards/Strings 标签页）
+   - 自定义标题栏功能已完整：窗口拖拽、最小化、最大化/还原、关闭均已通过 Tauri v2 capability 权限配置实现
+   - Workspace modal（最近工作区列表、按路径打开、新建）已实现
+   - Global Settings modal 已实现
+   - Tauri capability 权限已添加窗口控制相关项
+   - 前端代码已从单体 App.tsx 拆分为 features/ 模块化结构
+4. 下一步建议推进 `P2 Pack 列表与 Tab 会话`
 
 ## 当前最小实现
 
@@ -87,13 +94,26 @@
 
 ### P1 设置与 Workspace 页面
 
+状态：
+部分完成（2026-04-26）
+
 目标：
 把程序级配置和工作区管理变成可操作 UI。
 
 内容：
 1. 设置页
 2. recent workspaces 页面
-3. 新建、打开、删除工作区
+3. 新建、打开工作区
+
+当前完成情况：
+1. 前端技术栈已确定并安装（zustand、@tanstack/react-query）
+2. App shell 已重构为线稿图布局（自定义标题栏 + 侧边栏 + pack 工作区）
+3. 自定义标题栏已完整实现（拖拽、窗口控制），Tauri v2 capability 权限已配置
+4. Workspace modal 已实现（recent workspaces、按路径打开、新建工作区）
+5. Global Settings modal 已实现（全局配置编辑与保存）
+6. 前端代码已模块化拆分到 features/workspace、features/settings
+7. Zustand shellStore 已建立（管理 workspace/pack/modal 全局状态）
+8. 共享 API 层和 contract 类型已按 feature 拆分
 
 依赖：
 1. P0
@@ -240,10 +260,11 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议直接从 `P1 设置与 Workspace 页面` 开始。
+下一次进入 Plan 模式时，建议从 `P2 Pack 列表与 Tab 会话` 开始。
 
 原因：
 
-1. 当前后端最小闭环已经存在，且 `P0` 已把它接成可运行应用壳
-2. 接下来最值得补的是“程序级配置 + recent workspaces + workspace 操作 UI”
-3. 只有先把 workspace 层操作做成真实页面，后续 pack / card 包才更容易在应用内验证
+1. P0 已完成，P1 中设置页和 Workspace 页已可操作
+2. 前端 shell 已与线稿图对齐，侧边栏 pack 列表结构已就位但尚无后端数据
+3. 接下来最值得补的是 pack 生命周期管理 + pack tab 打开/关闭/切换
+4. 只有先把 pack 层操作做成真实闭环，后续 card 编辑才能在应用内验证

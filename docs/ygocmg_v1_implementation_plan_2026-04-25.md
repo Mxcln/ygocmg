@@ -34,8 +34,8 @@
 1. 作者态 Rust 后端最小闭环已落地，包括 `config/workspace/pack/card` 的核心读写、运行时 session、JSON 存储与安全写入最小实现
 2. `code` 变更触发资源改名的最小流程已存在，并有最小作者态集成测试覆盖
 3. `P0 工程启动包` 已完成，当前仓库已经具备可启动的 Tauri + React 最小应用壳
-4. 前端目前仍主要停留在 bootstrap 页面与基础 API 包装阶段，设置页、workspace 页、pack 页、card 页尚未开始
-5. 因此后续实现重点应从“补应用壳”转为“补业务页面与交互闭环”
+4. P1 设置与 Workspace 页面 部分完成：前端技术栈已确定（Zustand + TanStack Query + CSS Modules）；App shell 已重构为线稿图布局（自定义标题栏 + 紧凑侧边栏 + pack 工作区）；Tauri v2 窗口控制权限已配置；Workspace modal 和 Settings modal 已实现；代码已模块化拆分到 features/ 目录
+5. 后续实现重点应从“补 pack 生命周期管理 + pack tab 会话”开始（P2）
 
 ## 2. 实现基线
 
@@ -79,8 +79,7 @@ YGOCMG 首版的实现基线如下：
 2. 新建工作区
 3. 打开已有工作区
 4. 切换当前工作区
-5. 删除工作区
-6. 区分“从程序中移除记录”和“删除磁盘目录”
+5. recent workspaces 浏览与重开
 
 #### 3.1.3 标准包能力
 
@@ -922,7 +921,7 @@ src/
 实现要求：
 
 1. 服务端数据缓存使用 TanStack Query
-2. 纯 UI 状态用轻量 store 或 React Context
+2. 纯 UI 状态使用 Zustand（已落地：shellStore 管理 workspace/pack/modal 全局状态）
 3. 单卡详情页的 `current_edit_language` 只保留在页面草稿态
 4. 不把整个 `PackSession` 镜像进前端全局状态
 
@@ -944,9 +943,8 @@ src/
 1. recent workspaces 列表
 2. 新建工作区
 3. 打开工作区
-4. 删除工作区
-5. pack 列表与顺序编辑
-6. 已打开 pack 的侧边栏 tab 容器
+4. pack 列表与顺序编辑
+5. 已打开 pack 的侧边栏 tab 容器
 
 #### 8.3.3 `features/pack`
 
@@ -1182,10 +1180,9 @@ pack 级写入的最小提交原则：
 2. 非法编号被阻断
 3. 过近编号触发 warning
 4. `code` 变更后资源文件被同步迁移
-5. 删除工作区的两种模式行为正确
-6. 标准包只读搜索可用
-7. 导入导出预检结果与实际执行一致
-8. 导出结果可被 YGOPro 正常识别
+5. 标准包只读搜索可用
+6. 导入导出预检结果与实际执行一致
+7. 导出结果可被 YGOPro 正常识别
 
 ## 11. 任务分块与里程碑
 
@@ -1333,7 +1330,7 @@ pack 级写入的最小提交原则：
 
 1. 完成设置页
 2. 完成 recent workspaces 列表
-3. 完成新建、打开、切换、删除工作区 UI
+3. 完成新建、打开、切换工作区 UI
 
 交付物：
 
@@ -1349,7 +1346,7 @@ pack 级写入的最小提交原则：
 
 1. 可以创建并重新打开 workspace
 2. recent workspaces 正确更新
-3. 删除工作区两种模式行为正确
+3. 无效 recent workspace 路径会得到明确反馈
 
 #### WP4 Pack 管理与 PackSession
 

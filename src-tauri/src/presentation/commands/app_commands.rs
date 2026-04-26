@@ -42,6 +42,16 @@ pub fn open_workspace(state: &AppState, path: PathBuf) -> AppResult<WorkspaceMet
     )
 }
 
+pub fn delete_workspace(
+    state: &AppState,
+    workspace_id: &str,
+    path: PathBuf,
+    delete_directory: bool,
+) -> AppResult<()> {
+    crate::application::workspace::service::WorkspaceService::new(state)
+        .delete_workspace(workspace_id, &path, delete_directory)
+}
+
 pub fn create_pack(
     state: &AppState,
     name: &str,

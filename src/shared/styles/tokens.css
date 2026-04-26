@@ -1,0 +1,22 @@
+:root {
+  --bg-0: #f3ece2;
+  --bg-1: #faf5ee;
+  --bg-2: #fffcf7;
+  --panel: #fffbf6;
+  --panel-strong: #fffcf8;
+  --panel-muted: #f8f2ea;
+  --line: rgba(69, 50, 34, 0.14);
+  --line-strong: rgba(69, 50, 34, 0.22);
+  --text-0: #241d17;
+  --text-1: #5c4b3f;
+  --text-2: #88786a;
+  --brand: #115e5f;
+  --brand-soft: rgba(17, 94, 95, 0.1);
+  --accent: #b87b2c;
+  --accent-soft: rgba(184, 123, 44, 0.12);
+  --danger: #ab4338;
+  --danger-soft: rgba(171, 67, 56, 0.1);
+  --success: #216b4c;
+  --warning: #996216;
+  color-scheme: light;
+}

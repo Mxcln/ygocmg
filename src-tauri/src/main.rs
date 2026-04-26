@@ -24,6 +24,7 @@ fn main() {
             tauri_commands::list_recent_workspaces,
             tauri_commands::create_workspace,
             tauri_commands::open_workspace,
+            tauri_commands::delete_workspace,
             tauri_commands::create_pack,
             tauri_commands::open_pack,
             tauri_commands::list_pack_overviews,

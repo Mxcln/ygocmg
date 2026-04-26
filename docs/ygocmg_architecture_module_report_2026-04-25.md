@@ -630,10 +630,9 @@ pub trait ConfigService {
 1. 新建工作区
 2. 打开工作区
 3. 切换工作区
-4. 删除工作区
-5. 获取工作区概览
-6. 更新 pack 顺序
-7. 提供 workspace 级 pack 摘要与已打开 tab 状态
+4. 获取工作区概览
+5. 更新 pack 顺序
+6. 提供 workspace 级 pack 摘要与已打开 tab 状态
 
 建议服务接口：
 
@@ -643,7 +642,6 @@ pub trait WorkspaceService {
     fn create_workspace(&self, input: CreateWorkspaceInput) -> AppResult<WorkspaceOpenedDto>;
     fn open_workspace(&self, input: OpenWorkspaceInput) -> AppResult<WorkspaceOpenedDto>;
     fn close_workspace(&self) -> AppResult<()>;
-    fn delete_workspace(&self, input: DeleteWorkspaceInput) -> AppResult<()>;
     fn reorder_packs(&self, input: ReorderPacksInput) -> AppResult<WorkspaceMetaDto>;
 }
 ```
@@ -651,7 +649,7 @@ pub trait WorkspaceService {
 说明：
 
 1. `list_recent_workspaces` 读取程序级工作区注册表，而不是扫描磁盘
-2. `delete_workspace` 必须显式区分 `unregister_only` 与 `delete_from_disk`
+2. 首版 UI 只消费 recent workspaces、create、open 相关能力，不提供 workspace 删除入口
 
 ### 6.2.4 `application/pack`
 
@@ -1123,7 +1121,7 @@ presentation/
 职责：
 
 1. 工作区列表
-2. 新建/打开/切换/删除工作区
+2. 新建/打开/切换工作区
 3. 展示当前工作区 pack 列表
 4. pack 排序 UI
 
@@ -1501,7 +1499,6 @@ list_recent_workspaces
 create_workspace
 open_workspace
 close_workspace
-delete_workspace
 reorder_packs
 ```
 

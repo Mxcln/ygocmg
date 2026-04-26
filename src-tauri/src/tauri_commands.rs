@@ -24,6 +24,21 @@ pub struct OpenWorkspaceInput {
     path: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeleteWorkspaceMode {
+    RemoveRecord,
+    DeleteDirectory,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteWorkspaceInput {
+    workspace_id: String,
+    path: PathBuf,
+    mode: DeleteWorkspaceMode,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePackInput {
@@ -120,6 +135,19 @@ pub fn open_workspace(
     input: OpenWorkspaceInput,
 ) -> CommandResult<crate::domain::workspace::model::WorkspaceMeta> {
     crate::presentation::commands::app_commands::open_workspace(&state, input.path)
+}
+
+#[tauri::command]
+pub fn delete_workspace(
+    state: State<'_, AppState>,
+    input: DeleteWorkspaceInput,
+) -> CommandResult<()> {
+    crate::presentation::commands::app_commands::delete_workspace(
+        &state,
+        &input.workspace_id,
+        input.path,
+        matches!(input.mode, DeleteWorkspaceMode::DeleteDirectory),
+    )
 }
 
 #[tauri::command]

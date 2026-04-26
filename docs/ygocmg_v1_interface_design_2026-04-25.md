@@ -987,19 +987,6 @@ pub struct OpenWorkspaceInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DeleteWorkspaceMode {
-    UnregisterOnly,
-    DeleteFromDisk,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeleteWorkspaceInput {
-    pub workspace_id: WorkspaceId,
-    pub path: std::path::PathBuf,
-    pub mode: DeleteWorkspaceMode,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReorderPacksInput {
     pub workspace_id: WorkspaceId,
     pub pack_order: Vec<PackId>,
@@ -2124,11 +2111,6 @@ pub trait WorkspaceService: Send + Sync {
 
     fn close_workspace(&self) -> AppResult<()>;
 
-    fn delete_workspace(
-        &self,
-        input: crate::application::dto::workspace::DeleteWorkspaceInput,
-    ) -> AppResult<()>;
-
     fn reorder_packs(
         &self,
         input: crate::application::dto::workspace::ReorderPacksInput,
@@ -2688,12 +2670,6 @@ pub async fn close_workspace(
 ) -> CommandResult<()>;
 
 #[tauri::command]
-pub async fn delete_workspace(
-    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
-    input: crate::presentation::dto::workspace::DeleteWorkspaceInput,
-) -> CommandResult<()>;
-
-#[tauri::command]
 pub async fn reorder_packs(
     state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
     input: crate::presentation::dto::workspace::ReorderPacksInput,
@@ -2979,7 +2955,6 @@ export interface WorkspaceApi {
   createWorkspace(input: CreateWorkspaceInput): Promise<ApiResult<WorkspaceOpenedDto>>;
   openWorkspace(input: OpenWorkspaceInput): Promise<ApiResult<WorkspaceOpenedDto>>;
   closeWorkspace(): Promise<ApiResult<void>>;
-  deleteWorkspace(input: DeleteWorkspaceInput): Promise<ApiResult<void>>;
   reorderPacks(input: ReorderPacksInput): Promise<ApiResult<WorkspaceMetaDto>>;
 }
 ```
