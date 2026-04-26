@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use crate::bootstrap::AppState;
-use crate::domain::card::model::{CardEntity, CardListRow, CardUpdateInput};
+use crate::application::dto::card::{
+    CardDetailDto, CardListPageDto, CreateCardInput, GetCardInput, ListCardsInput,
+    SuggestCodeInput, UpdateCardInput,
+};
+use crate::application::dto::common::WriteResultDto;
 use crate::domain::common::error::AppResult;
 use crate::domain::config::model::GlobalConfig;
 use crate::domain::pack::model::{PackMetadata, PackOverview};
@@ -72,11 +76,7 @@ pub fn create_pack(
 }
 
 pub fn open_pack(state: &AppState, pack_id: &str) -> AppResult<PackMetadata> {
-    Ok(
-        crate::application::pack::service::PackService::new(state)
-            .open_pack(pack_id)?
-            .metadata,
-    )
+    crate::application::pack::service::PackService::new(state).open_pack(pack_id)
 }
 
 pub fn close_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
@@ -128,39 +128,62 @@ pub fn list_pack_overviews(state: &AppState) -> AppResult<Vec<PackOverview>> {
     Ok(values)
 }
 
-pub fn list_cards(state: &AppState, pack_id: &str) -> AppResult<Vec<CardListRow>> {
-    crate::application::card::service::CardService::new(state).list_cards(pack_id)
+pub fn list_cards(state: &AppState, input: ListCardsInput) -> AppResult<CardListPageDto> {
+    crate::application::card::service::CardService::new(state).list_cards(input)
 }
 
-pub fn create_card(
-    state: &AppState,
-    pack_id: &str,
-    input: CardUpdateInput,
-) -> AppResult<CardEntity> {
-    Ok(crate::application::card::service::CardService::new(state)
-        .create_card(pack_id, input)?
-        .0)
+pub fn get_card(state: &AppState, input: GetCardInput) -> AppResult<CardDetailDto> {
+    crate::application::card::service::CardService::new(state).get_card(input)
 }
 
 pub fn update_card(
     state: &AppState,
-    pack_id: &str,
-    card_id: &str,
-    input: CardUpdateInput,
-) -> AppResult<CardEntity> {
-    Ok(crate::application::card::service::CardService::new(state)
-        .update_card(pack_id, card_id, input)?
-        .0)
+    input: UpdateCardInput,
+) -> AppResult<WriteResultDto<CardDetailDto>> {
+    let query = crate::application::card::service::CardService::new(state);
+    let code_context = query.build_code_context(&input.pack_id, Some(&input.card_id))?;
+    let (_session, updated, warnings) = crate::application::pack::write_service::PackWriteService::new(state)
+        .update_card(
+            &input.workspace_id,
+            &input.pack_id,
+            &input.card_id,
+            input.card,
+            code_context,
+        )?;
+    let detail = query.get_card(GetCardInput {
+        workspace_id: input.workspace_id,
+        pack_id: input.pack_id,
+        card_id: updated.id.clone(),
+    })?;
+    Ok(WriteResultDto::Ok { data: detail, warnings })
+}
+
+pub fn create_card(
+    state: &AppState,
+    input: CreateCardInput,
+) -> AppResult<WriteResultDto<CardDetailDto>> {
+    let query = crate::application::card::service::CardService::new(state);
+    let code_context = query.build_code_context(&input.pack_id, None)?;
+    let (_session, created, warnings) = crate::application::pack::write_service::PackWriteService::new(state)
+        .create_card(&input.workspace_id, &input.pack_id, input.card, code_context)?;
+    let detail = query.get_card(GetCardInput {
+        workspace_id: input.workspace_id,
+        pack_id: input.pack_id,
+        card_id: created.id.clone(),
+    })?;
+    Ok(WriteResultDto::Ok { data: detail, warnings })
 }
 
 pub fn delete_card(state: &AppState, pack_id: &str, card_id: &str) -> AppResult<()> {
-    crate::application::card::service::CardService::new(state).delete_card(pack_id, card_id)
+    let workspace_id = crate::application::pack::service::current_workspace_id(state)?;
+    crate::application::pack::write_service::PackWriteService::new(state)
+        .delete_card(&workspace_id, pack_id, card_id)
+        .map(|_| ())
 }
 
 pub fn suggest_card_code(
     state: &AppState,
-    pack_id: &str,
-    preferred_start: Option<u32>,
-) -> AppResult<Option<u32>> {
-    crate::application::card::service::CardService::new(state).suggest_code(pack_id, preferred_start)
+    input: SuggestCodeInput,
+) -> AppResult<crate::application::dto::card::CodeSuggestionDto> {
+    crate::application::card::service::CardService::new(state).suggest_code(input)
 }

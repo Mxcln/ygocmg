@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::domain::card::model::CardEntity;
+use crate::domain::card::model::{CardEntity, CardListRow};
 use crate::domain::common::ids::{PackId, WorkspaceId};
 use crate::domain::pack::model::{PackMetadata, PackOverview};
+use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::PackStringsFile;
 use crate::domain::workspace::model::WorkspaceMeta;
 
@@ -19,10 +20,15 @@ pub struct WorkspaceSession {
 
 #[derive(Debug, Clone)]
 pub struct PackSession {
+    pub pack_id: PackId,
     pub pack_path: PathBuf,
+    pub revision: u64,
+    pub source_stamp: String,
     pub metadata: PackMetadata,
     pub cards: Vec<CardEntity>,
     pub strings: PackStringsFile,
+    pub asset_index: BTreeMap<crate::domain::common::ids::CardId, CardAssetState>,
+    pub card_list_cache: Vec<CardListRow>,
 }
 
 #[derive(Debug, Default)]

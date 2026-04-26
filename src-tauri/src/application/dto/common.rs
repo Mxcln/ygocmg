@@ -15,6 +15,20 @@ pub struct AppResponse<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum WriteResultDto<T> {
+    Ok {
+        data: T,
+        warnings: Vec<ValidationIssue>,
+    },
+    NeedsConfirmation {
+        confirmation_token: String,
+        warnings: Vec<ValidationIssue>,
+        preview: Option<serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppErrorDto {
     pub code: String,
     pub message: String,

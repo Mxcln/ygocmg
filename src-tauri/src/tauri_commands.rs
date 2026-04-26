@@ -3,8 +3,11 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use tauri::State;
 
+use crate::application::dto::card::{
+    CreateCardInput, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
+};
 use crate::bootstrap::AppState;
-use crate::domain::card::model::CardUpdateInput;
+use crate::application::dto::common::WriteResultDto;
 use crate::domain::common::error::AppError;
 use crate::domain::config::model::GlobalConfig;
 
@@ -88,37 +91,9 @@ pub struct DeletePackInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListCardsInput {
-    pack_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateCardInput {
-    pack_id: String,
-    card: CardUpdateInput,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateCardInput {
-    pack_id: String,
-    card_id: String,
-    card: CardUpdateInput,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DeleteCardInput {
     pack_id: String,
     card_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SuggestCardCodeInput {
-    pack_id: String,
-    preferred_start: Option<u32>,
 }
 
 #[tauri::command]
@@ -256,29 +231,32 @@ pub fn list_pack_overviews(
 pub fn list_cards(
     state: State<'_, AppState>,
     input: ListCardsInput,
-) -> CommandResult<Vec<crate::domain::card::model::CardListRow>> {
-    crate::presentation::commands::app_commands::list_cards(&state, &input.pack_id)
+) -> CommandResult<crate::application::dto::card::CardListPageDto> {
+    crate::presentation::commands::app_commands::list_cards(&state, input)
+}
+
+#[tauri::command]
+pub fn get_card(
+    state: State<'_, AppState>,
+    input: GetCardInput,
+) -> CommandResult<crate::application::dto::card::CardDetailDto> {
+    crate::presentation::commands::app_commands::get_card(&state, input)
 }
 
 #[tauri::command]
 pub fn create_card(
     state: State<'_, AppState>,
     input: CreateCardInput,
-) -> CommandResult<crate::domain::card::model::CardEntity> {
-    crate::presentation::commands::app_commands::create_card(&state, &input.pack_id, input.card)
+) -> CommandResult<WriteResultDto<crate::application::dto::card::CardDetailDto>> {
+    crate::presentation::commands::app_commands::create_card(&state, input)
 }
 
 #[tauri::command]
 pub fn update_card(
     state: State<'_, AppState>,
     input: UpdateCardInput,
-) -> CommandResult<crate::domain::card::model::CardEntity> {
-    crate::presentation::commands::app_commands::update_card(
-        &state,
-        &input.pack_id,
-        &input.card_id,
-        input.card,
-    )
+) -> CommandResult<WriteResultDto<crate::application::dto::card::CardDetailDto>> {
+    crate::presentation::commands::app_commands::update_card(&state, input)
 }
 
 #[tauri::command]
@@ -296,11 +274,7 @@ pub fn delete_card(
 #[tauri::command]
 pub fn suggest_card_code(
     state: State<'_, AppState>,
-    input: SuggestCardCodeInput,
-) -> CommandResult<Option<u32>> {
-    crate::presentation::commands::app_commands::suggest_card_code(
-        &state,
-        &input.pack_id,
-        input.preferred_start,
-    )
+    input: SuggestCodeInput,
+) -> CommandResult<crate::application::dto::card::CodeSuggestionDto> {
+    crate::presentation::commands::app_commands::suggest_card_code(&state, input)
 }

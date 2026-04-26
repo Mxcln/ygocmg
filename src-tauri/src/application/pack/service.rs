@@ -1,16 +1,19 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
 use crate::bootstrap::AppState;
-use crate::domain::card::model::CardsFile;
+use crate::domain::card::derive::derive_card_list_row;
+use crate::domain::card::model::{CardEntity, CardsFile};
 use crate::domain::common::error::{AppError, AppResult};
-use crate::domain::common::ids::PackId;
+use crate::domain::common::ids::{CardId, PackId};
 use crate::domain::common::time::now_utc;
 use crate::domain::pack::model::{PackKind, PackMetadata, PackOverview};
 use crate::domain::pack::summary::{touch_pack_metadata, validate_pack_metadata};
+use crate::domain::resource::model::CardAssetState;
+use crate::domain::resource::path_rules::detect_card_asset_state;
 use crate::domain::strings::model::PackStringsFile;
 use crate::domain::workspace::rules::touch_workspace;
 use crate::infrastructure::json_store;
@@ -77,31 +80,38 @@ impl<'a> PackService<'a> {
         Ok(metadata)
     }
 
-    pub fn open_pack(&self, pack_id: &str) -> AppResult<PackSession> {
+    pub fn open_pack(&self, pack_id: &str) -> AppResult<PackMetadata> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;
+        let workspace_id = self.current_workspace_id()?;
+
+        {
+            let sessions = self.state.sessions.read().map_err(|_| {
+                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+            })?;
+            if let Some(existing) = sessions.open_packs.get(pack_id) {
+                return Ok(existing.metadata.clone());
+            }
+        }
+
         let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
         let metadata = json_store::load_pack_metadata(&pack_path)?;
         let cards = json_store::load_cards(&pack_path)?;
         let strings = json_store::load_pack_strings(&pack_path)?;
-
-        let session = PackSession {
-            pack_path,
-            metadata,
-            cards,
-            strings,
-        };
+        let session = build_pack_session(pack_path, metadata, cards, strings, 0)?;
+        let response = session.metadata.clone();
 
         {
             let mut sessions = self.state.sessions.write().map_err(|_| {
                 AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
             })?;
+            ensure_workspace_matches_locked(&sessions, &workspace_id)?;
             sessions.put_pack(session.clone());
         }
 
         self.refresh_current_workspace_summary()?;
         self.persist_session_state(&workspace_path)?;
-        Ok(session)
+        Ok(response)
     }
 
     pub fn close_pack(&self, pack_id: &str) -> AppResult<()> {
@@ -176,13 +186,28 @@ impl<'a> PackService<'a> {
         metadata = touch_pack_metadata(&metadata, now_utc());
         json_store::save_pack_metadata(&pack_path, &metadata)?;
 
-        {
-            let mut sessions = self.state.sessions.write().map_err(|_| {
-                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-            })?;
-            if let Some(session) = sessions.open_packs.get_mut(pack_id) {
-                session.metadata = metadata.clone();
+        let maybe_next_session = {
+            let snapshot = try_get_open_pack_snapshot(self.state, pack_id)?;
+            if let Some(snapshot) = snapshot {
+                Some(build_pack_session(
+                    snapshot.pack_path.clone(),
+                    metadata.clone(),
+                    snapshot.cards.clone(),
+                    snapshot.strings.clone(),
+                    snapshot.revision + 1,
+                )?)
+            } else {
+                None
             }
+        };
+
+        if let Some(next_session) = maybe_next_session {
+            replace_open_pack_session(
+                self.state,
+                &self.current_workspace_id()?,
+                pack_id,
+                next_session,
+            )?;
         }
 
         self.refresh_current_workspace_summary()?;
@@ -290,28 +315,61 @@ pub fn load_pack_overviews(workspace_path: &Path) -> AppResult<BTreeMap<PackId, 
     Ok(load_pack_inventory(workspace_path)?.pack_overviews)
 }
 
-pub fn persist_open_pack(
+pub fn current_workspace_id(state: &AppState) -> AppResult<String> {
+    let sessions = state.sessions.read().map_err(|_| {
+        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+    })?;
+    sessions
+        .current_workspace_id()
+        .cloned()
+        .ok_or_else(|| AppError::new("workspace.not_open", "no workspace is currently open"))
+}
+
+pub fn ensure_workspace_matches(state: &AppState, workspace_id: &str) -> AppResult<()> {
+    let sessions = state.sessions.read().map_err(|_| {
+        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+    })?;
+    ensure_workspace_matches_locked(&sessions, workspace_id)
+}
+
+pub fn require_open_pack_snapshot(
     state: &AppState,
+    workspace_id: &str,
     pack_id: &str,
-    mutator: impl FnOnce(&mut PackSession) -> AppResult<()>,
 ) -> AppResult<PackSession> {
+    let sessions = state.sessions.read().map_err(|_| {
+        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+    })?;
+    ensure_workspace_matches_locked(&sessions, workspace_id)?;
+    sessions
+        .open_packs
+        .get(pack_id)
+        .cloned()
+        .ok_or_else(|| AppError::new("pack.not_open", "pack is not currently open"))
+}
+
+pub fn try_get_open_pack_snapshot(state: &AppState, pack_id: &str) -> AppResult<Option<PackSession>> {
+    let sessions = state.sessions.read().map_err(|_| {
+        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+    })?;
+    Ok(sessions.open_packs.get(pack_id).cloned())
+}
+
+pub fn replace_open_pack_session(
+    state: &AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    session: PackSession,
+) -> AppResult<()> {
     let mut sessions = state.sessions.write().map_err(|_| {
         AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
     })?;
-    let session = sessions
-        .open_packs
-        .get_mut(pack_id)
-        .ok_or_else(|| AppError::new("pack.not_open", "pack is not currently open"))?;
-    mutator(session)?;
-    Ok(session.clone())
-}
-
-pub fn touch_pack_and_persist(
-    pack_path: &Path,
-    metadata: &mut PackMetadata,
-) -> AppResult<()> {
-    *metadata = touch_pack_metadata(metadata, now_utc());
-    json_store::save_pack_metadata(pack_path, metadata)
+    ensure_workspace_matches_locked(&sessions, workspace_id)?;
+    if !sessions.open_packs.contains_key(pack_id) {
+        return Err(AppError::new("pack.not_open", "pack is not currently open"));
+    }
+    sessions.open_packs.insert(pack_id.to_string(), session);
+    Ok(())
 }
 
 pub fn pack_file_card_count(pack_path: &Path) -> AppResult<usize> {
@@ -321,4 +379,108 @@ pub fn pack_file_card_count(pack_path: &Path) -> AppResult<usize> {
     }
     let file: CardsFile = json_store::read_json(&path)?;
     Ok(file.cards.len())
+}
+
+pub fn build_pack_session(
+    pack_path: PathBuf,
+    metadata: PackMetadata,
+    cards: Vec<CardEntity>,
+    strings: PackStringsFile,
+    revision: u64,
+) -> AppResult<PackSession> {
+    let asset_index = build_asset_index(&pack_path, &cards);
+    let card_list_cache = build_card_list_cache(&cards, &asset_index, &metadata.display_language_order);
+    let source_stamp = build_source_stamp(&pack_path, &metadata)?;
+
+    Ok(PackSession {
+        pack_id: metadata.id.clone(),
+        pack_path,
+        revision,
+        source_stamp,
+        metadata,
+        cards,
+        strings,
+        asset_index,
+        card_list_cache,
+    })
+}
+
+fn build_asset_index(pack_path: &Path, cards: &[CardEntity]) -> BTreeMap<CardId, CardAssetState> {
+    cards
+        .iter()
+        .map(|card| {
+            (
+                card.id.clone(),
+                detect_card_asset_state(pack_path, card.code),
+            )
+        })
+        .collect()
+}
+
+fn build_card_list_cache(
+    cards: &[CardEntity],
+    asset_index: &BTreeMap<CardId, CardAssetState>,
+    display_language_order: &[String],
+) -> Vec<crate::domain::card::model::CardListRow> {
+    let mut rows = cards
+        .iter()
+        .map(|card| {
+            let assets = asset_index.get(&card.id).cloned().unwrap_or_default();
+            derive_card_list_row(card, &assets, display_language_order)
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|row| row.code);
+    rows
+}
+
+fn build_source_stamp(pack_path: &Path, metadata: &PackMetadata) -> AppResult<String> {
+    let cards_meta = file_stamp(&json_store::cards_path(pack_path))?;
+    let strings_meta = file_stamp(&json_store::pack_strings_path(pack_path))?;
+    Ok(format!(
+        "updated_at={};cards={};strings={}",
+        metadata.updated_at.to_rfc3339(),
+        cards_meta,
+        strings_meta
+    ))
+}
+
+fn file_stamp(path: &Path) -> AppResult<String> {
+    if !path.exists() {
+        return Ok("missing".to_string());
+    }
+
+    let metadata = fs::metadata(path).map_err(|source| {
+        AppError::from_io("pack.file_metadata_failed", source)
+            .with_detail("path", path.display().to_string())
+    })?;
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    Ok(format!("{}:{}", modified, metadata.len()))
+}
+
+fn ensure_workspace_matches_locked(
+    sessions: &crate::runtime::sessions::SessionManager,
+    workspace_id: &str,
+) -> AppResult<()> {
+    let current = sessions.current_workspace_id().ok_or_else(|| {
+        AppError::new("workspace.not_open", "no workspace is currently open")
+    })?;
+    if current != workspace_id {
+        return Err(
+            AppError::new("workspace.mismatch", "workspace id does not match current session")
+                .with_detail("expected_workspace_id", current)
+                .with_detail("actual_workspace_id", workspace_id),
+        );
+    }
+    Ok(())
+}
+
+impl<'a> PackService<'a> {
+    fn current_workspace_id(&self) -> AppResult<String> {
+        current_workspace_id(self.state)
+    }
 }

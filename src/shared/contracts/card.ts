@@ -1,4 +1,5 @@
 import type { CardId, LanguageCode } from "./common";
+import type { ValidationIssue } from "./common";
 
 export type PrimaryType = "monster" | "spell" | "trap";
 export type Ot = "ocg" | "tcg" | "custom";
@@ -122,3 +123,78 @@ export interface CardListRow {
   has_script: boolean;
   has_field_image: boolean;
 }
+
+export interface CardAssetState {
+  has_image: boolean;
+  has_script: boolean;
+  has_field_image: boolean;
+}
+
+export interface CardDetail {
+  card: CardEntity;
+  asset_state: CardAssetState;
+  available_languages: LanguageCode[];
+}
+
+export type CardSortField = "code" | "name";
+export type SortDirection = "asc" | "desc";
+
+export interface CardListPage {
+  items: CardListRow[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface ListCardsInput {
+  workspaceId: string;
+  packId: string;
+  keyword: string | null;
+  sortBy: CardSortField;
+  sortDirection: SortDirection;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetCardInput {
+  workspaceId: string;
+  packId: string;
+  cardId: string;
+}
+
+export interface CreateCardInput {
+  workspaceId: string;
+  packId: string;
+  card: Omit<CardEntity, "id" | "created_at" | "updated_at">;
+}
+
+export interface UpdateCardInput {
+  workspaceId: string;
+  packId: string;
+  cardId: string;
+  card: Omit<CardEntity, "id" | "created_at" | "updated_at">;
+}
+
+export interface SuggestCodeInput {
+  workspaceId: string;
+  packId: string;
+  preferredStart: number | null;
+}
+
+export interface SuggestCodeResult {
+  suggested_code: number | null;
+  warnings: ValidationIssue[];
+}
+
+export type WriteResult<T> =
+  | {
+      status: "ok";
+      data: T;
+      warnings: ValidationIssue[];
+    }
+  | {
+      status: "needs_confirmation";
+      confirmation_token: string;
+      warnings: ValidationIssue[];
+      preview: unknown;
+    };

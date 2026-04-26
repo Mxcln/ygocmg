@@ -205,6 +205,9 @@
 
 ### P3 单卡编辑闭环
 
+状态：
+后端已完成（2026-04-26）
+
 目标：
 完成首个用户真正可用的编辑闭环。
 
@@ -213,6 +216,24 @@
 2. 单卡详情/编辑表单
 3. 新建卡片
 4. 改号 warning/错误展示
+
+当前完成情况（后端）：
+1. 后端已新增 `application/dto/card.rs`，提供 `CardListPageDto`、`CardDetailDto`、`SuggestCodeInput`、`CreateCardInput`、`UpdateCardInput` 等单卡 DTO
+2. `list_cards` 已切为分页返回，`get_card` 已新增，`suggest_card_code` 已返回 `suggested_code + warnings`
+3. `create_card` / `update_card` 已切为 `WriteResultDto::Ok { data, warnings }`
+4. 卡片命令已显式携带 `workspace_id / pack_id / card_id`，并校验 `workspace_id` 与当前会话一致
+5. `CardService` 已收敛为读侧服务：`list_cards` / `get_card` / `suggest_code`
+6. `PackWriteService` 已承接 `create_card`、`update_card`、`delete_card`
+7. `PackSession` 已扩展 `revision`、`source_stamp`、`asset_index`、`card_list_cache`
+8. `open_pack` 已构建完整 pack 快照，`set_active_pack` 不会重建 `card_list_cache`
+9. 改号时资源 rename、`cards.json`、`metadata.json` 已收进同一个事务计划
+10. review 修复已完成：`delete_card` 收口、`suggest_card_code` 的 `workspace_id` 校验、`update_card` 去重、单次写操作时间戳统一、`open_pack` 返回成本收窄
+
+验收（后端）：
+1. Rust 测试 `cargo test --offline` 通过
+2. 单卡 create/update/list/get/suggest 主链路可用
+3. 改号后资源 rename 与 session 重建正确
+4. `workspace_id` 不匹配时返回 `workspace.mismatch`
 
 依赖：
 1. P2

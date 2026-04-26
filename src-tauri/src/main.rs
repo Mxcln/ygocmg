@@ -33,6 +33,7 @@ fn main() {
             tauri_commands::delete_pack,
             tauri_commands::list_pack_overviews,
             tauri_commands::list_cards,
+            tauri_commands::get_card,
             tauri_commands::create_card,
             tauri_commands::update_card,
             tauri_commands::delete_card,
