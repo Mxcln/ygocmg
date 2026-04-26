@@ -64,6 +64,12 @@ pub struct ClosePackInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SetActivePackInput {
+    pack_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeletePackInput {
     pack_id: String,
 }
@@ -192,6 +198,14 @@ pub fn close_pack(
     input: ClosePackInput,
 ) -> CommandResult<()> {
     crate::presentation::commands::app_commands::close_pack(&state, &input.pack_id)
+}
+
+#[tauri::command]
+pub fn set_active_pack(
+    state: State<'_, AppState>,
+    input: SetActivePackInput,
+) -> CommandResult<()> {
+    crate::presentation::commands::app_commands::set_active_pack(&state, &input.pack_id)
 }
 
 #[tauri::command]

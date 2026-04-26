@@ -476,6 +476,10 @@ pub struct GlobalConfig {
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
+    pub shell_sidebar_width: u32,
+    pub shell_window_width: u32,
+    pub shell_window_height: u32,
+    pub shell_window_is_maximized: bool,
 }
 ```
 
@@ -922,6 +926,10 @@ pub struct GlobalConfigDto {
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
+    pub shell_sidebar_width: u32,
+    pub shell_window_width: u32,
+    pub shell_window_height: u32,
+    pub shell_window_is_maximized: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -932,6 +940,10 @@ pub struct UpdateGlobalConfigInput {
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
+    pub shell_sidebar_width: u32,
+    pub shell_window_width: u32,
+    pub shell_window_height: u32,
+    pub shell_window_is_maximized: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1078,6 +1090,11 @@ pub struct OpenPackInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClosePackInput {
     pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetActivePackInput {
     pub pack_id: PackId,
 }
 
@@ -2714,6 +2731,12 @@ pub async fn close_pack(
 ) -> CommandResult<crate::presentation::dto::workspace::WorkspaceOpenedDto>;
 
 #[tauri::command]
+pub async fn set_active_pack(
+    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
+    input: crate::presentation::dto::pack::SetActivePackInput,
+) -> CommandResult<()>;
+
+#[tauri::command]
 pub async fn get_pack_overview(
     state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
     input: crate::presentation::dto::pack::GetPackInput,
@@ -2972,6 +2995,7 @@ export interface PackApi {
   deletePack(input: DeletePackInput): Promise<ApiResult<void>>;
   openPack(input: OpenPackInput): Promise<ApiResult<PackSnapshotDto>>;
   closePack(input: ClosePackInput): Promise<ApiResult<WorkspaceOpenedDto>>;
+  setActivePack(input: SetActivePackInput): Promise<ApiResult<void>>;
   getPackOverview(input: GetPackInput): Promise<ApiResult<PackOverviewDto>>;
 }
 ```

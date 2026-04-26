@@ -118,6 +118,28 @@ impl<'a> PackService<'a> {
         self.persist_session_state(&workspace_path)
     }
 
+    pub fn set_active_pack(&self, pack_id: &str) -> AppResult<()> {
+        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
+            .current_workspace_path()?;
+
+        {
+            let mut sessions = self.state.sessions.write().map_err(|_| {
+                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+            })?;
+            let workspace = sessions.current_workspace.as_mut().ok_or_else(|| {
+                AppError::new("workspace.not_open", "no workspace is currently open")
+            })?;
+
+            if !workspace.open_pack_ids.iter().any(|current| current == pack_id) {
+                return Err(AppError::new("pack.not_open", "pack is not currently open"));
+            }
+
+            workspace.active_pack_id = Some(pack_id.to_string());
+        }
+
+        self.persist_session_state(&workspace_path)
+    }
+
     pub fn delete_pack(&self, pack_id: &str) -> AppResult<()> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;

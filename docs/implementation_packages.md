@@ -31,6 +31,7 @@
    - Metadata 展开面板显示完整 pack 信息并提供删除操作
    - shellStore 增加 packMetadataMap 和 packOverviews 状态管理
    - Workspace 打开后自动加载 pack overviews
+   - 当前 `Delete Pack` 仍使用浏览器原生确认框，尚未统一到应用内确认流
 5. 会话恢复与配置精简：
    - 移除 `default_workspace_root` 配置项（GlobalConfig / Settings modal / Create Workspace 路径自动拼接）
    - `WorkspaceMeta` 新增 `open_pack_ids` 字段，open/close/delete pack 时持久化到磁盘
@@ -142,7 +143,7 @@
 
 内容：
 1. workspace 下 pack 列表
-2. 新建 pack、删除 pack、编辑 metadata
+2. 新建 pack、删除 pack
 3. 打开/关闭 pack tab
 
 当前完成情况：
@@ -155,9 +156,35 @@
 7. Metadata 展开面板显示完整字段（描述、语言、时间戳）并提供 Delete Pack 操作
 8. shellStore 扩展：packMetadataMap 缓存已打开 pack 的元数据，packOverviews 缓存 workspace 内所有 pack 概览
 9. Workspace 打开后自动加载 pack overviews
+10. 切换 active pack 时会立即持久化到 workspace，会话恢复语义已从“last opened”收敛到“last viewed”
+11. Metadata 摘要栏与展开面板已按当前 UI 调整：collapsed 单行显示 name/author/version/preferred text languages，expanded 将 description 放在最后一整行并做显示截断
+12. 侧边栏顶部三个按钮已居中，支持在 `140px - 280px` 范围内拖拽调宽，并把宽度持久化到全局配置
+13. 拖拽侧边栏时会临时全局禁选文本，避免误选
+14. 程序启动窗口默认改为最小尺寸 `960x640`，并新增窗口普通尺寸 / 最大化状态的全局配置字段与恢复逻辑
 
 依赖：
 1. P1
+
+### P2.5 Pack Metadata Editing
+
+目标：
+把 pack metadata 从“只读摘要 + 展开查看”补齐到可编辑闭环。
+
+内容：
+1. 实现 `update_pack_metadata` 后端 command 与前端 API
+2. 在当前 metadata 展开区或独立 modal 中提供可编辑表单
+3. 支持修改 `name`、`author`、`version`、`description`
+4. 支持修改 `display_language_order`
+5. 支持修改 `default_export_language`
+6. 保存后刷新当前打开 pack 的 metadata 和 workspace pack overviews
+
+验收：
+1. 用户可以直接在 UI 中修改 pack metadata
+2. 保存后 metadata bar 与展开区立即刷新
+3. 重新打开应用后，修改结果可从磁盘正确恢复
+
+依赖：
+1. P2
 
 ### P3 单卡编辑闭环
 
@@ -169,6 +196,28 @@
 2. 单卡详情/编辑表单
 3. 新建卡片
 4. 改号 warning/错误展示
+
+依赖：
+1. P2
+
+### P3.5 统一确认与 Warning 流
+
+目标：
+把当前零散的浏览器原生确认框和未来写操作 warning 收敛成统一的应用内交互流。
+
+内容：
+1. 统一 `ConfirmDialog` / `WarningDialog` 组件
+2. 禁止在应用内继续使用浏览器原生 `alert` / `confirm` / `prompt`
+3. 为 destructive action 提供统一标题、正文、危险按钮、取消按钮样式
+4. 支持展示多条 warning / issue，而不是只显示单句文本
+5. 首批接入 `Delete Pack`
+6. 后续复用到 `Delete Cards`、未保存关闭确认、批量操作 warning 确认
+
+验收：
+1. 应用内不再出现浏览器原生确认框
+2. `Delete Pack` 使用统一确认弹窗
+3. warning 可以显示多条 issue
+4. 同一套确认流可复用于 card/strings/import/export
 
 依赖：
 1. P2

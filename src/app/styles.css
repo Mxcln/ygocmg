@@ -1,6 +1,12 @@
 @import "../shared/styles/tokens.css";
 @import "../shared/styles/reset.css";
 
+body.is-resizing-sidebar,
+body.is-resizing-sidebar * {
+  user-select: none;
+  cursor: col-resize !important;
+}
+
 /* ── Launch / loading states ── */
 
 .launch-shell {
@@ -111,9 +117,9 @@
 .shell-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width, 150px) minmax(0, 1fr);
   min-height: 0;
-}
+  }
 
 /* ── Sidebar ── */
 
@@ -123,13 +129,45 @@
   background: var(--bg-1);
   border-right: 1px solid var(--line);
   min-height: 0;
+  position: relative;
 }
 
 .sidebar-actions {
   display: flex;
+  justify-content: center;
   gap: 2px;
   padding: 8px;
   border-bottom: 1px solid var(--line);
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: transparent;
+  transition: background 80ms ease, width 80ms ease, left 80ms ease;
+}
+
+.sidebar:hover .sidebar-resize-handle::before,
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle:active::before {
+  left: 2px;
+  width: 3px;
+  background: rgba(17, 94, 95, 0.16);
 }
 
 .action-btn {
@@ -372,12 +410,16 @@
 .meta-pack-name {
   font-size: 14px;
   font-weight: 700;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .meta-detail {
   font-size: 12px;
   color: var(--text-2);
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -417,6 +459,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.meta-field-wide {
+  grid-column: 1 / -1;
 }
 
 .meta-field-label {
@@ -431,6 +478,19 @@
   font-size: 13px;
   color: var(--text-0);
   word-break: break-word;
+}
+
+.meta-field-value-inline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-field-value-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .meta-actions {
@@ -914,7 +974,11 @@
 
 @media (max-width: 900px) {
   .shell-body {
-    grid-template-columns: 120px minmax(0, 1fr);
+    grid-template-columns: minmax(120px, var(--sidebar-width, 150px)) minmax(0, 1fr);
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
   .settings-grid,
@@ -931,5 +995,11 @@
     border-bottom: 1px solid var(--line);
     flex-direction: row;
     overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .meta-grid {
+    grid-template-columns: 1fr;
   }
 }

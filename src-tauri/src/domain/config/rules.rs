@@ -9,6 +9,10 @@ pub fn default_global_config() -> GlobalConfig {
         custom_code_recommended_min: 90_000_000,
         custom_code_recommended_max: 99_999_999,
         custom_code_min_gap: 10,
+        shell_sidebar_width: 150,
+        shell_window_width: 960,
+        shell_window_height: 640,
+        shell_window_is_maximized: false,
     }
 }
 
@@ -49,6 +53,40 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
             "config.app_language_required",
             target.clone().with_field("app_language"),
         ));
+    }
+
+    if !(140..=280).contains(&config.shell_sidebar_width) {
+        issues.push(
+            ValidationIssue::error(
+                "config.invalid_shell_sidebar_width",
+                target.clone().with_field("shell_sidebar_width"),
+            )
+            .with_param("value", config.shell_sidebar_width)
+            .with_param("min", 140)
+            .with_param("max", 280),
+        );
+    }
+
+    if config.shell_window_width < 960 {
+        issues.push(
+            ValidationIssue::error(
+                "config.invalid_shell_window_width",
+                target.clone().with_field("shell_window_width"),
+            )
+            .with_param("value", config.shell_window_width)
+            .with_param("min", 960),
+        );
+    }
+
+    if config.shell_window_height < 640 {
+        issues.push(
+            ValidationIssue::error(
+                "config.invalid_shell_window_height",
+                target.clone().with_field("shell_window_height"),
+            )
+            .with_param("value", config.shell_window_height)
+            .with_param("min", 640),
+        );
     }
 
     for (field, path) in [

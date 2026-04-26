@@ -39,6 +39,10 @@ export const packApi = {
     return invokeApi<void>("close_pack", { input });
   },
 
+  setActivePack(input: OpenPackInput) {
+    return invokeApi<void>("set_active_pack", { input });
+  },
+
   deletePack(input: DeletePackInput) {
     return invokeApi<void>("delete_pack", { input });
   },

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useShellStore } from "../shared/stores/shellStore";
 import { configApi } from "../shared/api/configApi";
@@ -28,6 +29,12 @@ interface CurrentWorkspaceRef {
 
 type PackTab = "cards" | "strings";
 
+const SIDEBAR_MIN_WIDTH = 140;
+const SIDEBAR_MAX_WIDTH = 280;
+const SIDEBAR_DEFAULT_WIDTH = 150;
+const WINDOW_MIN_WIDTH = 960;
+const WINDOW_MIN_HEIGHT = 640;
+
 export function App() {
   const [config, setConfig] = useState<GlobalConfig | null>(null);
   const [recentWorkspaces, setRecentWorkspaces] = useState<WorkspaceRegistryFile | null>(null);
@@ -39,6 +46,8 @@ export function App() {
   const [shellReady, setShellReady] = useState(false);
   const [metaExpanded, setMetaExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<PackTab>("cards");
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const configRef = useRef<GlobalConfig | null>(null);
 
   const modal = useShellStore((s) => s.modal);
   const openModal = useShellStore((s) => s.openModal);
@@ -53,6 +62,110 @@ export function App() {
   const setWorkspace = useShellStore((s) => s.setWorkspace);
 
   useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  function handleNotice(tone: NoticeTone, title: string, detail: string) {
+    setNotice({ tone, title, detail });
+  }
+
+  async function persistActivePack(packId: string) {
+    setActivePack(packId);
+    try {
+      await packApi.setActivePack({ packId });
+    } catch (err) {
+      handleNotice("error", "Failed to switch pack", formatError(err));
+    }
+  }
+
+  async function persistSidebarWidth(nextWidth: number) {
+    const currentConfig = configRef.current;
+    if (!currentConfig || currentConfig.shell_sidebar_width === nextWidth) return;
+
+    try {
+      const nextConfig = await configApi.saveConfig({
+        ...currentConfig,
+        shell_sidebar_width: nextWidth,
+      });
+      configRef.current = nextConfig;
+      setConfig(nextConfig);
+    } catch {
+      // keep resizing usable even if config persistence fails
+    }
+  }
+
+  async function persistWindowState(partial: Partial<GlobalConfig>) {
+    const currentConfig = configRef.current;
+    if (!currentConfig) return;
+
+    const nextConfig: GlobalConfig = {
+      ...currentConfig,
+      ...partial,
+    };
+    const unchanged =
+      nextConfig.shell_window_width === currentConfig.shell_window_width &&
+      nextConfig.shell_window_height === currentConfig.shell_window_height &&
+      nextConfig.shell_window_is_maximized === currentConfig.shell_window_is_maximized;
+
+    if (unchanged) return;
+
+    try {
+      const savedConfig = await configApi.saveConfig(nextConfig);
+      configRef.current = savedConfig;
+      setConfig(savedConfig);
+    } catch (err) {
+      console.error("Failed to persist window state", err);
+    }
+  }
+
+  async function syncWindowState(persist: boolean) {
+    const appWindow = getCurrentWindow();
+    const isMax = await appWindow.isMaximized().catch(() => false);
+    setMaximized(isMax);
+
+    if (!persist) return;
+
+    if (isMax) {
+      await persistWindowState({ shell_window_is_maximized: true });
+      return;
+    }
+
+    await persistWindowState({
+      shell_window_width: Math.max(WINDOW_MIN_WIDTH, Math.round(window.innerWidth)),
+      shell_window_height: Math.max(WINDOW_MIN_HEIGHT, Math.round(window.innerHeight)),
+      shell_window_is_maximized: false,
+    });
+  }
+
+  function beginSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    let latestWidth = startWidth;
+    document.body.classList.add("is-resizing-sidebar");
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const nextWidth = Math.min(
+        SIDEBAR_MAX_WIDTH,
+        Math.max(SIDEBAR_MIN_WIDTH, startWidth + moveEvent.clientX - startX),
+      );
+      latestWidth = nextWidth;
+      setSidebarWidth(nextWidth);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+      document.body.classList.remove("is-resizing-sidebar");
+      void persistSidebarWidth(latestWidth);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  }
+
+  useEffect(() => {
     let active = true;
 
     async function bootstrap() {
@@ -61,6 +174,7 @@ export function App() {
         const nextRecent = await workspaceApi.listRecentWorkspaces();
         if (!active) return;
         setConfig(nextConfig);
+        setSidebarWidth(nextConfig.shell_sidebar_width);
         setRecentWorkspaces(nextRecent);
 
         await tryRestoreLastSession(nextRecent);
@@ -95,10 +209,7 @@ export function App() {
       }
     }
 
-    async function restorePackSession(
-      savedPackIds: string[],
-      lastActiveId: string | null,
-    ) {
+    async function restorePackSession(savedPackIds: string[], lastActiveId: string | null) {
       if (savedPackIds.length === 0) return;
 
       for (const packId of savedPackIds) {
@@ -113,52 +224,92 @@ export function App() {
 
       if (!active) return;
       if (lastActiveId && savedPackIds.includes(lastActiveId)) {
-        setActivePack(lastActiveId);
+        await persistActivePack(lastActiveId);
       }
     }
 
     void bootstrap();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    let unlistenFocus: UnlistenFn | null = null;
+    let unlistenResize: UnlistenFn | null = null;
+    let saveTimer: number | null = null;
 
     async function bindWindowState() {
       try {
         const appWindow = getCurrentWindow();
-        const isMax = await appWindow.isMaximized();
+        const currentConfig = configRef.current ?? (await configApi.loadConfig());
+
         if (!cancelled) {
-          setMaximized(isMax);
+          configRef.current = currentConfig;
+          setConfig((prev) => prev ?? currentConfig);
+        }
+
+        if (currentConfig.shell_window_is_maximized) {
+          await appWindow.maximize();
+        } else {
+          const width = Math.max(WINDOW_MIN_WIDTH, currentConfig.shell_window_width);
+          const height = Math.max(WINDOW_MIN_HEIGHT, currentConfig.shell_window_height);
+          await appWindow.unmaximize().catch(() => {});
+          await appWindow.setSize(new LogicalSize(width, height));
+        }
+
+        if (!cancelled) {
+          await syncWindowState(false);
           setShellReady(true);
         }
-        unlistenFocus = await appWindow.onFocusChanged(() => {});
+        unlistenResize = await appWindow.onResized(() => {
+          handleViewportChanged();
+        });
       } catch {
         if (!cancelled) setShellReady(true);
       }
     }
 
+    const handleViewportChanged = () => {
+      if (saveTimer !== null) {
+        window.clearTimeout(saveTimer);
+      }
+
+      saveTimer = window.setTimeout(() => {
+        if (!cancelled) {
+          void syncWindowState(true);
+        }
+      }, 120);
+    };
+
     void bindWindowState();
+    window.addEventListener("resize", handleViewportChanged);
     return () => {
       cancelled = true;
-      if (unlistenFocus) void unlistenFocus();
+      window.removeEventListener("resize", handleViewportChanged);
+      if (saveTimer !== null) {
+        window.clearTimeout(saveTimer);
+      }
+      if (unlistenResize) void unlistenResize();
     };
   }, []);
 
-  function handleNotice(tone: NoticeTone, title: string, detail: string) {
-    setNotice({ tone, title, detail });
-  }
-
   async function handleWindowAction(action: "minimize" | "toggle-maximize" | "close") {
     const appWindow = getCurrentWindow();
-    if (action === "minimize") { await appWindow.minimize(); return; }
-    if (action === "toggle-maximize") {
-      await appWindow.toggleMaximize();
-      const isMax = await appWindow.isMaximized();
-      setMaximized(isMax);
+    if (action === "minimize") {
+      await appWindow.minimize();
       return;
     }
+    if (action === "toggle-maximize") {
+      if (maximized) {
+        await appWindow.unmaximize();
+      } else {
+        await appWindow.maximize();
+      }
+      window.setTimeout(() => void syncWindowState(true), 120);
+      return;
+    }
+    await syncWindowState(true);
     await appWindow.close();
   }
 
@@ -180,8 +331,9 @@ export function App() {
         // pack may no longer exist; skip
       }
     }
+
     if (meta.last_opened_pack_id && meta.open_pack_ids.includes(meta.last_opened_pack_id)) {
-      setActivePack(meta.last_opened_pack_id);
+      await persistActivePack(meta.last_opened_pack_id);
     }
   }
 
@@ -249,10 +401,14 @@ export function App() {
 
   const workspaceName = currentWorkspace?.meta.name ?? "No Workspace Open";
   const activeMeta = activePackId ? packMetadataMap[activePackId] : null;
+  const shellStyle = { "--sidebar-width": `${sidebarWidth}px` } as CSSProperties;
+  const preferredTextLanguages = activeMeta?.display_language_order.join(", ") || "—";
+  const summaryDetail = activeMeta
+    ? `${activeMeta.author} · v${activeMeta.version} · ${preferredTextLanguages}`
+    : "Loading metadata...";
 
   return (
-    <div className={`app-shell ${shellReady ? "ready" : ""}`}>
-      {/* ── Titlebar ── */}
+    <div className={`app-shell ${shellReady ? "ready" : ""}`} style={shellStyle}>
       <header
         className="titlebar"
         data-tauri-drag-region
@@ -265,30 +421,32 @@ export function App() {
         <div className="titlebar-spacer" data-tauri-drag-region />
         <div className="window-controls">
           <button type="button" className="win-btn" aria-label="Minimize" onClick={() => void handleWindowAction("minimize")}>
-            <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+            <svg width="10" height="1" viewBox="0 0 10 1">
+              <rect width="10" height="1" fill="currentColor" />
+            </svg>
           </button>
           <button type="button" className="win-btn" aria-label={maximized ? "Restore" : "Maximize"} onClick={() => void handleWindowAction("toggle-maximize")}>
             {maximized ? (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-                <rect x="2" y="0" width="8" height="8" rx="0.5"/>
-                <rect x="0" y="2" width="8" height="8" rx="0.5" fill="var(--panel)"/>
+                <rect x="2" y="0" width="8" height="8" rx="0.5" />
+                <rect x="0" y="2" width="8" height="8" rx="0.5" fill="var(--panel)" />
               </svg>
             ) : (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-                <rect x="0.5" y="0.5" width="9" height="9" rx="0.5"/>
+                <rect x="0.5" y="0.5" width="9" height="9" rx="0.5" />
               </svg>
             )}
           </button>
           <button type="button" className="win-btn win-close" aria-label="Close" onClick={() => void handleWindowAction("close")}>
             <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.2">
-              <line x1="0" y1="0" x2="10" y2="10"/><line x1="10" y1="0" x2="0" y2="10"/>
+              <line x1="0" y1="0" x2="10" y2="10" />
+              <line x1="10" y1="0" x2="0" y2="10" />
             </svg>
           </button>
         </div>
       </header>
 
       <div className="shell-body">
-        {/* ── Sidebar ── */}
         <aside className="sidebar">
           <div className="sidebar-actions">
             <button
@@ -298,17 +456,15 @@ export function App() {
               onClick={() => openModal("workspace")}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <rect x="1" y="2" width="14" height="12" rx="1.5"/><line x1="1" y1="6" x2="15" y2="6"/>
+                <rect x="1" y="2" width="14" height="12" rx="1.5" />
+                <line x1="1" y1="6" x2="15" y2="6" />
               </svg>
             </button>
-            <button
-              type="button"
-              className="action-btn"
-              title="Export Expansions"
-              disabled
-            >
+            <button type="button" className="action-btn" title="Export Expansions" disabled>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <path d="M2 11v3h12v-3"/><path d="M8 2v8"/><path d="M5 7l3 3 3-3"/>
+                <path d="M2 11v3h12v-3" />
+                <path d="M8 2v8" />
+                <path d="M5 7l3 3 3-3" />
               </svg>
             </button>
             <button
@@ -318,7 +474,8 @@ export function App() {
               onClick={() => openModal("settings")}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-                <circle cx="8" cy="8" r="2.5"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2M2.9 2.9l1.5 1.5m7.2 7.2l1.5 1.5M13.1 2.9l-1.5 1.5M4.4 11.6l-1.5 1.5"/>
+                <circle cx="8" cy="8" r="2.5" />
+                <path d="M8 1v2m0 10v2M1 8h2m10 0h2M2.9 2.9l1.5 1.5m7.2 7.2l1.5 1.5M13.1 2.9l-1.5 1.5M4.4 11.6l-1.5 1.5" />
               </svg>
             </button>
           </div>
@@ -327,14 +484,11 @@ export function App() {
             {openPackIds.map((packId) => {
               const meta = packMetadataMap[packId];
               return (
-                <div
-                  key={packId}
-                  className={`pack-item-row ${activePackId === packId ? "active" : ""}`}
-                >
+                <div key={packId} className={`pack-item-row ${activePackId === packId ? "active" : ""}`}>
                   <button
                     type="button"
                     className="pack-item-name"
-                    onClick={() => setActivePack(packId)}
+                    onClick={() => void persistActivePack(packId)}
                     title={meta?.name ?? packId}
                   >
                     {meta?.name ?? packId}
@@ -343,13 +497,14 @@ export function App() {
                     type="button"
                     className="pack-close-btn"
                     title="Close pack"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       void handleClosePack(packId);
                     }}
                   >
                     <svg width="8" height="8" viewBox="0 0 8 8" stroke="currentColor" strokeWidth="1.2">
-                      <line x1="0" y1="0" x2="8" y2="8"/><line x1="8" y1="0" x2="0" y2="8"/>
+                      <line x1="0" y1="0" x2="8" y2="8" />
+                      <line x1="8" y1="0" x2="0" y2="8" />
                     </svg>
                   </button>
                 </div>
@@ -372,15 +527,24 @@ export function App() {
               Standard Pack
             </button>
           </div>
+
+          <div
+            className="sidebar-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            onPointerDown={beginSidebarResize}
+          />
         </aside>
 
-        {/* ── Work Area ── */}
         <section className="work-area">
           {notice && (
             <div className={`notice ${notice.tone}`}>
               <strong>{notice.title}</strong>
               <span>{notice.detail}</span>
-              <button type="button" className="notice-close" onClick={() => setNotice(null)}>×</button>
+              <button type="button" className="notice-close" onClick={() => setNotice(null)}>
+                ×
+              </button>
             </div>
           )}
 
@@ -395,14 +559,13 @@ export function App() {
             </div>
           ) : (
             <>
-              {/* Pack Metadata Bar */}
               <div className="meta-bar">
                 <div className="meta-summary">
-                  <strong className="meta-pack-name">{activeMeta?.name ?? activePackId}</strong>
-                  <span className="meta-detail">
-                    {activeMeta
-                      ? `${activeMeta.author} · v${activeMeta.version} · ${activeMeta.display_language_order.join(", ") || "no languages"}`
-                      : "Loading metadata..."}
+                  <strong className="meta-pack-name" title={activeMeta?.name ?? activePackId}>
+                    {activeMeta?.name ?? activePackId}
+                  </strong>
+                  <span className="meta-detail" title={summaryDetail}>
+                    {summaryDetail}
                   </span>
                 </div>
                 <button
@@ -412,11 +575,15 @@ export function App() {
                   aria-label={metaExpanded ? "Collapse metadata" : "Expand metadata"}
                 >
                   <svg
-                    width="12" height="12" viewBox="0 0 12 12"
-                    fill="none" stroke="currentColor" strokeWidth="1.5"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
                     style={{ transform: metaExpanded ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
                   >
-                    <path d="M2 4l4 4 4-4"/>
+                    <path d="M2 4l4 4 4-4" />
                   </svg>
                 </button>
               </div>
@@ -426,29 +593,36 @@ export function App() {
                   <div className="meta-grid">
                     <div className="meta-field">
                       <span className="meta-field-label">Name</span>
-                      <span className="meta-field-value">{activeMeta.name}</span>
+                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.name}>
+                        {activeMeta.name}
+                      </span>
                     </div>
                     <div className="meta-field">
                       <span className="meta-field-label">Author</span>
-                      <span className="meta-field-value">{activeMeta.author}</span>
+                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.author}>
+                        {activeMeta.author}
+                      </span>
                     </div>
                     <div className="meta-field">
                       <span className="meta-field-label">Version</span>
-                      <span className="meta-field-value">{activeMeta.version}</span>
+                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.version}>
+                        {activeMeta.version}
+                      </span>
                     </div>
                     <div className="meta-field">
-                      <span className="meta-field-label">Description</span>
-                      <span className="meta-field-value">{activeMeta.description || "—"}</span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Languages</span>
-                      <span className="meta-field-value">
-                        {activeMeta.display_language_order.join(", ") || "—"}
+                      <span className="meta-field-label">Preferred Text Languages</span>
+                      <span className="meta-field-value" title={preferredTextLanguages}>
+                        {preferredTextLanguages}
                       </span>
                     </div>
                     <div className="meta-field">
                       <span className="meta-field-label">Default Export Language</span>
-                      <span className="meta-field-value">{activeMeta.default_export_language || "—"}</span>
+                      <span
+                        className="meta-field-value meta-field-value-inline"
+                        title={activeMeta.default_export_language || "—"}
+                      >
+                        {activeMeta.default_export_language || "—"}
+                      </span>
                     </div>
                     <div className="meta-field">
                       <span className="meta-field-label">Created</span>
@@ -457,6 +631,15 @@ export function App() {
                     <div className="meta-field">
                       <span className="meta-field-label">Updated</span>
                       <span className="meta-field-value">{formatTimestamp(activeMeta.updated_at)}</span>
+                    </div>
+                    <div className="meta-field meta-field-wide">
+                      <span className="meta-field-label">Description</span>
+                      <span
+                        className="meta-field-value meta-field-value-description"
+                        title={activeMeta.description || "—"}
+                      >
+                        {activeMeta.description || "—"}
+                      </span>
                     </div>
                   </div>
 
@@ -476,7 +659,6 @@ export function App() {
                 </div>
               )}
 
-              {/* Tab Strip */}
               <div className="tab-strip">
                 <button
                   type="button"
@@ -494,7 +676,6 @@ export function App() {
                 </button>
               </div>
 
-              {/* Tab Content */}
               <div className="tab-content">
                 {activeTab === "cards" ? (
                   <p className="content-placeholder">Card list will appear here (P3)</p>
@@ -507,7 +688,6 @@ export function App() {
         </section>
       </div>
 
-      {/* ── Modal Layer ── */}
       {modal && (
         <div className="modal-layer">
           <div className="modal-backdrop" onClick={closeModal} />
@@ -523,11 +703,7 @@ export function App() {
               />
             )}
             {modal.type === "settings" && (
-              <SettingsModal
-                config={config}
-                onConfigSaved={setConfig}
-                onNotice={handleNotice}
-              />
+              <SettingsModal config={config} onConfigSaved={setConfig} onNotice={handleNotice} />
             )}
             {modal.type === "addPack" && (
               <AddPackModal

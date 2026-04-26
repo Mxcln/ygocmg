@@ -60,14 +60,17 @@ Chinese localization is deferred to a future i18n layer and must not shape the v
 
 ### 2.3 Screen usage
 
-The baseline target window is `1280x800`, matching the current Tauri desktop configuration.
+The baseline authoring target window is `1280x800`.
+
+The current desktop shell starts at the minimum supported window size `960x640` unless a previously saved normal window size or maximized state is restored from global config.
 
 The UI must be optimized for one-screen usage:
 
 1. No full-page vertical scroll in the main shell at `1280x800`
 2. No full-page horizontal scroll
 3. Scroll is allowed only inside local content regions
-4. Large onboarding panels and dashboard hero sections are forbidden
+4. The main shell must remain usable at `960x640`
+5. Large onboarding panels and dashboard hero sections are forbidden
 
 ### 2.4 Navigation model
 
@@ -137,9 +140,14 @@ On application startup:
 
 1. The app automatically reopens the most recently used workspace (determined by `last_opened_at` in the workspace registry)
 2. After the workspace is restored, all previously opened pack tabs are reopened using `open_pack_ids` persisted in the workspace metadata
-3. The previously active pack is restored using `last_opened_pack_id`
+3. The previously viewed active pack is restored using `last_opened_pack_id`
 4. If no workspace has been opened before, the shell shows the empty state
 5. If a previously opened workspace or pack no longer exists on disk, the restoration silently skips it
+
+Field semantics note:
+
+1. `last_opened_pack_id` is currently the persisted field name in workspace metadata
+2. In shell behavior it must represent the last viewed active custom pack, not merely the last pack that was opened from disk
 
 ### 3.4 Default main-pane behavior
 
@@ -211,6 +219,8 @@ Required behavior:
 2. Maximize toggles to maximized
 3. Restore toggles from maximized to normal size
 4. Close requests app shutdown
+5. Double-clicking the draggable titlebar region also toggles maximize/restore
+6. Restoring from maximized returns to the last persisted non-maximized window size
 
 ### 4.6 Titlebar states
 
@@ -222,6 +232,7 @@ The specification must support these visual states:
    - Workspace text shows the current workspace name
 3. Maximized window
    - Maximize button switches to restore icon/state
+   - This state must remain correct whether maximized from the button or titlebar double-click
 4. Inactive window
    - Titlebar colors and control emphasis become muted
 
@@ -265,10 +276,25 @@ The top action strip contains exactly three icon buttons, in this order:
 
 Rules:
 
-1. Each button opens a centered modal
+1. The three buttons are horizontally centered within the sidebar
+2. Each button opens a centered modal
 2. None of these buttons switches the main page
 3. None opens a separate app window
 4. None opens an anchored popover
+
+### 5.3.1 Sidebar resizing
+
+The sidebar width is user-adjustable within a bounded range.
+
+Rules:
+
+1. The sidebar width may be resized by dragging its right edge
+2. The draggable hotspot may be wider than the visible divider for usability
+3. The visible divider remains a thin line by default
+4. On hover or active drag, the divider becomes darker and wider
+5. The cursor changes to a horizontal resize cursor when the hotspot is hovered
+6. During active resize drag, the shell temporarily disables text selection to avoid accidental text highlighting
+7. The sidebar width must be persisted in global config
 
 ### 5.4 Pack stack rules
 
@@ -396,7 +422,13 @@ Collapsed metadata must always show:
 1. Pack name
 2. Author
 3. Version
-4. Languages
+4. Preferred text languages
+
+Collapsed layout rules:
+
+1. Pack name and collapsed summary remain on the same line
+2. Long values may be visually truncated for display
+3. Display truncation must not mutate stored data
 
 The right edge contains a chevron control that expands/collapses the panel.
 
@@ -409,12 +441,12 @@ For custom packs, it must expose:
 1. Pack name
 2. Author
 3. Version
-4. Description
-5. Display language order
-6. Default export language
-7. Created at
-8. Updated at
-9. Card count summary
+4. Preferred text languages
+5. Default export language
+6. Created at
+7. Updated at
+8. Card count summary
+9. Description
 
 For Standard Pack:
 
@@ -428,13 +460,17 @@ For Standard Pack:
 2. Collapsed is the default state
 3. Expanded content must not force full-window scrolling
 4. Expanded content may use a local content body with constrained height if needed
+5. `Description` occupies the final full-width row in the panel
+6. Long field values may be visually truncated for display
+7. `Description` may use multi-line clamping for display
+8. Display truncation must not mutate stored metadata
 
 ### API dependency status
 
 | Capability | Status | Notes |
 |---|---|---|
 | Pack name/author/version | Available now | Present in `PackMetadata` / `PackOverview` |
-| Languages summary | Available now | Present in pack metadata |
+| Preferred text languages summary | Available now | Derived from `display_language_order` in pack metadata |
 | Full pack metadata for active custom pack | Available now | `open_pack` returns pack metadata |
 | Standard Pack metadata/status | Future API required | Standard Pack read-only integration is not yet exposed |
 
@@ -642,6 +678,27 @@ Shared modal rules:
 5. If there are unsaved edits or staged warnings, close requires explicit handling
 6. Modal body may scroll locally if needed
 7. Modal opening must not shift the shell layout
+8. Browser-native `alert` / `confirm` / `prompt` must not be used in the desktop shell
+
+## 8.0 Confirmation and Warning Dialogs
+
+Blocking confirmations and staged warnings must use application-defined dialogs, not browser-native dialogs.
+
+These dialogs are shared shell primitives and must be reusable across pack, card, strings, import, and export flows.
+
+Required use cases:
+
+1. Destructive actions such as `Delete Pack`
+2. Unsaved-change interception before closing or replacing editor state
+3. `needs_confirmation` write flows that return warnings/issues
+
+Required dialog behavior:
+
+1. Show a clear title and short consequence summary
+2. Support primary/secondary actions
+3. Support destructive visual treatment for irreversible actions
+4. Support rendering multiple warnings/issues in a scrollable body when needed
+5. Preserve the current shell layout without opening a browser-native prompt
 
 ## 8.1 `Workspace` modal
 
@@ -1084,13 +1141,13 @@ This section summarizes the current implementation impact.
 
 Implementation should be considered aligned with this specification only if all of the following are true:
 
-1. The app opens into a single-screen desktop shell at `1280x800` without full-page scrollbars
+1. The app opens into a single-screen desktop shell without full-page scrollbars, remains usable at `960x640`, and is optimized for `1280x800`
 2. The custom titlebar shows app icon, workspace name, and Windows-style controls
 3. Clicking each top-left action button opens the correct centered modal
 4. The left sidebar shows opened custom packs only, then `+`, then pinned `Standard Pack`
 5. Clicking `Standard Pack` opens a read-only main-pane view
 6. Clicking `+` opens a modal with `Open Pack`, `Create Pack`, and `Import Pack`
-7. The collapsed metadata bar shows name/author/version/languages
+7. The collapsed metadata bar shows name/author/version/preferred text languages on one line
 8. `Cards` and `Strings` tabs switch within the same pack view
 9. Single-clicking a card row opens the right overlay drawer
 10. The drawer always keeps card image visible and uses internal tabs

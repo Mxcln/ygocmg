@@ -83,6 +83,10 @@ pub fn close_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
     crate::application::pack::service::PackService::new(state).close_pack(pack_id)
 }
 
+pub fn set_active_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
+    crate::application::pack::service::PackService::new(state).set_active_pack(pack_id)
+}
+
 pub fn delete_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
     crate::application::pack::service::PackService::new(state).delete_pack(pack_id)
 }

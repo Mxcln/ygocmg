@@ -133,9 +133,13 @@ interface GlobalConfig {
   ygopro_path: string | null;
   external_text_editor_path: string | null;
 
-  custom_code_recommended_min: number; // 默认 100000000
-  custom_code_recommended_max: number; // 默认 200000000
-  custom_code_min_gap: number;         // 默认 5
+  custom_code_recommended_min: number; // 默认 90000000
+  custom_code_recommended_max: number; // 默认 99999999
+  custom_code_min_gap: number;         // 默认 10
+  shell_sidebar_width: number;         // 默认 150
+  shell_window_width: number;          // 默认 960
+  shell_window_height: number;         // 默认 640
+  shell_window_is_maximized: boolean;  // 默认 false
 }
 ```
 
@@ -171,9 +175,11 @@ interface WorkspaceRegistryEntry {
 1. 设置程序 UI 语言
 2. 设置 YGOPro 路径
 3. 设置外部文本编辑器路径
-4. 设置默认工作区根目录
-5. 设置自定义卡推荐编号范围
-6. 设置自定义卡最小编号间距阈值
+4. 持久化侧边栏宽度
+5. 持久化窗口普通尺寸
+6. 持久化窗口最大化状态
+7. 设置自定义卡推荐编号范围
+8. 设置自定义卡最小编号间距阈值
 
 ## 6. Workspace 规范
 
@@ -208,8 +214,9 @@ interface WorkspaceMeta {
 
 1. `pack_order` 是工作区内自定义包的显式顺序
 2. `open_pack_ids` 记录当前已打开的 pack tab 列表，用于会话恢复
-3. 工作区不保存卡片显示语言偏好
-4. 工作区不保存默认导出语言
+3. `last_opened_pack_id` 目前承担“最后查看的活跃 pack”语义，用于恢复上次聚焦的 pack 视图
+4. 工作区不保存卡片显示语言偏好
+5. 工作区不保存默认导出语言
 
 这样可以避免 `workspace` 和 `pack` 同时持有语言偏好而产生冲突。
 
