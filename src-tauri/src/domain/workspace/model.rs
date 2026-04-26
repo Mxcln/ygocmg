@@ -14,6 +14,8 @@ pub struct WorkspaceMeta {
     pub updated_at: AppTimestamp,
     pub pack_order: Vec<PackId>,
     pub last_opened_pack_id: Option<PackId>,
+    #[serde(default)]
+    pub open_pack_ids: Vec<PackId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -4,7 +4,6 @@ export interface GlobalConfig {
   app_language: LanguageCode;
   ygopro_path: string | null;
   external_text_editor_path: string | null;
-  default_workspace_root: string | null;
   custom_code_recommended_min: number;
   custom_code_recommended_max: number;
   custom_code_min_gap: number;

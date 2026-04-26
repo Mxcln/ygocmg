@@ -31,7 +31,12 @@
    - Metadata 展开面板显示完整 pack 信息并提供删除操作
    - shellStore 增加 packMetadataMap 和 packOverviews 状态管理
    - Workspace 打开后自动加载 pack overviews
-5. 下一步建议推进 `P3 单卡编辑闭环`
+5. 会话恢复与配置精简：
+   - 移除 `default_workspace_root` 配置项（GlobalConfig / Settings modal / Create Workspace 路径自动拼接）
+   - `WorkspaceMeta` 新增 `open_pack_ids` 字段，open/close/delete pack 时持久化到磁盘
+   - 启动时自动恢复上次打开的 workspace（取 registry 中 `last_opened_at` 最新的记录）
+   - workspace 打开后自动恢复之前打开的 pack 列表和活跃 pack
+6. 下一步建议推进 `P3 单卡编辑闭环`
 
 ## 当前最小实现
 

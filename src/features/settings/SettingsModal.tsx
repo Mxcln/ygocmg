@@ -68,7 +68,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           <section className="settings-group">
             <div className="group-heading">
               <p className="section-kicker">Program</p>
-              <h4>Language and workspace root</h4>
+              <h4>Language</h4>
             </div>
 
             <label className="field">
@@ -78,17 +78,6 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                 value={draft.app_language}
                 onChange={(e) => setDraft({ ...draft, app_language: e.target.value })}
                 placeholder="en-US"
-              />
-            </label>
-
-            <label className="field">
-              <span>Default workspace root</span>
-              <input
-                value={draft.default_workspace_root ?? ""}
-                onChange={(e) =>
-                  setDraft({ ...draft, default_workspace_root: normalizeNullablePath(e.target.value) })
-                }
-                placeholder="D:\\YGOCMG\\workspaces"
               />
             </label>
           </section>

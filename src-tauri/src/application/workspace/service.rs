@@ -58,6 +58,7 @@ impl<'a> WorkspaceService<'a> {
             updated_at: now,
             pack_order: Vec::new(),
             last_opened_pack_id: None,
+            open_pack_ids: Vec::new(),
         };
 
         let issues = validate_workspace_meta(&meta);

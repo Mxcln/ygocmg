@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
-import { configApi } from "../../shared/api/configApi";
 import { workspaceApi } from "../../shared/api/workspaceApi";
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type {
@@ -12,7 +11,6 @@ import {
   formatTimestamp,
   formatError,
   normalizeOptionalText,
-  buildSuggestedWorkspacePath,
 } from "../../shared/utils/format";
 
 type WorkspaceView = "overview" | "recent" | "create";
@@ -48,26 +46,11 @@ export function WorkspaceModal({
   const [createForm, setCreateForm] = useState<CreateWorkspaceForm>({
     name: "",
     description: "",
-    path: buildSuggestedWorkspacePath(config.default_workspace_root ?? "", ""),
+    path: "",
   });
-  const [createPathTouched, setCreatePathTouched] = useState(false);
-
-  useEffect(() => {
-    if (createPathTouched) return;
-
-    setCreateForm((current) => {
-      const nextPath = buildSuggestedWorkspacePath(
-        config.default_workspace_root ?? "",
-        current.name,
-      );
-      if (current.path === nextPath) return current;
-      return { ...current, path: nextPath };
-    });
-  }, [config.default_workspace_root, createForm.name, createPathTouched]);
 
   const recentCount = recentWorkspaces.workspaces.length;
   const hasYgoProPath = Boolean(config.ygopro_path);
-  const hasGlobalRoot = Boolean(config.default_workspace_root);
 
   async function refreshRecent() {
     const next = await workspaceApi.listRecentWorkspaces();
@@ -113,12 +96,7 @@ export function WorkspaceModal({
       const opened = await workspaceApi.openWorkspace({ path });
       await refreshRecent();
       onWorkspaceOpened(opened, path);
-      setCreatePathTouched(false);
-      setCreateForm({
-        name: "",
-        description: "",
-        path: buildSuggestedWorkspacePath(config.default_workspace_root ?? "", ""),
-      });
+      setCreateForm({ name: "", description: "", path: "" });
       closeModal();
       onNotice("success", "Workspace created", `${name} is now the current workspace.`);
     } catch (err) {
@@ -160,7 +138,6 @@ export function WorkspaceModal({
               currentWorkspace={currentWorkspace}
               recentCount={recentCount}
               hasYgoProPath={hasYgoProPath}
-              hasGlobalRoot={hasGlobalRoot}
               onSwitchView={setView}
             />
           )}
@@ -180,19 +157,9 @@ export function WorkspaceModal({
           {view === "create" && (
             <CreatePanel
               createForm={createForm}
-              hasGlobalRoot={hasGlobalRoot}
               busyAction={busyAction}
-              defaultRoot={config.default_workspace_root ?? ""}
               onFormChange={setCreateForm}
-              onPathTouched={() => setCreatePathTouched(true)}
-              onReset={() => {
-                setCreatePathTouched(false);
-                setCreateForm({
-                  name: "",
-                  description: "",
-                  path: buildSuggestedWorkspacePath(config.default_workspace_root ?? "", ""),
-                });
-              }}
+              onReset={() => setCreateForm({ name: "", description: "", path: "" })}
               onSubmit={handleCreateWorkspace}
             />
           )}
@@ -206,13 +173,11 @@ function OverviewPanel({
   currentWorkspace,
   recentCount,
   hasYgoProPath,
-  hasGlobalRoot,
   onSwitchView,
 }: {
   currentWorkspace: { meta: WorkspaceMeta; path: string } | null;
   recentCount: number;
   hasYgoProPath: boolean;
-  hasGlobalRoot: boolean;
   onSwitchView: (view: WorkspaceView) => void;
 }) {
   return (
@@ -231,10 +196,6 @@ function OverviewPanel({
         <article className="overview-tile">
           <span>YGOPro path</span>
           <strong>{hasYgoProPath ? "Ready" : "Missing"}</strong>
-        </article>
-        <article className="overview-tile">
-          <span>Suggested root</span>
-          <strong>{hasGlobalRoot ? "Ready" : "Missing"}</strong>
         </article>
       </div>
 
@@ -333,20 +294,14 @@ function RecentPanel({
 
 function CreatePanel({
   createForm,
-  hasGlobalRoot,
   busyAction,
-  defaultRoot,
   onFormChange,
-  onPathTouched,
   onReset,
   onSubmit,
 }: {
   createForm: CreateWorkspaceForm;
-  hasGlobalRoot: boolean;
   busyAction: string | null;
-  defaultRoot: string;
   onFormChange: (updater: (prev: CreateWorkspaceForm) => CreateWorkspaceForm) => void;
-  onPathTouched: () => void;
   onReset: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
@@ -357,9 +312,6 @@ function CreatePanel({
           <p className="section-kicker">Create</p>
           <h3>Create and Open a Workspace</h3>
         </div>
-        <span className="hint-chip">
-          {hasGlobalRoot ? "Suggested from default root" : "Manual full path required"}
-        </span>
       </div>
 
       <form className="form-stack" onSubmit={onSubmit}>
@@ -386,10 +338,7 @@ function CreatePanel({
           <span>Workspace path</span>
           <input
             value={createForm.path}
-            onChange={(e) => {
-              onPathTouched();
-              onFormChange((c) => ({ ...c, path: e.target.value }));
-            }}
+            onChange={(e) => onFormChange((c) => ({ ...c, path: e.target.value }))}
             placeholder="D:\\YGOCMG\\workspaces\\ocg-custom-lab"
           />
         </label>

@@ -132,7 +132,6 @@ interface GlobalConfig {
   app_language: LanguageCode;
   ygopro_path: string | null;
   external_text_editor_path: string | null;
-  default_workspace_root: string | null;
 
   custom_code_recommended_min: number; // 默认 100000000
   custom_code_recommended_max: number; // 默认 200000000
@@ -201,14 +200,16 @@ interface WorkspaceMeta {
 
   pack_order: string[];
   last_opened_pack_id: string | null;
+  open_pack_ids: string[];
 }
 ```
 
 说明：
 
 1. `pack_order` 是工作区内自定义包的显式顺序
-2. 工作区不保存卡片显示语言偏好
-3. 工作区不保存默认导出语言
+2. `open_pack_ids` 记录当前已打开的 pack tab 列表，用于会话恢复
+3. 工作区不保存卡片显示语言偏好
+4. 工作区不保存默认导出语言
 
 这样可以避免 `workspace` 和 `pack` 同时持有语言偏好而产生冲突。
 

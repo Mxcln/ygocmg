@@ -131,7 +131,17 @@ The main shell must support these states:
 6. Card editor drawer open
 7. Utility modal open
 
-### 3.3 Default main-pane behavior
+### 3.3 Session restoration
+
+On application startup:
+
+1. The app automatically reopens the most recently used workspace (determined by `last_opened_at` in the workspace registry)
+2. After the workspace is restored, all previously opened pack tabs are reopened using `open_pack_ids` persisted in the workspace metadata
+3. The previously active pack is restored using `last_opened_pack_id`
+4. If no workspace has been opened before, the shell shows the empty state
+5. If a previously opened workspace or pack no longer exists on disk, the restoration silently skips it
+
+### 3.4 Default main-pane behavior
 
 If a workspace is open and no custom pack is currently open:
 
@@ -716,10 +726,9 @@ Manage program-level configuration without leaving the main shell.
 1. App language
 2. YGOPro path
 3. External text editor path
-4. Default workspace root
-5. Recommended code minimum
-6. Recommended code maximum
-7. Code minimum gap
+4. Recommended code minimum
+5. Recommended code maximum
+6. Code minimum gap
 
 ### Actions
 

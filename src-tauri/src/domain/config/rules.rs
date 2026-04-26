@@ -6,7 +6,6 @@ pub fn default_global_config() -> GlobalConfig {
         app_language: "zh-CN".to_string(),
         ygopro_path: None,
         external_text_editor_path: None,
-        default_workspace_root: None,
         custom_code_recommended_min: 90_000_000,
         custom_code_recommended_max: 99_999_999,
         custom_code_min_gap: 10,
@@ -57,10 +56,6 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
         (
             "external_text_editor_path",
             config.external_text_editor_path.as_ref(),
-        ),
-        (
-            "default_workspace_root",
-            config.default_workspace_root.as_ref(),
         ),
     ] {
         if let Some(path) = path {

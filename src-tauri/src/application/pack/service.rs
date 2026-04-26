@@ -97,15 +97,22 @@ impl<'a> PackService<'a> {
         }
 
         self.refresh_current_workspace_summary()?;
+        self.persist_session_state(&workspace_path)?;
         Ok(session)
     }
 
     pub fn close_pack(&self, pack_id: &str) -> AppResult<()> {
-        let mut sessions = self.state.sessions.write().map_err(|_| {
-            AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-        })?;
-        sessions.remove_pack(pack_id);
-        Ok(())
+        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
+            .current_workspace_path()?;
+
+        {
+            let mut sessions = self.state.sessions.write().map_err(|_| {
+                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+            })?;
+            sessions.remove_pack(pack_id);
+        }
+
+        self.persist_session_state(&workspace_path)
     }
 
     pub fn delete_pack(&self, pack_id: &str) -> AppResult<()> {
@@ -124,6 +131,7 @@ impl<'a> PackService<'a> {
             if meta.last_opened_pack_id.as_deref() == Some(pack_id) {
                 meta.last_opened_pack_id = meta.pack_order.last().cloned();
             }
+            meta.open_pack_ids.retain(|current| current != pack_id);
         })?;
 
         {
@@ -151,6 +159,23 @@ impl<'a> PackService<'a> {
         }
 
         Ok(())
+    }
+
+    fn persist_session_state(&self, workspace_path: &Path) -> AppResult<()> {
+        let (open_ids, active_id) = {
+            let sessions = self.state.sessions.read().map_err(|_| {
+                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+            })?;
+            let ws = sessions.current_workspace.as_ref().ok_or_else(|| {
+                AppError::new("workspace.not_open", "no workspace is currently open")
+            })?;
+            (ws.open_pack_ids.clone(), ws.active_pack_id.clone())
+        };
+
+        self.update_workspace_meta(workspace_path, |meta| {
+            meta.open_pack_ids = open_ids;
+            meta.last_opened_pack_id = active_id;
+        })
     }
 
     fn update_workspace_meta<F>(&self, workspace_path: &Path, mutator: F) -> AppResult<()>

@@ -422,7 +422,6 @@ pub struct GlobalConfig {
     pub app_language: LanguageCode,
     pub ygopro_path: Option<String>,
     pub external_text_editor_path: Option<String>,
-    pub default_workspace_root: Option<String>,
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,

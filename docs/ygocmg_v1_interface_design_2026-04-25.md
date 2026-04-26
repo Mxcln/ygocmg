@@ -473,7 +473,6 @@ pub struct GlobalConfig {
     pub app_language: LanguageCode,
     pub ygopro_path: Option<std::path::PathBuf>,
     pub external_text_editor_path: Option<std::path::PathBuf>,
-    pub default_workspace_root: Option<std::path::PathBuf>,
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
@@ -502,6 +501,7 @@ pub struct WorkspaceMeta {
     pub updated_at: AppTimestamp,
     pub pack_order: Vec<PackId>,
     pub last_opened_pack_id: Option<PackId>,
+    pub open_pack_ids: Vec<PackId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -919,7 +919,6 @@ pub struct GlobalConfigDto {
     pub app_language: LanguageCode,
     pub ygopro_path: Option<std::path::PathBuf>,
     pub external_text_editor_path: Option<std::path::PathBuf>,
-    pub default_workspace_root: Option<std::path::PathBuf>,
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
@@ -930,7 +929,6 @@ pub struct UpdateGlobalConfigInput {
     pub app_language: LanguageCode,
     pub ygopro_path: Option<std::path::PathBuf>,
     pub external_text_editor_path: Option<std::path::PathBuf>,
-    pub default_workspace_root: Option<std::path::PathBuf>,
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
@@ -963,6 +961,7 @@ pub struct WorkspaceMetaDto {
     pub updated_at: AppTimestamp,
     pub pack_order: Vec<PackId>,
     pub last_opened_pack_id: Option<PackId>,
+    pub open_pack_ids: Vec<PackId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

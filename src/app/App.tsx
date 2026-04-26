@@ -62,11 +62,58 @@ export function App() {
         if (!active) return;
         setConfig(nextConfig);
         setRecentWorkspaces(nextRecent);
+
+        await tryRestoreLastSession(nextRecent);
       } catch (err) {
         if (!active) return;
         setError(formatError(err));
       } finally {
         if (active) setLoading(false);
+      }
+    }
+
+    async function tryRestoreLastSession(registry: WorkspaceRegistryFile) {
+      const sorted = [...registry.workspaces]
+        .filter((ws) => ws.last_opened_at)
+        .sort((a, b) => (b.last_opened_at ?? "").localeCompare(a.last_opened_at ?? ""));
+      const lastEntry = sorted[0];
+      if (!lastEntry) return;
+
+      try {
+        const meta = await workspaceApi.openWorkspace({ path: lastEntry.path });
+        if (!active) return;
+        setCurrentWorkspace({ meta, path: lastEntry.path });
+        setWorkspace(meta.id, meta.name);
+
+        const overviews = await packApi.listPackOverviews();
+        if (!active) return;
+        setPackOverviews(overviews);
+
+        await restorePackSession(meta.open_pack_ids, meta.last_opened_pack_id);
+      } catch {
+        // workspace may have been deleted or moved; silently skip
+      }
+    }
+
+    async function restorePackSession(
+      savedPackIds: string[],
+      lastActiveId: string | null,
+    ) {
+      if (savedPackIds.length === 0) return;
+
+      for (const packId of savedPackIds) {
+        if (!active) return;
+        try {
+          const meta = await packApi.openPack({ packId });
+          addOpenPack(packId, meta);
+        } catch {
+          // pack may have been deleted; skip it
+        }
+      }
+
+      if (!active) return;
+      if (lastActiveId && savedPackIds.includes(lastActiveId)) {
+        setActivePack(lastActiveId);
       }
     }
 
@@ -123,6 +170,18 @@ export function App() {
       setPackOverviews(overviews);
     } catch {
       // overviews will remain empty
+    }
+
+    for (const packId of meta.open_pack_ids) {
+      try {
+        const packMeta = await packApi.openPack({ packId });
+        addOpenPack(packId, packMeta);
+      } catch {
+        // pack may no longer exist; skip
+      }
+    }
+    if (meta.last_opened_pack_id && meta.open_pack_ids.includes(meta.last_opened_pack_id)) {
+      setActivePack(meta.last_opened_pack_id);
     }
   }
 

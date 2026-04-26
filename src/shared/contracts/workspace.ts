@@ -18,6 +18,7 @@ export interface WorkspaceMeta {
   updated_at: string;
   pack_order: PackId[];
   last_opened_pack_id: PackId | null;
+  open_pack_ids: PackId[];
 }
 
 export interface WorkspaceRegistryEntry {
