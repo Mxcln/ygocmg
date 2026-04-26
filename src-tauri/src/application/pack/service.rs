@@ -10,10 +10,11 @@ use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::PackId;
 use crate::domain::common::time::now_utc;
 use crate::domain::pack::model::{PackKind, PackMetadata, PackOverview};
-use crate::domain::pack::summary::{derive_pack_overview, touch_pack_metadata, validate_pack_metadata};
+use crate::domain::pack::summary::{touch_pack_metadata, validate_pack_metadata};
 use crate::domain::strings::model::PackStringsFile;
 use crate::domain::workspace::rules::touch_workspace;
 use crate::infrastructure::json_store;
+use crate::infrastructure::pack_locator::{self, WorkspacePackInventory};
 use crate::runtime::sessions::PackSession;
 
 pub struct PackService<'a> {
@@ -61,7 +62,9 @@ impl<'a> PackService<'a> {
             ));
         }
 
-        let pack_path = json_store::pack_path(&workspace_path, &metadata.id);
+        let storage_name =
+            pack_locator::suggest_pack_storage_name(&workspace_path, &metadata.name, &metadata.id)?;
+        let pack_path = json_store::packs_root_path(&workspace_path).join(storage_name);
         json_store::ensure_pack_layout(&pack_path)?;
         json_store::save_pack_metadata(&pack_path, &metadata)?;
         json_store::save_cards(&pack_path, &[])?;
@@ -77,7 +80,7 @@ impl<'a> PackService<'a> {
     pub fn open_pack(&self, pack_id: &str) -> AppResult<PackSession> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;
-        let pack_path = json_store::pack_path(&workspace_path, pack_id);
+        let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
         let metadata = json_store::load_pack_metadata(&pack_path)?;
         let cards = json_store::load_cards(&pack_path)?;
         let strings = json_store::load_pack_strings(&pack_path)?;
@@ -118,7 +121,7 @@ impl<'a> PackService<'a> {
     pub fn delete_pack(&self, pack_id: &str) -> AppResult<()> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;
-        let pack_path = json_store::pack_path(&workspace_path, pack_id);
+        let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
         if pack_path.exists() {
             fs::remove_dir_all(&pack_path).map_err(|source| {
                 AppError::from_io("pack.delete_failed", source)
@@ -148,14 +151,15 @@ impl<'a> PackService<'a> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;
         let meta = json_store::load_workspace_meta(&workspace_path)?;
-        let pack_overviews = load_pack_overviews(&workspace_path)?;
+        let inventory = load_pack_inventory(&workspace_path)?;
 
         let mut sessions = self.state.sessions.write().map_err(|_| {
             AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
         })?;
         if let Some(current) = &mut sessions.current_workspace {
             current.meta = meta;
-            current.pack_overviews = pack_overviews;
+            current.pack_paths = inventory.pack_paths;
+            current.pack_overviews = inventory.pack_overviews;
         }
 
         Ok(())
@@ -187,33 +191,32 @@ impl<'a> PackService<'a> {
         meta = touch_workspace(&meta, now_utc());
         json_store::save_workspace_meta(workspace_path, &meta)
     }
+
+    fn resolve_pack_path(&self, workspace_path: &Path, pack_id: &str) -> AppResult<std::path::PathBuf> {
+        let sessions = self.state.sessions.read().map_err(|_| {
+            AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+        })?;
+        if let Some(workspace) = &sessions.current_workspace {
+            if workspace.workspace_path == workspace_path {
+                return workspace
+                    .pack_paths
+                    .get(pack_id)
+                    .cloned()
+                    .ok_or_else(|| AppError::new("pack.not_found", "pack was not found"));
+            }
+        }
+
+        let inventory = load_pack_inventory(workspace_path)?;
+        pack_locator::resolve_pack_path(&inventory, pack_id)
+    }
+}
+
+pub fn load_pack_inventory(workspace_path: &Path) -> AppResult<WorkspacePackInventory> {
+    pack_locator::load_workspace_pack_inventory(workspace_path)
 }
 
 pub fn load_pack_overviews(workspace_path: &Path) -> AppResult<BTreeMap<PackId, PackOverview>> {
-    let packs_root = json_store::packs_root_path(workspace_path);
-    if !packs_root.exists() {
-        return Ok(BTreeMap::new());
-    }
-
-    let mut overviews = BTreeMap::new();
-    for entry in fs::read_dir(&packs_root).map_err(|source| {
-        AppError::from_io("pack.read_dir_failed", source)
-            .with_detail("path", packs_root.display().to_string())
-    })? {
-        let entry = entry.map_err(|source| {
-            AppError::from_io("pack.read_dir_entry_failed", source)
-                .with_detail("path", packs_root.display().to_string())
-        })?;
-        let pack_path = entry.path();
-        if !pack_path.is_dir() {
-            continue;
-        }
-        let metadata = json_store::load_pack_metadata(&pack_path)?;
-        let cards = json_store::load_cards(&pack_path).unwrap_or_default();
-        overviews.insert(metadata.id.clone(), derive_pack_overview(&metadata, cards.len()));
-    }
-
-    Ok(overviews)
+    Ok(load_pack_inventory(workspace_path)?.pack_overviews)
 }
 
 pub fn persist_open_pack(

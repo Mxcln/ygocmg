@@ -1714,6 +1714,11 @@ pub trait PackRepository: Send + Sync {
         strings: &crate::domain::strings::model::PackStringsFile,
     ) -> AppResult<()>;
 }
+
+说明：
+1. `PackId` 是稳定身份，不要求等于工作区内的物理目录名
+2. 工作区内的 pack 路径应通过扫描 `packs/*/metadata.json` 并读取 `metadata.id` 解析
+3. 物理目录名可以使用文件系统安全的可读 `storage-name`
 ```
 
 说明：

@@ -11,6 +11,7 @@ use crate::domain::workspace::model::{
 };
 use crate::domain::workspace::rules::validate_workspace_meta;
 use crate::infrastructure::json_store;
+use crate::infrastructure::pack_locator;
 use crate::runtime::sessions::WorkspaceSession;
 
 pub struct WorkspaceService<'a> {
@@ -85,12 +86,13 @@ impl<'a> WorkspaceService<'a> {
 
     pub fn open_workspace(&self, workspace_path: &Path) -> AppResult<WorkspaceSession> {
         let meta = json_store::load_workspace_meta(workspace_path)?;
-        let pack_overviews = crate::application::pack::service::load_pack_overviews(workspace_path)?;
+        let inventory = pack_locator::load_workspace_pack_inventory(workspace_path)?;
 
         let session = WorkspaceSession {
             workspace_path: workspace_path.to_path_buf(),
             meta: meta.clone(),
-            pack_overviews,
+            pack_paths: inventory.pack_paths,
+            pack_overviews: inventory.pack_overviews,
             open_pack_ids: Vec::new(),
             active_pack_id: None,
         };

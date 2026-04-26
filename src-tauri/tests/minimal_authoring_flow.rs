@@ -7,6 +7,8 @@ use ygocmg_core::domain::card::model::{
     Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race,
 };
 use ygocmg_core::domain::resource::path_rules::script_path;
+use ygocmg_core::infrastructure::json_store;
+use ygocmg_core::infrastructure::pack_locator;
 use ygocmg_core::presentation::commands::app_commands;
 
 #[test]
@@ -40,6 +42,11 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     )
     .unwrap();
     let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+    let pack_path = pack_locator::resolve_pack_path(
+        &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+        &pack.id,
+    )
+    .unwrap();
 
     let mut texts = BTreeMap::new();
     texts.insert(
@@ -76,7 +83,6 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     )
     .unwrap();
 
-    let pack_path = workspace_path.join("packs").join(&pack.id);
     let original_script = script_path(&pack_path, card.code);
     fs::write(&original_script, "-- test script").unwrap();
 
@@ -127,6 +133,106 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].code, 100_000_010);
     assert!(rows[0].has_script);
+}
+
+#[test]
+fn create_pack_uses_readable_storage_name_and_handles_collisions() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-readable-pack");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+
+    let pack_a = app_commands::create_pack(
+        &state,
+        "龙族卡组",
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        None,
+    )
+    .unwrap();
+    let pack_b = app_commands::create_pack(
+        &state,
+        "龙族卡组",
+        "Max",
+        "1.0.1",
+        None,
+        vec!["zh-CN".to_string()],
+        None,
+    )
+    .unwrap();
+
+    let inventory = pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap();
+    let path_a = pack_locator::resolve_pack_path(&inventory, &pack_a.id).unwrap();
+    let path_b = pack_locator::resolve_pack_path(&inventory, &pack_b.id).unwrap();
+
+    let dir_a = path_a.file_name().unwrap().to_string_lossy().to_string();
+    let dir_b = path_b.file_name().unwrap().to_string_lossy().to_string();
+
+    assert!(dir_a.starts_with("龙族卡组--"));
+    assert!(dir_b.starts_with("龙族卡组--"));
+    assert_ne!(dir_a, dir_b);
+}
+
+#[test]
+fn invalid_pack_directory_without_metadata_fails_workspace_open() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-invalid-pack");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+
+    let broken_dir = workspace_path.join("packs").join("broken-pack--deadbeef");
+    fs::create_dir_all(&broken_dir).unwrap();
+
+    let error = app_commands::open_workspace(&state, workspace_path.clone()).unwrap_err();
+    assert_eq!(error.code, "pack.metadata_missing");
+}
+
+#[test]
+fn duplicate_pack_ids_fail_workspace_open() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-duplicate-pack");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack One",
+        "Max",
+        "1.0.0",
+        None,
+        vec!["en-US".to_string()],
+        None,
+    )
+    .unwrap();
+    let original_pack_path = pack_locator::resolve_pack_path(
+        &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+        &pack.id,
+    )
+    .unwrap();
+    let metadata = json_store::load_pack_metadata(&original_pack_path).unwrap();
+
+    let duplicate_dir = workspace_path.join("packs").join("duplicate-pack--cafebabe");
+    json_store::ensure_pack_layout(&duplicate_dir).unwrap();
+    json_store::save_pack_metadata(&duplicate_dir, &metadata).unwrap();
+    json_store::save_cards(&duplicate_dir, &[]).unwrap();
+    json_store::save_pack_strings(&duplicate_dir, &Default::default()).unwrap();
+
+    let reopened_state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+    let error = app_commands::open_workspace(&reopened_state, workspace_path.clone()).unwrap_err();
+    assert_eq!(error.code, "pack.duplicate_id");
 }
 
 #[test]

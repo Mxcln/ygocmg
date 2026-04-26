@@ -221,7 +221,7 @@ interface WorkspaceMeta {
 <workspace>/
   workspace.json
   packs/
-    <pack-id>/
+    <storage-name>/
       metadata.json
       cards.json
       strings.json

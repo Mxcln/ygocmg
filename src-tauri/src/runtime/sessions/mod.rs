@@ -11,6 +11,7 @@ use crate::domain::workspace::model::WorkspaceMeta;
 pub struct WorkspaceSession {
     pub workspace_path: PathBuf,
     pub meta: WorkspaceMeta,
+    pub pack_paths: BTreeMap<PackId, PathBuf>,
     pub pack_overviews: BTreeMap<PackId, PackOverview>,
     pub open_pack_ids: Vec<PackId>,
     pub active_pack_id: Option<PackId>,

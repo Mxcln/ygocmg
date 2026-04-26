@@ -362,7 +362,7 @@ ygocmg/
 <workspace>/
   workspace.json
   packs/
-    <pack-id>/
+    <storage-name>/
       metadata.json
       cards.json
       strings.json
@@ -375,7 +375,7 @@ ygocmg/
 
 1. `workspace.json`、`metadata.json`、`cards.json`、`strings.json` 都有 `schema_version`
 2. 首版所有作者态 JSON 的 `schema_version` 固定为 `1`
-3. pack 目录名使用 `pack-id`，而不是包名
+3. pack 目录名使用文件系统安全的可读 `storage-name`；真实身份来自 `metadata.json` 中的 `pack-id`
 4. 资源路径只按 `code` 生成，不把路径写回 `CardEntity`
 
 ### 6.3 JSON 文件模型

@@ -14,6 +14,7 @@ use crate::domain::config::rules::default_global_config;
 use crate::domain::resource::path_rules::{detect_card_asset_state, planned_asset_renames};
 use crate::infrastructure::fs::transaction::{FsOperation, execute_plan};
 use crate::infrastructure::json_store;
+use crate::infrastructure::pack_locator;
 
 pub struct CardService<'a> {
     state: &'a AppState,
@@ -201,10 +202,11 @@ impl<'a> CardService<'a> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;
         let workspace_meta = json_store::load_workspace_meta(&workspace_path)?;
+        let inventory = crate::application::pack::service::load_pack_inventory(&workspace_path)?;
 
         let mut workspace_codes = BTreeSet::new();
         for current_pack_id in workspace_meta.pack_order {
-            let pack_path = json_store::pack_path(&workspace_path, &current_pack_id);
+            let pack_path = pack_locator::resolve_pack_path(&inventory, &current_pack_id)?;
             let cards = json_store::load_cards(&pack_path).unwrap_or_default();
             for card in cards {
                 if current_pack_id == pack_id && exclude_card_id == Some(card.id.as_str()) {
