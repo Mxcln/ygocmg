@@ -206,7 +206,7 @@
 ### P3 单卡编辑闭环
 
 状态：
-后端已完成（2026-04-26）
+前后端均已完成（2026-04-26）
 
 目标：
 完成首个用户真正可用的编辑闭环。
@@ -228,12 +228,35 @@
 8. `open_pack` 已构建完整 pack 快照，`set_active_pack` 不会重建 `card_list_cache`
 9. 改号时资源 rename、`cards.json`、`metadata.json` 已收进同一个事务计划
 10. review 修复已完成：`delete_card` 收口、`suggest_card_code` 的 `workspace_id` 校验、`update_card` 去重、单次写操作时间戳统一、`open_pack` 返回成本收窄
+11. `CardListRow` 新增 `subtype_display` 字段，由 `derive_card_list_row` 根据卡片类型拼接：monster 拼接 monster_flags（如 "Effect / Tuner"），spell/trap 取对应 subtype
+12. `default_global_config` 中 `custom_code_recommended_min/max/min_gap` 修正为与功能规格一致的 100M-200M / gap 5
+
+当前完成情况（前端）：
+1. `CardListPanel` — CSS Grid 表格布局，带表头行，列包含：缩略图、Code、Name、Type（固定宽度 badge）、Subtype（彩色 tag，monster flag 各有独立配色）、ATK、DEF、Lv、资源图标（has_image / has_script）
+2. `CardEditDrawer` — 全区域覆盖式 drawer（覆盖 meta-bar），滑入/滑出动画，左栏卡图 + 右栏 Text/Info 双 tab 表单
+3. `CardAssetBar` — 400×580 卡图预览占位，分段按钮组样式（Image: Import/Delete, Script: Create/Import/Edit/Delete）
+4. `CardInfoForm` — 全字段编辑（code/alias/setcode/ot/category/primary_type/monster_flags/atk/def/race/attribute/level/pendulum/link/spell_subtype/trap_subtype），类型联动显示/隐藏
+5. `CardTextForm` — 多语言切换 + name/effect/strings(16) 编辑
+6. `cardApi.ts` — 新增 `deleteCard` 方法
+7. `card.ts` 合约 — 新增 `DeleteCardInput`、`subtype_display` 字段
+8. `App.tsx` — 集成 CardListPanel，drawer 状态提升至 work-area 层级
+9. `styles.css` — 约 800 行新增样式（列表、drawer、表单、动画、分段按钮、badge 配色等）
+10. Create/Update/Delete 全流程接通，warnings 展示，TanStack Query 列表刷新
+11. Delete 按钮改为红色醒目样式 `danger-button`
 
 验收（后端）：
 1. Rust 测试 `cargo test --offline` 通过
 2. 单卡 create/update/list/get/suggest 主链路可用
 3. 改号后资源 rename 与 session 重建正确
 4. `workspace_id` 不匹配时返回 `workspace.mismatch`
+
+验收（前端）：
+1. Cards tab 显示可搜索/排序/分页的卡片列表
+2. 点击卡片行打开编辑 drawer，可编辑全部字段并保存
+3. "+ New Card" 创建新卡片，保存后列表自动刷新
+4. Delete 按钮可删除卡片
+5. drawer 覆盖 meta-bar，不覆盖左侧卡包列表
+6. 切换卡包时自动关闭 drawer
 
 依赖：
 1. P2

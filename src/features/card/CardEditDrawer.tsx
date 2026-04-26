@@ -1,0 +1,294 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { cardApi } from "../../shared/api/cardApi";
+import { useShellStore } from "../../shared/stores/shellStore";
+import { formatError } from "../../shared/utils/format";
+import type { CardEntity, CardAssetState } from "../../shared/contracts/card";
+import type { ValidationIssue } from "../../shared/contracts/common";
+import { CardAssetBar } from "./CardAssetBar";
+import { CardInfoForm } from "./CardInfoForm";
+import { CardTextForm } from "./CardTextForm";
+
+interface CardEditDrawerProps {
+  packId: string;
+  workspaceId: string;
+  cardId: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+type DrawerTab = "text" | "info";
+
+const EMPTY_ASSET_STATE: CardAssetState = {
+  has_image: false,
+  has_script: false,
+  has_field_image: false,
+};
+
+const EMPTY_STRINGS = Array.from({ length: 16 }, () => "");
+
+function makeBlankCard(suggestedCode: number, defaultLang: string): CardEntity {
+  return {
+    id: "",
+    code: suggestedCode,
+    alias: 0,
+    setcode: 0,
+    ot: "custom",
+    category: 0,
+    primary_type: "monster",
+    texts: {
+      [defaultLang]: { name: "New Card", desc: "", strings: [...EMPTY_STRINGS] },
+    },
+    monster_flags: ["normal"],
+    atk: 0,
+    def: 0,
+    race: "warrior",
+    attribute: "earth",
+    level: 4,
+    pendulum: null,
+    link: null,
+    spell_subtype: null,
+    trap_subtype: null,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+export function CardEditDrawer({
+  packId,
+  workspaceId,
+  cardId,
+  onClose,
+  onSaved,
+}: CardEditDrawerProps) {
+  const isCreate = cardId === null;
+  const [draft, setDraft] = useState<CardEntity | null>(null);
+  const [assetState, setAssetState] = useState<CardAssetState>(EMPTY_ASSET_STATE);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<DrawerTab>("text");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
+  const [closing, setClosing] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  const activeMeta = useShellStore((s) =>
+    s.activePackId ? s.packMetadataMap[s.activePackId] : null,
+  );
+  const displayLanguageOrder = activeMeta?.display_language_order ?? [];
+
+  const { data: cardDetail, isLoading: loadingDetail } = useQuery({
+    queryKey: ["card", packId, cardId],
+    queryFn: () =>
+      cardApi.getCard({ workspaceId, packId, cardId: cardId! }),
+    enabled: !isCreate && !!cardId,
+  });
+
+  const defaultLang = displayLanguageOrder[0] || "en-US";
+
+  useEffect(() => {
+    if (isCreate) {
+      cardApi
+        .suggestCardCode({ workspaceId, packId, preferredStart: null })
+        .then((result) => {
+          setDraft(makeBlankCard(result.suggested_code ?? 100000000, defaultLang));
+          if (result.warnings.length > 0) setWarnings(result.warnings);
+        })
+        .catch((err) => {
+          setDraft(makeBlankCard(100000000, defaultLang));
+          setErrorMsg(formatError(err));
+        });
+    }
+  }, [isCreate, workspaceId, packId, defaultLang]);
+
+  useEffect(() => {
+    if (cardDetail) {
+      setDraft(cardDetail.card);
+      setAssetState(cardDetail.asset_state);
+      setAvailableLanguages(cardDetail.available_languages);
+    }
+  }, [cardDetail]);
+
+  const handleChange = useCallback(
+    (patch: Partial<CardEntity>) => {
+      setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    },
+    [],
+  );
+
+  function handleAnimatedClose() {
+    setClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 180);
+  }
+
+  async function handleSave() {
+    if (!draft) return;
+    setSaving(true);
+    setErrorMsg(null);
+    setWarnings([]);
+
+    try {
+      const cardPayload = {
+        code: draft.code,
+        alias: draft.alias,
+        setcode: draft.setcode,
+        ot: draft.ot,
+        category: draft.category,
+        primary_type: draft.primary_type,
+        texts: draft.texts,
+        monster_flags: draft.monster_flags,
+        atk: draft.atk,
+        def: draft.def,
+        race: draft.race,
+        attribute: draft.attribute,
+        level: draft.level,
+        pendulum: draft.pendulum,
+        link: draft.link,
+        spell_subtype: draft.spell_subtype,
+        trap_subtype: draft.trap_subtype,
+      };
+
+      const result = isCreate
+        ? await cardApi.createCard({ workspaceId, packId, card: cardPayload })
+        : await cardApi.updateCard({
+            workspaceId,
+            packId,
+            cardId: cardId!,
+            card: cardPayload,
+          });
+
+      if (result.status === "ok") {
+        if (result.warnings.length > 0) {
+          setWarnings(result.warnings);
+        }
+        onSaved();
+        handleAnimatedClose();
+      }
+    } catch (err) {
+      setErrorMsg(formatError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!cardId) return;
+    if (!window.confirm("Delete this card? This cannot be undone.")) return;
+
+    setDeleting(true);
+    setErrorMsg(null);
+    try {
+      await cardApi.deleteCard({ packId, cardId });
+      onSaved();
+      handleAnimatedClose();
+    } catch (err) {
+      setErrorMsg(formatError(err));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const showLoading = !isCreate && loadingDetail && !draft;
+
+  return (
+    <>
+      <div className="card-edit-backdrop" onClick={handleAnimatedClose} />
+      <div
+        ref={drawerRef}
+        className={`card-edit-drawer ${closing ? "closing" : ""}`}
+      >
+        <div className="card-edit-header">
+          <div className="card-edit-header-left">
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={handleAnimatedClose}
+            >
+              Close
+            </button>
+            {!isCreate && (
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            )}
+          </div>
+          <div className="card-edit-header-spacer" />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => void handleSave()}
+            disabled={saving || !draft}
+          >
+            {saving ? "Saving..." : isCreate ? "Create" : "Save"}
+          </button>
+        </div>
+
+        {warnings.length > 0 && (
+          <div className="card-edit-warnings">
+            <ul>
+              {warnings.map((w, i) => (
+                <li key={i}>{w.code}: {JSON.stringify(w.params)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="card-edit-error">{errorMsg}</div>
+        )}
+
+        {showLoading ? (
+          <div className="card-list-empty">
+            <p>Loading card...</p>
+          </div>
+        ) : draft ? (
+          <div className="card-edit-body">
+            <CardAssetBar
+              assetState={assetState}
+              primaryType={draft.primary_type}
+              spellSubtype={draft.spell_subtype}
+            />
+            <div className="card-form-area">
+              <div className="card-form-tabs">
+                <button
+                  type="button"
+                  className={`card-form-tab ${activeTab === "text" ? "active" : ""}`}
+                  onClick={() => setActiveTab("text")}
+                >
+                  Text
+                </button>
+                <button
+                  type="button"
+                  className={`card-form-tab ${activeTab === "info" ? "active" : ""}`}
+                  onClick={() => setActiveTab("info")}
+                >
+                  Info
+                </button>
+              </div>
+              <div className="card-form-content">
+                {activeTab === "text" ? (
+                  <CardTextForm
+                    draft={draft}
+                    availableLanguages={availableLanguages}
+                    displayLanguageOrder={displayLanguageOrder}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  <CardInfoForm draft={draft} onChange={handleChange} />
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}

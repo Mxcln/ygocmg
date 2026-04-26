@@ -70,7 +70,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             workspace_id: workspace_id.clone(),
             pack_id: pack.id.clone(),
             card: CardUpdateInput {
-                code: 100_000_000,
+                code: 201_000_000,
                 alias: 0,
                 setcode: 0,
                 ot: Ot::Custom,
@@ -93,7 +93,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     .unwrap()
     {
         WriteResultDto::Ok { data, warnings } => {
-            assert!(!warnings.is_empty());
+            assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
             data.card
         }
         WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
@@ -119,7 +119,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             pack_id: pack.id.clone(),
             card_id: card.id.clone(),
             card: CardUpdateInput {
-                code: 100_000_010,
+                code: 201_000_010,
                 alias: 0,
                 setcode: 0,
                 ot: Ot::Custom,
@@ -142,13 +142,13 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     .unwrap()
     {
         WriteResultDto::Ok { data, warnings } => {
-            assert!(!warnings.is_empty());
+            assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
             data.card
         }
         WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
     };
 
-    assert_eq!(updated.code, 100_000_010);
+    assert_eq!(updated.code, 201_000_010);
     assert!(!original_script.exists());
     assert!(script_path(&pack_path, updated.code).exists());
 
@@ -175,7 +175,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     .unwrap();
     assert_eq!(rows.items.len(), 1);
     assert_eq!(rows.total, 1);
-    assert_eq!(rows.items[0].code, 100_000_010);
+    assert_eq!(rows.items[0].code, 201_000_010);
     assert!(rows.items[0].has_script);
 
     let detail = app_commands::get_card(
@@ -187,7 +187,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
         },
     )
     .unwrap();
-    assert_eq!(detail.card.code, 100_000_010);
+    assert_eq!(detail.card.code, 201_000_010);
     assert!(detail.asset_state.has_script);
 
     let suggestion = app_commands::suggest_card_code(

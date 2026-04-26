@@ -3,6 +3,7 @@ import type {
   CardDetail,
   CardListPage,
   CreateCardInput,
+  DeleteCardInput,
   GetCardInput,
   ListCardsInput,
   SuggestCodeInput,
@@ -30,5 +31,9 @@ export const cardApi = {
 
   updateCard(input: UpdateCardInput) {
     return invokeApi<WriteResult<CardDetail>>("update_card", { input });
+  },
+
+  deleteCard(input: DeleteCardInput) {
+    return invokeApi<void>("delete_card", { input });
   },
 };

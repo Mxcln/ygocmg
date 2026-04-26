@@ -116,6 +116,7 @@ export interface CardListRow {
   name: string;
   desc: string;
   primary_type: PrimaryType;
+  subtype_display: string;
   atk: number | null;
   def: number | null;
   level: number | null;
@@ -173,6 +174,11 @@ export interface UpdateCardInput {
   packId: string;
   cardId: string;
   card: Omit<CardEntity, "id" | "created_at" | "updated_at">;
+}
+
+export interface DeleteCardInput {
+  packId: string;
+  cardId: string;
 }
 
 export interface SuggestCodeInput {

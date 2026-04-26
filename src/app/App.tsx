@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
@@ -13,6 +13,9 @@ import { formatError, formatTimestamp } from "../shared/utils/format";
 import { WorkspaceModal } from "../features/workspace/WorkspaceModal";
 import { SettingsModal } from "../features/settings/SettingsModal";
 import { AddPackModal } from "../features/pack/AddPackModal";
+import { CardListPanel } from "../features/card/CardListPanel";
+import { useQueryClient } from "@tanstack/react-query";
+import { CardEditDrawer } from "../features/card/CardEditDrawer";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -56,8 +59,33 @@ export function App() {
   } | null>(null);
   const [metaSaving, setMetaSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<PackTab>("cards");
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const configRef = useRef<GlobalConfig | null>(null);
+  const queryClient = useQueryClient();
+
+  const cardDrawerOpen = editingCardId !== null || isCreatingCard;
+
+  const handleEditCard = useCallback((cardId: string) => {
+    setEditingCardId(cardId);
+    setIsCreatingCard(false);
+  }, []);
+
+  const handleNewCard = useCallback(() => {
+    setEditingCardId(null);
+    setIsCreatingCard(true);
+  }, []);
+
+  const handleDrawerClose = useCallback(() => {
+    setEditingCardId(null);
+    setIsCreatingCard(false);
+  }, []);
+
+  const handleDrawerSaved = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["cards"] });
+    handleDrawerClose();
+  }, [queryClient, handleDrawerClose]);
 
   const modal = useShellStore((s) => s.modal);
   const openModal = useShellStore((s) => s.openModal);
@@ -85,6 +113,8 @@ export function App() {
     setMetaExpanded(false);
     setMetaEditing(false);
     setMetaDraft(null);
+    setEditingCardId(null);
+    setIsCreatingCard(false);
     try {
       await packApi.setActivePack({ packId });
     } catch (err) {
@@ -851,12 +881,22 @@ export function App() {
 
                 <div className="tab-content">
                   {activeTab === "cards" ? (
-                    <p className="content-placeholder">Card list will appear here (P3)</p>
+                    <CardListPanel onEditCard={handleEditCard} onNewCard={handleNewCard} />
                   ) : (
                     <p className="content-placeholder">String entries will appear here (P4)</p>
                   )}
                 </div>
               </div>
+
+              {cardDrawerOpen && activePackId && (
+                <CardEditDrawer
+                  packId={activePackId}
+                  workspaceId={useShellStore.getState().workspaceId!}
+                  cardId={isCreatingCard ? null : editingCardId}
+                  onClose={handleDrawerClose}
+                  onSaved={handleDrawerSaved}
+                />
+              )}
             </>
           )}
         </section>

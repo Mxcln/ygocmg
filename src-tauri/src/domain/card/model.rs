@@ -194,6 +194,7 @@ pub struct CardListRow {
     pub name: String,
     pub desc: String,
     pub primary_type: PrimaryType,
+    pub subtype_display: String,
     pub atk: Option<i32>,
     pub def: Option<i32>,
     pub level: Option<i32>,
