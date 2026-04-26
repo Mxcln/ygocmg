@@ -184,7 +184,7 @@
   transition: background 80ms, border-color 80ms;
 }
 
-.pack-item:hover {
+.pack-item:hover:not(:disabled) {
   background: var(--bg-2);
   border-color: var(--line-strong);
 }
@@ -194,6 +194,73 @@
   border-color: rgba(17, 94, 95, 0.22);
   color: var(--brand);
   font-weight: 600;
+}
+
+.pack-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  transition: background 80ms, border-color 80ms;
+}
+
+.pack-item-row:hover {
+  background: var(--bg-2);
+  border-color: var(--line-strong);
+}
+
+.pack-item-row.active {
+  background: var(--brand-soft);
+  border-color: rgba(17, 94, 95, 0.22);
+}
+
+.pack-item-row.active .pack-item-name {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.pack-item-name {
+  flex: 1;
+  padding: 7px 4px 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-0);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pack-close-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 80ms, background 80ms, color 80ms;
+}
+
+.pack-item-row:hover .pack-close-btn {
+  opacity: 1;
+}
+
+.pack-close-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .pack-add {
@@ -340,10 +407,52 @@
   background: var(--panel);
 }
 
-.meta-placeholder {
-  margin: 0;
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-2);
+}
+
+.meta-field-value {
   font-size: 13px;
+  color: var(--text-0);
+  word-break: break-word;
+}
+
+.meta-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.danger-ghost {
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
+.danger-ghost:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.pack-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 /* ── Tab Strip ── */

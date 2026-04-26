@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { PackMetadata, PackOverview } from "../contracts/pack";
 
 export type ModalType =
   | "workspace"
@@ -22,6 +23,9 @@ interface ShellState {
   openPackIds: string[];
   activePackId: string | null;
 
+  packMetadataMap: Record<string, PackMetadata>;
+  packOverviews: PackOverview[];
+
   modal: ModalState | null;
 
   openModal: (type: ModalType) => void;
@@ -32,9 +36,11 @@ interface ShellState {
   setWorkspace: (id: string, name: string) => void;
   clearWorkspace: () => void;
 
+  setPackOverviews: (overviews: PackOverview[]) => void;
+
   setOpenPacks: (ids: string[], activeId: string | null) => void;
   setActivePack: (id: string | null) => void;
-  addOpenPack: (id: string) => void;
+  addOpenPack: (id: string, metadata: PackMetadata) => void;
   removeOpenPack: (id: string) => void;
 }
 
@@ -44,6 +50,9 @@ export const useShellStore = create<ShellState>()((set) => ({
 
   openPackIds: [],
   activePackId: null,
+
+  packMetadataMap: {},
+  packOverviews: [],
 
   modal: null,
 
@@ -71,20 +80,43 @@ export const useShellStore = create<ShellState>()((set) => ({
     }),
 
   setWorkspace: (id, name) =>
-    set({ workspaceId: id, workspaceName: name, openPackIds: [], activePackId: null }),
+    set({
+      workspaceId: id,
+      workspaceName: name,
+      openPackIds: [],
+      activePackId: null,
+      packMetadataMap: {},
+      packOverviews: [],
+    }),
 
   clearWorkspace: () =>
-    set({ workspaceId: null, workspaceName: null, openPackIds: [], activePackId: null }),
+    set({
+      workspaceId: null,
+      workspaceName: null,
+      openPackIds: [],
+      activePackId: null,
+      packMetadataMap: {},
+      packOverviews: [],
+    }),
+
+  setPackOverviews: (overviews) => set({ packOverviews: overviews }),
 
   setOpenPacks: (ids, activeId) =>
     set({ openPackIds: ids, activePackId: activeId }),
 
   setActivePack: (id) => set({ activePackId: id }),
 
-  addOpenPack: (id) =>
+  addOpenPack: (id, metadata) =>
     set((state) => {
-      if (state.openPackIds.includes(id)) return { activePackId: id };
-      return { openPackIds: [...state.openPackIds, id], activePackId: id };
+      const nextMap = { ...state.packMetadataMap, [id]: metadata };
+      if (state.openPackIds.includes(id)) {
+        return { activePackId: id, packMetadataMap: nextMap };
+      }
+      return {
+        openPackIds: [...state.openPackIds, id],
+        activePackId: id,
+        packMetadataMap: nextMap,
+      };
     }),
 
   removeOpenPack: (id) =>
@@ -94,6 +126,7 @@ export const useShellStore = create<ShellState>()((set) => ({
         state.activePackId === id
           ? ids[ids.length - 1] ?? null
           : state.activePackId;
-      return { openPackIds: ids, activePackId: activeId };
+      const { [id]: _, ...nextMap } = state.packMetadataMap;
+      return { openPackIds: ids, activePackId: activeId, packMetadataMap: nextMap };
     }),
 }));

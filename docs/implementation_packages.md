@@ -22,7 +22,16 @@
    - Global Settings modal 已实现
    - Tauri capability 权限已添加窗口控制相关项
    - 前端代码已从单体 App.tsx 拆分为 features/ 模块化结构
-4. 下一步建议推进 `P2 Pack 列表与 Tab 会话`
+4. `P2 Pack 列表与 Tab 会话` 已完成：
+   - 后端新增 `close_pack` 和 `delete_pack` Tauri command
+   - 前端新增 `packApi.ts` 封装 pack CRUD 操作
+   - 新增 AddPackModal 组件（Open Pack / Create Pack / Import Pack 三个 tab）
+   - 侧边栏 pack 列表已接入后端数据，显示 pack 名称和关闭按钮
+   - Metadata bar 展示真实 pack 元数据（名称、作者、版本、语言）
+   - Metadata 展开面板显示完整 pack 信息并提供删除操作
+   - shellStore 增加 packMetadataMap 和 packOverviews 状态管理
+   - Workspace 打开后自动加载 pack overviews
+5. 下一步建议推进 `P3 单卡编辑闭环`
 
 ## 当前最小实现
 
@@ -120,6 +129,9 @@
 
 ### P2 Pack 列表与 Tab 会话
 
+状态：
+已完成（2026-04-26）
+
 目标：
 把 pack 生命周期和运行时 tab 管起来。
 
@@ -127,6 +139,17 @@
 1. workspace 下 pack 列表
 2. 新建 pack、删除 pack、编辑 metadata
 3. 打开/关闭 pack tab
+
+当前完成情况：
+1. 后端 `close_pack` 和 `delete_pack` 已暴露为 Tauri command（服务层方法已有，补齐了 IPC 表面）
+2. 前端 `packApi.ts` 封装 `listPackOverviews`、`createPack`、`openPack`、`closePack`、`deletePack`
+3. AddPackModal 组件已实现：Open Pack tab 展示未打开的 pack 列表，Create Pack tab 创建新 pack 表单，Import Pack tab 标记为未来版本
+4. 侧边栏 pack 列表显示真实 pack 名称，hover 时显示关闭按钮
+5. 打开/关闭/切换 pack tab 全链路已通
+6. Pack metadata bar 显示真实 author/version/languages
+7. Metadata 展开面板显示完整字段（描述、语言、时间戳）并提供 Delete Pack 操作
+8. shellStore 扩展：packMetadataMap 缓存已打开 pack 的元数据，packOverviews 缓存 workspace 内所有 pack 概览
+9. Workspace 打开后自动加载 pack overviews
 
 依赖：
 1. P1
@@ -260,11 +283,11 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P2 Pack 列表与 Tab 会话` 开始。
+下一次进入 Plan 模式时，建议从 `P3 单卡编辑闭环` 开始。
 
 原因：
 
-1. P0 已完成，P1 中设置页和 Workspace 页已可操作
-2. 前端 shell 已与线稿图对齐，侧边栏 pack 列表结构已就位但尚无后端数据
-3. 接下来最值得补的是 pack 生命周期管理 + pack tab 打开/关闭/切换
-4. 只有先把 pack 层操作做成真实闭环，后续 card 编辑才能在应用内验证
+1. P0、P2 已完成，P1 设置页和 Workspace 页已可操作
+2. Pack 生命周期管理（创建、打开、关闭、删除、切换）已全链路通
+3. 接下来最值得补的是 card 列表 + 单卡编辑表单 + 新建卡片
+4. 只有先把 card 编辑做成真实闭环，后续 strings、资源管理才有上下文

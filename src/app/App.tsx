@@ -4,11 +4,14 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useShellStore } from "../shared/stores/shellStore";
 import { configApi } from "../shared/api/configApi";
 import { workspaceApi } from "../shared/api/workspaceApi";
+import { packApi } from "../shared/api/packApi";
 import type { GlobalConfig } from "../shared/contracts/config";
+import type { PackMetadata } from "../shared/contracts/pack";
 import type { WorkspaceMeta, WorkspaceRegistryFile } from "../shared/contracts/workspace";
-import { formatError } from "../shared/utils/format";
+import { formatError, formatTimestamp } from "../shared/utils/format";
 import { WorkspaceModal } from "../features/workspace/WorkspaceModal";
 import { SettingsModal } from "../features/settings/SettingsModal";
+import { AddPackModal } from "../features/pack/AddPackModal";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -42,7 +45,12 @@ export function App() {
   const closeModal = useShellStore((s) => s.closeModal);
   const openPackIds = useShellStore((s) => s.openPackIds);
   const activePackId = useShellStore((s) => s.activePackId);
+  const packMetadataMap = useShellStore((s) => s.packMetadataMap);
   const setActivePack = useShellStore((s) => s.setActivePack);
+  const addOpenPack = useShellStore((s) => s.addOpenPack);
+  const removeOpenPack = useShellStore((s) => s.removeOpenPack);
+  const setPackOverviews = useShellStore((s) => s.setPackOverviews);
+  const setWorkspace = useShellStore((s) => s.setWorkspace);
 
   useEffect(() => {
     let active = true;
@@ -107,6 +115,58 @@ export function App() {
     await appWindow.close();
   }
 
+  async function handleWorkspaceOpened(meta: WorkspaceMeta, path: string) {
+    setCurrentWorkspace({ meta, path });
+    setWorkspace(meta.id, meta.name);
+    try {
+      const overviews = await packApi.listPackOverviews();
+      setPackOverviews(overviews);
+    } catch {
+      // overviews will remain empty
+    }
+  }
+
+  async function handlePackOpened(packId: string, metadata: PackMetadata) {
+    addOpenPack(packId, metadata);
+    try {
+      const overviews = await packApi.listPackOverviews();
+      setPackOverviews(overviews);
+    } catch {
+      // overviews refresh is best-effort
+    }
+  }
+
+  async function handlePackCreated(packId: string, metadata: PackMetadata) {
+    addOpenPack(packId, metadata);
+    try {
+      const overviews = await packApi.listPackOverviews();
+      setPackOverviews(overviews);
+    } catch {
+      // overviews refresh is best-effort
+    }
+  }
+
+  async function handleClosePack(packId: string) {
+    try {
+      await packApi.closePack({ packId });
+      removeOpenPack(packId);
+    } catch (err) {
+      handleNotice("error", "Failed to close pack", formatError(err));
+    }
+  }
+
+  async function handleDeletePack(packId: string) {
+    try {
+      await packApi.deletePack({ packId });
+      removeOpenPack(packId);
+      const overviews = await packApi.listPackOverviews();
+      setPackOverviews(overviews);
+      handleNotice("success", "Pack deleted", "The pack has been removed from the workspace.");
+    } catch (err) {
+      handleNotice("error", "Failed to delete pack", formatError(err));
+    }
+  }
+
   if (loading) {
     return (
       <main className="launch-shell">
@@ -129,6 +189,7 @@ export function App() {
   }
 
   const workspaceName = currentWorkspace?.meta.name ?? "No Workspace Open";
+  const activeMeta = activePackId ? packMetadataMap[activePackId] : null;
 
   return (
     <div className={`app-shell ${shellReady ? "ready" : ""}`}>
@@ -204,21 +265,44 @@ export function App() {
           </div>
 
           <div className="pack-list">
-            {openPackIds.map((packId) => (
-              <button
-                key={packId}
-                type="button"
-                className={`pack-item ${activePackId === packId ? "active" : ""}`}
-                onClick={() => setActivePack(packId)}
-              >
-                {packId}
-              </button>
-            ))}
+            {openPackIds.map((packId) => {
+              const meta = packMetadataMap[packId];
+              return (
+                <div
+                  key={packId}
+                  className={`pack-item-row ${activePackId === packId ? "active" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="pack-item-name"
+                    onClick={() => setActivePack(packId)}
+                    title={meta?.name ?? packId}
+                  >
+                    {meta?.name ?? packId}
+                  </button>
+                  <button
+                    type="button"
+                    className="pack-close-btn"
+                    title="Close pack"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleClosePack(packId);
+                    }}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 8 8" stroke="currentColor" strokeWidth="1.2">
+                      <line x1="0" y1="0" x2="8" y2="8"/><line x1="8" y1="0" x2="0" y2="8"/>
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
 
             <button
               type="button"
               className="pack-item pack-add"
               onClick={() => openModal("addPack")}
+              disabled={!currentWorkspace}
+              title={currentWorkspace ? "Open or create a pack" : "Open a workspace first"}
             >
               +
             </button>
@@ -255,8 +339,12 @@ export function App() {
               {/* Pack Metadata Bar */}
               <div className="meta-bar">
                 <div className="meta-summary">
-                  <strong className="meta-pack-name">{activePackId}</strong>
-                  <span className="meta-detail">Pack metadata will be shown here</span>
+                  <strong className="meta-pack-name">{activeMeta?.name ?? activePackId}</strong>
+                  <span className="meta-detail">
+                    {activeMeta
+                      ? `${activeMeta.author} · v${activeMeta.version} · ${activeMeta.display_language_order.join(", ") || "no languages"}`
+                      : "Loading metadata..."}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -274,9 +362,58 @@ export function App() {
                 </button>
               </div>
 
-              {metaExpanded && (
+              {metaExpanded && activeMeta && (
                 <div className="meta-expanded">
-                  <p className="meta-placeholder">Full pack metadata editing (available after P2)</p>
+                  <div className="meta-grid">
+                    <div className="meta-field">
+                      <span className="meta-field-label">Name</span>
+                      <span className="meta-field-value">{activeMeta.name}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Author</span>
+                      <span className="meta-field-value">{activeMeta.author}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Version</span>
+                      <span className="meta-field-value">{activeMeta.version}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Description</span>
+                      <span className="meta-field-value">{activeMeta.description || "—"}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Languages</span>
+                      <span className="meta-field-value">
+                        {activeMeta.display_language_order.join(", ") || "—"}
+                      </span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Default Export Language</span>
+                      <span className="meta-field-value">{activeMeta.default_export_language || "—"}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Created</span>
+                      <span className="meta-field-value">{formatTimestamp(activeMeta.created_at)}</span>
+                    </div>
+                    <div className="meta-field">
+                      <span className="meta-field-label">Updated</span>
+                      <span className="meta-field-value">{formatTimestamp(activeMeta.updated_at)}</span>
+                    </div>
+                  </div>
+
+                  <div className="meta-actions">
+                    <button
+                      type="button"
+                      className="ghost-button danger-ghost"
+                      onClick={() => {
+                        if (window.confirm(`Delete pack "${activeMeta.name}"? This cannot be undone.`)) {
+                          void handleDeletePack(activePackId);
+                        }
+                      }}
+                    >
+                      Delete Pack
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -301,9 +438,9 @@ export function App() {
               {/* Tab Content */}
               <div className="tab-content">
                 {activeTab === "cards" ? (
-                  <p className="content-placeholder">Card list will appear here (P2+)</p>
+                  <p className="content-placeholder">Card list will appear here (P3)</p>
                 ) : (
-                  <p className="content-placeholder">String entries will appear here (P3+)</p>
+                  <p className="content-placeholder">String entries will appear here (P4)</p>
                 )}
               </div>
             </>
@@ -321,7 +458,7 @@ export function App() {
                 config={config}
                 recentWorkspaces={recentWorkspaces}
                 currentWorkspace={currentWorkspace}
-                onWorkspaceOpened={(meta, path) => setCurrentWorkspace({ meta, path })}
+                onWorkspaceOpened={(meta, path) => void handleWorkspaceOpened(meta, path)}
                 onRecentRefreshed={setRecentWorkspaces}
                 onNotice={handleNotice}
               />
@@ -330,6 +467,15 @@ export function App() {
               <SettingsModal
                 config={config}
                 onConfigSaved={setConfig}
+                onNotice={handleNotice}
+              />
+            )}
+            {modal.type === "addPack" && (
+              <AddPackModal
+                hasWorkspace={currentWorkspace !== null}
+                onPackOpened={(id, meta) => void handlePackOpened(id, meta)}
+                onPackCreated={(id, meta) => void handlePackCreated(id, meta)}
+                onOverviewsRefreshed={setPackOverviews}
                 onNotice={handleNotice}
               />
             )}

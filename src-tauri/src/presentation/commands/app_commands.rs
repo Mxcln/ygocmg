@@ -79,6 +79,14 @@ pub fn open_pack(state: &AppState, pack_id: &str) -> AppResult<PackMetadata> {
     )
 }
 
+pub fn close_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
+    crate::application::pack::service::PackService::new(state).close_pack(pack_id)
+}
+
+pub fn delete_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
+    crate::application::pack::service::PackService::new(state).delete_pack(pack_id)
+}
+
 pub fn list_pack_overviews(state: &AppState) -> AppResult<Vec<PackOverview>> {
     let sessions = state.sessions.read().map_err(|_| {
         crate::domain::common::error::AppError::new(

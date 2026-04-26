@@ -58,6 +58,18 @@ pub struct OpenPackInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ClosePackInput {
+    pack_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePackInput {
+    pack_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListCardsInput {
     pack_id: String,
 }
@@ -172,6 +184,22 @@ pub fn open_pack(
     input: OpenPackInput,
 ) -> CommandResult<crate::domain::pack::model::PackMetadata> {
     crate::presentation::commands::app_commands::open_pack(&state, &input.pack_id)
+}
+
+#[tauri::command]
+pub fn close_pack(
+    state: State<'_, AppState>,
+    input: ClosePackInput,
+) -> CommandResult<()> {
+    crate::presentation::commands::app_commands::close_pack(&state, &input.pack_id)
+}
+
+#[tauri::command]
+pub fn delete_pack(
+    state: State<'_, AppState>,
+    input: DeletePackInput,
+) -> CommandResult<()> {
+    crate::presentation::commands::app_commands::delete_pack(&state, &input.pack_id)
 }
 
 #[tauri::command]

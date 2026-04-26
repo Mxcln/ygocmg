@@ -27,6 +27,8 @@ fn main() {
             tauri_commands::delete_workspace,
             tauri_commands::create_pack,
             tauri_commands::open_pack,
+            tauri_commands::close_pack,
+            tauri_commands::delete_pack,
             tauri_commands::list_pack_overviews,
             tauri_commands::list_cards,
             tauri_commands::create_card,
