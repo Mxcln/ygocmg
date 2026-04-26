@@ -70,6 +70,18 @@ pub struct SetActivePackInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdatePackMetadataInput {
+    pack_id: String,
+    name: String,
+    author: String,
+    version: String,
+    description: Option<String>,
+    display_language_order: Vec<String>,
+    default_export_language: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeletePackInput {
     pack_id: String,
 }
@@ -206,6 +218,23 @@ pub fn set_active_pack(
     input: SetActivePackInput,
 ) -> CommandResult<()> {
     crate::presentation::commands::app_commands::set_active_pack(&state, &input.pack_id)
+}
+
+#[tauri::command]
+pub fn update_pack_metadata(
+    state: State<'_, AppState>,
+    input: UpdatePackMetadataInput,
+) -> CommandResult<crate::domain::pack::model::PackMetadata> {
+    crate::presentation::commands::app_commands::update_pack_metadata(
+        &state,
+        &input.pack_id,
+        &input.name,
+        &input.author,
+        &input.version,
+        input.description,
+        input.display_language_order,
+        input.default_export_language,
+    )
 }
 
 #[tauri::command]

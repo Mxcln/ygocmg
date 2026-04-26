@@ -41,6 +41,7 @@ interface ShellState {
   setOpenPacks: (ids: string[], activeId: string | null) => void;
   setActivePack: (id: string | null) => void;
   addOpenPack: (id: string, metadata: PackMetadata) => void;
+  updatePackMetadata: (id: string, metadata: PackMetadata) => void;
   removeOpenPack: (id: string) => void;
 }
 
@@ -118,6 +119,11 @@ export const useShellStore = create<ShellState>()((set) => ({
         packMetadataMap: nextMap,
       };
     }),
+
+  updatePackMetadata: (id, metadata) =>
+    set((state) => ({
+      packMetadataMap: { ...state.packMetadataMap, [id]: metadata },
+    })),
 
   removeOpenPack: (id) =>
     set((state) => {

@@ -18,6 +18,16 @@ export interface ClosePackInput {
   packId: string;
 }
 
+export interface UpdatePackMetadataInput {
+  packId: string;
+  name: string;
+  author: string;
+  version: string;
+  description: string | null;
+  displayLanguageOrder: string[];
+  defaultExportLanguage: string | null;
+}
+
 export interface DeletePackInput {
   packId: string;
 }
@@ -41,6 +51,10 @@ export const packApi = {
 
   setActivePack(input: OpenPackInput) {
     return invokeApi<void>("set_active_pack", { input });
+  },
+
+  updatePackMetadata(input: UpdatePackMetadataInput) {
+    return invokeApi<PackMetadata>("update_pack_metadata", { input });
   },
 
   deletePack(input: DeletePackInput) {

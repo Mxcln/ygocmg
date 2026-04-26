@@ -37,7 +37,11 @@
    - `WorkspaceMeta` 新增 `open_pack_ids` 字段，open/close/delete pack 时持久化到磁盘
    - 启动时自动恢复上次打开的 workspace（取 registry 中 `last_opened_at` 最新的记录）
    - workspace 打开后自动恢复之前打开的 pack 列表和活跃 pack
-6. 下一步建议推进 `P3 单卡编辑闭环`
+6. `P2.5 Pack Metadata Editing` 已完成：
+   - 后端 `update_pack_metadata` command 全链路（service → tauri command → 前端 API）
+   - 前端 metadata 展开面板改为 overlay drawer，不再挤压主内容区
+   - 展开面板内支持只读/编辑模式就地切换，保存后自动刷新所有相关 UI 状态
+7. 下一步建议推进 `P3 单卡编辑闭环`
 
 ## 当前最小实现
 
@@ -167,6 +171,9 @@
 
 ### P2.5 Pack Metadata Editing
 
+状态：
+已完成（2026-04-26）
+
 目标：
 把 pack metadata 从“只读摘要 + 展开查看”补齐到可编辑闭环。
 
@@ -177,6 +184,16 @@
 4. 支持修改 `display_language_order`
 5. 支持修改 `default_export_language`
 6. 保存后刷新当前打开 pack 的 metadata 和 workspace pack overviews
+
+当前完成情况：
+1. 后端 `PackService::update_pack_metadata` 已实现，走 `validate → touch → save_pack_metadata → 更新 session → 刷新 overviews` 流程
+2. Tauri command `update_pack_metadata` 已注册
+3. 前端 `packApi.updatePackMetadata` 已封装
+4. 前端 metadata 展开面板已从 inline 推挤改为 overlay drawer（`position: absolute` + backdrop），不再挤压下方 card list / strings 主内容区
+5. 展开面板支持只读/编辑两种模式就地切换：只读态显示 `[Edit] [Delete Pack]`，点击 Edit 切换为表单态显示 `[Save] [Cancel]`
+6. 保存成功后自动刷新 `packMetadataMap`、`packOverviews` 和 collapsed meta-bar 摘要
+7. shellStore 新增 `updatePackMetadata` action
+8. 切换 active pack 时自动关闭 drawer 并重置编辑态
 
 验收：
 1. 用户可以直接在 UI 中修改 pack metadata

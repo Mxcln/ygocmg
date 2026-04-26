@@ -87,6 +87,27 @@ pub fn set_active_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
     crate::application::pack::service::PackService::new(state).set_active_pack(pack_id)
 }
 
+pub fn update_pack_metadata(
+    state: &AppState,
+    pack_id: &str,
+    name: &str,
+    author: &str,
+    version: &str,
+    description: Option<String>,
+    display_language_order: Vec<String>,
+    default_export_language: Option<String>,
+) -> AppResult<PackMetadata> {
+    crate::application::pack::service::PackService::new(state).update_pack_metadata(
+        pack_id,
+        name,
+        author,
+        version,
+        description,
+        display_language_order,
+        default_export_language,
+    )
+}
+
 pub fn delete_pack(state: &AppState, pack_id: &str) -> AppResult<()> {
     crate::application::pack::service::PackService::new(state).delete_pack(pack_id)
 }

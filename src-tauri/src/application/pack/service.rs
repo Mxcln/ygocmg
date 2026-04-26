@@ -140,6 +140,55 @@ impl<'a> PackService<'a> {
         self.persist_session_state(&workspace_path)
     }
 
+    pub fn update_pack_metadata(
+        &self,
+        pack_id: &str,
+        name: &str,
+        author: &str,
+        version: &str,
+        description: Option<String>,
+        display_language_order: Vec<String>,
+        default_export_language: Option<String>,
+    ) -> AppResult<PackMetadata> {
+        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
+            .current_workspace_path()?;
+        let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
+
+        let mut metadata = json_store::load_pack_metadata(&pack_path)?;
+        metadata.name = name.trim().to_string();
+        metadata.author = author.trim().to_string();
+        metadata.version = version.trim().to_string();
+        metadata.description = description;
+        metadata.display_language_order = display_language_order;
+        metadata.default_export_language = default_export_language;
+
+        let issues = validate_pack_metadata(&metadata);
+        if issues
+            .iter()
+            .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
+        {
+            return Err(AppError::new(
+                "pack.validation_failed",
+                "pack metadata contains validation errors",
+            ));
+        }
+
+        metadata = touch_pack_metadata(&metadata, now_utc());
+        json_store::save_pack_metadata(&pack_path, &metadata)?;
+
+        {
+            let mut sessions = self.state.sessions.write().map_err(|_| {
+                AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
+            })?;
+            if let Some(session) = sessions.open_packs.get_mut(pack_id) {
+                session.metadata = metadata.clone();
+            }
+        }
+
+        self.refresh_current_workspace_summary()?;
+        Ok(metadata)
+    }
+
     pub fn delete_pack(&self, pack_id: &str) -> AppResult<()> {
         let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
             .current_workspace_path()?;

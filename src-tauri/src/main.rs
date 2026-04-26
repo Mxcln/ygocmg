@@ -29,6 +29,7 @@ fn main() {
             tauri_commands::open_pack,
             tauri_commands::close_pack,
             tauri_commands::set_active_pack,
+            tauri_commands::update_pack_metadata,
             tauri_commands::delete_pack,
             tauri_commands::list_pack_overviews,
             tauri_commands::list_cards,

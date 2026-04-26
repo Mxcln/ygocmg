@@ -45,6 +45,16 @@ export function App() {
   const [maximized, setMaximized] = useState(false);
   const [shellReady, setShellReady] = useState(false);
   const [metaExpanded, setMetaExpanded] = useState(false);
+  const [metaEditing, setMetaEditing] = useState(false);
+  const [metaDraft, setMetaDraft] = useState<{
+    name: string;
+    author: string;
+    version: string;
+    description: string;
+    displayLanguageOrder: string;
+    defaultExportLanguage: string;
+  } | null>(null);
+  const [metaSaving, setMetaSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<PackTab>("cards");
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const configRef = useRef<GlobalConfig | null>(null);
@@ -58,6 +68,7 @@ export function App() {
   const setActivePack = useShellStore((s) => s.setActivePack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
   const removeOpenPack = useShellStore((s) => s.removeOpenPack);
+  const updatePackMetadataInStore = useShellStore((s) => s.updatePackMetadata);
   const setPackOverviews = useShellStore((s) => s.setPackOverviews);
   const setWorkspace = useShellStore((s) => s.setWorkspace);
 
@@ -71,6 +82,9 @@ export function App() {
 
   async function persistActivePack(packId: string) {
     setActivePack(packId);
+    setMetaExpanded(false);
+    setMetaEditing(false);
+    setMetaDraft(null);
     try {
       await packApi.setActivePack({ packId });
     } catch (err) {
@@ -366,6 +380,62 @@ export function App() {
     }
   }
 
+  function handleStartEditMeta() {
+    if (!activeMeta) return;
+    setMetaDraft({
+      name: activeMeta.name,
+      author: activeMeta.author,
+      version: activeMeta.version,
+      description: activeMeta.description || "",
+      displayLanguageOrder: activeMeta.display_language_order.join(", "),
+      defaultExportLanguage: activeMeta.default_export_language || "",
+    });
+    setMetaEditing(true);
+  }
+
+  function handleCancelEditMeta() {
+    setMetaEditing(false);
+    setMetaDraft(null);
+  }
+
+  async function handleSavePackMetadata() {
+    if (!activePackId || !metaDraft) return;
+    const trimmedName = metaDraft.name.trim();
+    if (!trimmedName) {
+      handleNotice("error", "Validation Error", "Pack name cannot be empty.");
+      return;
+    }
+
+    setMetaSaving(true);
+    try {
+      const langList = metaDraft.displayLanguageOrder
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const updated = await packApi.updatePackMetadata({
+        packId: activePackId,
+        name: trimmedName,
+        author: metaDraft.author.trim(),
+        version: metaDraft.version.trim(),
+        description: metaDraft.description.trim() || null,
+        displayLanguageOrder: langList,
+        defaultExportLanguage: metaDraft.defaultExportLanguage.trim() || null,
+      });
+
+      updatePackMetadataInStore(activePackId, updated);
+      const overviews = await packApi.listPackOverviews();
+      setPackOverviews(overviews);
+      setMetaEditing(false);
+      setMetaDraft(null);
+      handleNotice("success", "Metadata Saved", "Pack metadata has been updated.");
+    } catch (err) {
+      handleNotice("error", "Failed to save metadata", formatError(err));
+    } finally {
+      setMetaSaving(false);
+    }
+  }
+
   async function handleDeletePack(packId: string) {
     try {
       await packApi.deletePack({ packId });
@@ -588,100 +658,204 @@ export function App() {
                 </button>
               </div>
 
-              {metaExpanded && activeMeta && (
-                <div className="meta-expanded">
-                  <div className="meta-grid">
-                    <div className="meta-field">
-                      <span className="meta-field-label">Name</span>
-                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.name}>
-                        {activeMeta.name}
-                      </span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Author</span>
-                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.author}>
-                        {activeMeta.author}
-                      </span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Version</span>
-                      <span className="meta-field-value meta-field-value-inline" title={activeMeta.version}>
-                        {activeMeta.version}
-                      </span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Preferred Text Languages</span>
-                      <span className="meta-field-value" title={preferredTextLanguages}>
-                        {preferredTextLanguages}
-                      </span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Default Export Language</span>
-                      <span
-                        className="meta-field-value meta-field-value-inline"
-                        title={activeMeta.default_export_language || "—"}
-                      >
-                        {activeMeta.default_export_language || "—"}
-                      </span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Created</span>
-                      <span className="meta-field-value">{formatTimestamp(activeMeta.created_at)}</span>
-                    </div>
-                    <div className="meta-field">
-                      <span className="meta-field-label">Updated</span>
-                      <span className="meta-field-value">{formatTimestamp(activeMeta.updated_at)}</span>
-                    </div>
-                    <div className="meta-field meta-field-wide">
-                      <span className="meta-field-label">Description</span>
-                      <span
-                        className="meta-field-value meta-field-value-description"
-                        title={activeMeta.description || "—"}
-                      >
-                        {activeMeta.description || "—"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="meta-actions">
-                    <button
-                      type="button"
-                      className="ghost-button danger-ghost"
+              <div className="work-area-content">
+                {metaExpanded && activeMeta && (
+                  <>
+                    <div
+                      className="meta-drawer-backdrop"
                       onClick={() => {
-                        if (window.confirm(`Delete pack "${activeMeta.name}"? This cannot be undone.`)) {
-                          void handleDeletePack(activePackId);
+                        if (!metaEditing) {
+                          setMetaExpanded(false);
                         }
                       }}
-                    >
-                      Delete Pack
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="tab-strip">
-                <button
-                  type="button"
-                  className={`tab-btn ${activeTab === "cards" ? "active" : ""}`}
-                  onClick={() => setActiveTab("cards")}
-                >
-                  Cards
-                </button>
-                <button
-                  type="button"
-                  className={`tab-btn ${activeTab === "strings" ? "active" : ""}`}
-                  onClick={() => setActiveTab("strings")}
-                >
-                  Strings
-                </button>
-              </div>
-
-              <div className="tab-content">
-                {activeTab === "cards" ? (
-                  <p className="content-placeholder">Card list will appear here (P3)</p>
-                ) : (
-                  <p className="content-placeholder">String entries will appear here (P4)</p>
+                    />
+                    <div className="meta-expanded">
+                      {metaEditing && metaDraft ? (
+                        <>
+                          <div className="meta-grid">
+                            <div className="meta-field">
+                              <span className="meta-field-label">Name</span>
+                              <input
+                                className="meta-edit-input"
+                                value={metaDraft.name}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, name: e.target.value })}
+                              />
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Author</span>
+                              <input
+                                className="meta-edit-input"
+                                value={metaDraft.author}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, author: e.target.value })}
+                              />
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Version</span>
+                              <input
+                                className="meta-edit-input"
+                                value={metaDraft.version}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, version: e.target.value })}
+                              />
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Preferred Text Languages</span>
+                              <input
+                                className="meta-edit-input"
+                                value={metaDraft.displayLanguageOrder}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, displayLanguageOrder: e.target.value })}
+                                placeholder="e.g. zh-CN, en-US"
+                              />
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Default Export Language</span>
+                              <input
+                                className="meta-edit-input"
+                                value={metaDraft.defaultExportLanguage}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, defaultExportLanguage: e.target.value })}
+                                placeholder="e.g. zh-CN"
+                              />
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Created</span>
+                              <span className="meta-field-value">{formatTimestamp(activeMeta.created_at)}</span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Updated</span>
+                              <span className="meta-field-value">{formatTimestamp(activeMeta.updated_at)}</span>
+                            </div>
+                            <div className="meta-field meta-field-wide">
+                              <span className="meta-field-label">Description</span>
+                              <textarea
+                                className="meta-edit-input"
+                                value={metaDraft.description}
+                                onChange={(e) => setMetaDraft({ ...metaDraft, description: e.target.value })}
+                                rows={3}
+                              />
+                            </div>
+                          </div>
+                          <div className="meta-actions">
+                            <button
+                              type="button"
+                              className="primary-button"
+                              onClick={() => void handleSavePackMetadata()}
+                              disabled={metaSaving}
+                            >
+                              {metaSaving ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={handleCancelEditMeta}
+                              disabled={metaSaving}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="meta-grid">
+                            <div className="meta-field">
+                              <span className="meta-field-label">Name</span>
+                              <span className="meta-field-value meta-field-value-inline" title={activeMeta.name}>
+                                {activeMeta.name}
+                              </span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Author</span>
+                              <span className="meta-field-value meta-field-value-inline" title={activeMeta.author}>
+                                {activeMeta.author}
+                              </span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Version</span>
+                              <span className="meta-field-value meta-field-value-inline" title={activeMeta.version}>
+                                {activeMeta.version}
+                              </span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Preferred Text Languages</span>
+                              <span className="meta-field-value" title={preferredTextLanguages}>
+                                {preferredTextLanguages}
+                              </span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Default Export Language</span>
+                              <span
+                                className="meta-field-value meta-field-value-inline"
+                                title={activeMeta.default_export_language || "—"}
+                              >
+                                {activeMeta.default_export_language || "—"}
+                              </span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Created</span>
+                              <span className="meta-field-value">{formatTimestamp(activeMeta.created_at)}</span>
+                            </div>
+                            <div className="meta-field">
+                              <span className="meta-field-label">Updated</span>
+                              <span className="meta-field-value">{formatTimestamp(activeMeta.updated_at)}</span>
+                            </div>
+                            <div className="meta-field meta-field-wide">
+                              <span className="meta-field-label">Description</span>
+                              <span
+                                className="meta-field-value meta-field-value-description"
+                                title={activeMeta.description || "—"}
+                              >
+                                {activeMeta.description || "—"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="meta-actions">
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={handleStartEditMeta}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button danger-ghost"
+                              onClick={() => {
+                                if (window.confirm(`Delete pack "${activeMeta.name}"? This cannot be undone.`)) {
+                                  void handleDeletePack(activePackId);
+                                }
+                              }}
+                            >
+                              Delete Pack
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
                 )}
+
+                <div className="tab-strip">
+                  <button
+                    type="button"
+                    className={`tab-btn ${activeTab === "cards" ? "active" : ""}`}
+                    onClick={() => setActiveTab("cards")}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-btn ${activeTab === "strings" ? "active" : ""}`}
+                    onClick={() => setActiveTab("strings")}
+                  >
+                    Strings
+                  </button>
+                </div>
+
+                <div className="tab-content">
+                  {activeTab === "cards" ? (
+                    <p className="content-placeholder">Card list will appear here (P3)</p>
+                  ) : (
+                    <p className="content-placeholder">String entries will appear here (P4)</p>
+                  )}
+                </div>
               </div>
             </>
           )}
