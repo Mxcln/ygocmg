@@ -1,7 +1,7 @@
 # YGOCMG 最小实现与功能包规划
 
 日期：2026-04-25
-最近更新：2026-04-26
+最近更新：2026-04-28
 
 ## 目标
 
@@ -10,7 +10,7 @@
 1. 一个现在就可以持续实现、测试和演进的最小实现
 2. 一组之后可以在 Plan 模式下顺序推进的功能包
 
-## 进度更新（2026-04-26）
+## 进度更新（2026-04-28）
 
 1. 作者态 Rust 后端最小闭环已继续保持可用
 2. `P0 工程启动包` 已完成，当前仓库已经具备可启动的 Tauri + React 最小应用壳
@@ -41,7 +41,18 @@
    - 后端 `update_pack_metadata` command 全链路（service → tauri command → 前端 API）
    - 前端 metadata 展开面板改为 overlay drawer，不再挤压主内容区
    - 展开面板内支持只读/编辑模式就地切换，保存后自动刷新所有相关 UI 状态
-7. 下一步建议推进 `P3 单卡编辑闭环`
+7. `P3 单卡编辑闭环`、`P3.5 统一确认与 Warning 流`、`P4 PackStrings 与资源管理` 均已完成，作者态 card / strings / resource 主链路已经可用
+8. `P6 Job / Event 基础设施` 已完成后端优先版本：
+   - 新增 Job DTO、`JobRuntime`、内存态 `JobStore`、`JobContext`
+   - 新增 `AppEventBus`、`job:progress` / `job:finished` 事件模型和 Tauri 事件桥
+   - `AppState` 增加 `jobs` / `event_bus`，并将运行时共享状态调整为 `Arc<RwLock<...>>`
+   - 新增 `get_job_status`、`list_active_jobs` Tauri commands
+   - 前端新增 `job` contract 与 `jobApi`
+   - 新增 `job_runtime` 集成测试，覆盖成功、失败、active jobs、进度事件
+   - 已根据审阅修复 progress 事件发布错误传播、恢复 Debug 能力、补充 store 断言和 TS event payload 类型
+9. 下一步建议根据目标选择：
+   - 如果优先补生产效率，推进 `P5 批量编辑`
+   - 如果优先打通导入导出链路，推进 `P7 标准包只读接入`，随后接 `P8 / P9`
 
 ## 当前最小实现
 
@@ -66,6 +77,7 @@
 17. 最小 React / Vite 前端入口
 18. 基础 `invokeApi`
 19. 一页用于验证初始化链路的最小启动页面
+20. P6 后端长任务基础设施：Job 状态模型、任务查询、进度事件、Tauri 事件桥、前端 job API 合同
 
 这一层的目标不是“首版完成”，而是先建立稳定内核。
 
@@ -74,15 +86,12 @@
 以下能力仍属于后续包，不在当前最小实现内：
 
 1. 设置、workspace、pack、card 等业务页面与完整交互 UI
-3. 标准包只读接入
+2. 批量编辑与批量移动
+3. 标准包只读接入与真实索引构建 runner
 4. 导入预检与导入执行
-5. 多包导出预检与导出执行
-6. Job / Event 统一长任务系统
-7. `PackStrings` 编辑服务
-8. 批量编辑与批量移动
-9. 外部编辑器联动
-10. 标准包冲突检测
-11. 前端 i18n、通知、确认流
+5. 多包导出执行
+6. 前端任务中心 UI / 任务结果展示
+7. 前端 i18n
 
 ## 推荐功能包
 
@@ -318,6 +327,9 @@
 
 ### P6 Job / Event 基础设施
 
+状态：
+后端优先版本已完成（2026-04-28）
+
 目标：
 为长任务建立统一运行方式。
 
@@ -327,8 +339,34 @@
 3. 进度事件
 4. 前端任务反馈区
 
+当前完成情况：
+1. 后端新增 `application/dto/job.rs`，提供 `JobKindDto`、`JobStatusDto`、`JobAcceptedDto`、`JobSnapshotDto`、`GetJobStatusInput`
+2. `runtime/jobs` 已实现内存态 `JobRuntime` / `JobStore` / `JobContext`
+3. `JobRuntime::submit` 支持后台执行测试/未来真实 runner，并把成功、失败、panic 都落入任务状态
+4. `JobContext::progress` 支持阶段、百分比和消息更新；状态持久化失败会返回错误，事件发布失败按 best-effort 处理，不会误杀任务
+5. `runtime/events` 已定义 `AppEventBus`、`JobProgressEvent`、`JobFinishedEvent`，事件名固定为 `job:progress` / `job:finished`
+6. `infrastructure/tauri_event_bus.rs` 已把 runtime 事件桥接到 Tauri `emit`
+7. `AppState` 已接入 `jobs` / `event_bus`，并将 `sessions`、`confirmation_cache` 调整为可后台共享的 `Arc<RwLock<...>>`
+8. Presentation / Tauri command 已新增 `get_job_status`、`list_active_jobs`
+9. 前端已新增 `src/shared/contracts/job.ts` 与 `src/shared/api/jobApi.ts`，并导出 `JobProgressEvent` / `JobFinishedEvent` 类型
+10. 新增 `src-tauri/tests/job_runtime.rs`，覆盖成功任务、失败任务、active jobs 和事件记录
+11. 代码审阅后已补充：`AppState` / `JobRuntime` Debug、`JobStore` insert/update debug assert、移除误导性的 `AppEvent` serde tag
+
+本轮未做：
+1. 完整前端任务中心 UI
+2. `cancel_job`
+3. Job 历史持久化或容量裁剪
+4. 标准包索引、导入、导出的真实 runner
+5. `preview_token` cache 与 execute 阶段复核
+
 依赖：
 1. P2
+
+后续衔接：
+1. `P7` 应首先把 `rebuild_standard_pack_index -> JobAcceptedDto` 接入 `JobRuntime`
+2. `P8` 的 `execute_import_pack(preview_token)` 应提交 `import_pack` job，并在 runner 开始时复核 preview 快照
+3. `P9` 的 `execute_export_bundle(preview_token)` 应提交 `export_bundle` job，复用当前 `preview_export_bundle` 的 `snapshot_hash` 思路
+4. 后续真实 runner 必须避免长时间持有 `sessions.write()`，只在读取快照和最终提交状态时短暂加锁
 
 ### P7 标准包只读接入
 
@@ -397,7 +435,7 @@
 3. P3
 4. P4
 5. P5
-6. P6
+6. P6（已完成后端基础设施）
 7. P7
 8. P8
 9. P9
@@ -405,11 +443,11 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P6 Job / Event 基础设施` 开始。
+下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P7 标准包只读接入` 开始。
 
 原因：
 
 1. P0、P1、P2、P3、P4 已形成连续可用链路
 2. 单卡编辑、资源管理、strings 管理都已具备作者态闭环
-3. 后续最值得补的是批量生产能力，或为导入导出做长任务基础设施
-4. `preview_export_bundle` 已有最小后端骨架，继续推进 P6 / P8 / P9 的收益会更高
+3. P6 已经把长任务基础设施落地，后续可以直接服务标准包索引、导入和导出执行
+4. 若优先提升编辑效率，推进 P5；若优先打通导入导出链路，推进 P7，然后接 P8 / P9

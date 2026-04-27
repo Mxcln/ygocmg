@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use crate::bootstrap::AppState;
 use crate::application::dto::card::{
     CardDetailDto, CardListPageDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput,
     DeleteCardResultDto, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::{ExportPreviewDto, PreviewExportBundleInput};
+use crate::application::dto::job::{GetJobStatusInput, JobSnapshotDto};
 use crate::application::dto::resource::{
     CardAssetStateDto, CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput,
     DeleteScriptInput, ImportFieldImageInput, ImportMainImageInput, ImportScriptInput,
@@ -17,6 +17,7 @@ use crate::application::dto::strings::{
     GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto,
     RemovePackStringTranslationInput, UpsertPackStringInput, UpsertPackStringRecordInput,
 };
+use crate::bootstrap::AppState;
 use crate::domain::common::error::AppResult;
 use crate::domain::config::model::GlobalConfig;
 use crate::domain::pack::model::{PackMetadata, PackOverview};
@@ -45,8 +46,11 @@ pub fn create_workspace(
     name: &str,
     description: Option<String>,
 ) -> AppResult<WorkspaceMeta> {
-    crate::application::workspace::service::WorkspaceService::new(state)
-        .create_workspace(&path, name, description)
+    crate::application::workspace::service::WorkspaceService::new(state).create_workspace(
+        &path,
+        name,
+        description,
+    )
 }
 
 pub fn open_workspace(state: &AppState, path: PathBuf) -> AppResult<WorkspaceMeta> {
@@ -63,8 +67,11 @@ pub fn delete_workspace(
     path: PathBuf,
     delete_directory: bool,
 ) -> AppResult<()> {
-    crate::application::workspace::service::WorkspaceService::new(state)
-        .delete_workspace(workspace_id, &path, delete_directory)
+    crate::application::workspace::service::WorkspaceService::new(state).delete_workspace(
+        workspace_id,
+        &path,
+        delete_directory,
+    )
 }
 
 pub fn create_pack(
@@ -133,7 +140,13 @@ pub fn list_pack_overviews(state: &AppState) -> AppResult<Vec<PackOverview>> {
     let mut values = sessions
         .current_workspace
         .as_ref()
-        .map(|workspace| workspace.pack_overviews.values().cloned().collect::<Vec<_>>())
+        .map(|workspace| {
+            workspace
+                .pack_overviews
+                .values()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     values.sort_by(|left, right| left.name.cmp(&right.name));
     Ok(values)
@@ -167,8 +180,11 @@ pub fn delete_card(
     state: &AppState,
     input: DeleteCardInput,
 ) -> AppResult<WriteResultDto<DeleteCardResultDto>> {
-    crate::application::pack::write_service::PackWriteService::new(state)
-        .delete_card(&input.workspace_id, &input.pack_id, &input.card_id)?;
+    crate::application::pack::write_service::PackWriteService::new(state).delete_card(
+        &input.workspace_id,
+        &input.pack_id,
+        &input.card_id,
+    )?;
     Ok(WriteResultDto::Ok {
         data: DeleteCardResultDto {
             deleted_card_id: input.card_id,
@@ -192,7 +208,10 @@ pub fn suggest_card_code(
     crate::application::card::service::CardService::new(state).suggest_code(input)
 }
 
-pub fn list_pack_strings(state: &AppState, input: ListPackStringsInput) -> AppResult<PackStringsPageDto> {
+pub fn list_pack_strings(
+    state: &AppState,
+    input: ListPackStringsInput,
+) -> AppResult<PackStringsPageDto> {
     crate::application::strings::service::PackStringsService::new(state).list_pack_strings(input)
 }
 
@@ -317,4 +336,12 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
     crate::application::export::service::ExportService::new(state).preview_export_bundle(input)
+}
+
+pub fn get_job_status(state: &AppState, input: GetJobStatusInput) -> AppResult<JobSnapshotDto> {
+    crate::application::jobs::service::JobService::new(state).get_job_status(input)
+}
+
+pub fn list_active_jobs(state: &AppState) -> AppResult<Vec<JobSnapshotDto>> {
+    crate::application::jobs::service::JobService::new(state).list_active_jobs()
 }

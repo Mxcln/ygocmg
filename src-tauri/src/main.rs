@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tauri::Manager;
-use ygocmg_core::bootstrap::wiring::build_app_state;
+use ygocmg_core::bootstrap::wiring::build_app_state_with_event_bus;
+use ygocmg_core::infrastructure::tauri_event_bus::TauriEventBus;
 use ygocmg_core::tauri_commands;
 
 fn main() {
@@ -13,7 +15,9 @@ fn main() {
                 .path()
                 .app_data_dir()
                 .map_err(|source| source.to_string())?;
-            let state = build_app_state(PathBuf::from(app_data_dir)).map_err(|source| source.to_string())?;
+            let event_bus = Arc::new(TauriEventBus::new(app.handle().clone()));
+            let state = build_app_state_with_event_bus(PathBuf::from(app_data_dir), event_bus)
+                .map_err(|source| source.to_string())?;
             app.manage(state);
             Ok(())
         })
@@ -55,7 +59,9 @@ fn main() {
             tauri_commands::import_script,
             tauri_commands::delete_script,
             tauri_commands::open_script_external,
-            tauri_commands::preview_export_bundle
+            tauri_commands::preview_export_bundle,
+            tauri_commands::get_job_status,
+            tauri_commands::list_active_jobs
         ])
         .run(tauri::generate_context!())
         .expect("failed to run YGOCMG");

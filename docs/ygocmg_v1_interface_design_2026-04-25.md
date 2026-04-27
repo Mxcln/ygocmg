@@ -1640,6 +1640,7 @@ pub enum JobKindDto {
     StandardPackIndexRebuild,
     ImportPack,
     ExportBundle,
+    Test,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1667,13 +1668,21 @@ pub struct JobSnapshotDto {
     pub message: Option<String>,
     pub started_at: Option<AppTimestamp>,
     pub finished_at: Option<AppTimestamp>,
+    pub error: Option<crate::application::dto::common::AppErrorDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetJobStatusInput {
     pub job_id: JobId,
 }
 ```
+
+实现备注（2026-04-28）：
+
+1. `Test` 仅用于测试专用 runner，不暴露产品命令
+2. `JobSnapshotDto.error` 用于保留失败任务的错误码、消息和 details
+3. `GetJobStatusInput` 与当前前端 invoke 约定一致，使用 camelCase 入参桥接
 
 ## 8. Application Ports 接口
 
@@ -2068,6 +2077,7 @@ pub struct PackMutationPlan {
 pub enum ApplicationEvent {
     JobProgress {
         job_id: JobId,
+        kind: String,
         status: String,
         stage: String,
         progress_percent: Option<u8>,
@@ -2075,7 +2085,12 @@ pub enum ApplicationEvent {
     },
     JobFinished {
         job_id: JobId,
+        kind: String,
         status: String,
+        stage: String,
+        progress_percent: Option<u8>,
+        message: Option<String>,
+        error: Option<crate::application::dto::common::AppErrorDto>,
     },
     WorkspaceChanged {
         workspace_id: WorkspaceId,
@@ -2094,6 +2109,12 @@ pub trait EventBus: Send + Sync {
 }
 ```
 
+实现备注（2026-04-28）：
+
+1. 当前代码落点为 `runtime/events` 中的 `AppEventBus`
+2. Tauri 事件桥只发送 `JobProgressEvent` / `JobFinishedEvent` payload，不发送外层 `AppEvent`
+3. 事件发送是 best-effort，不能影响 Job runner 的成败
+
 ## 8.12 `application/ports/job_scheduler.rs`
 
 ```rust
@@ -2102,6 +2123,7 @@ pub enum JobKind {
     StandardPackIndexRebuild,
     ImportPack,
     ExportBundle,
+    Test,
 }
 
 #[derive(Debug, Clone)]
@@ -2123,6 +2145,12 @@ pub trait JobScheduler: Send + Sync {
     fn list_active(&self) -> AppResult<Vec<crate::runtime::jobs::job_store::JobSnapshot>>;
 }
 ```
+
+实现备注（2026-04-28）：
+
+1. 当前最小实现直接使用 `JobRuntime::submit(kind, runner)`，runner 为闭包
+2. `JobPayload` 枚举尚未落地，待 P7/P8/P9 接入真实任务时再收敛
+3. runtime 当前暂用 application job DTO，后续如任务类型膨胀，可拆出 runtime 自有 `JobKind / JobStatus`
 
 ## 8.13 `application/ports/clock.rs`
 
@@ -2624,13 +2652,14 @@ pub enum RuntimeJobStatus {
 #[derive(Debug, Clone)]
 pub struct JobSnapshot {
     pub job_id: JobId,
-    pub kind: crate::application::ports::job_scheduler::JobKind,
-    pub status: RuntimeJobStatus,
+    pub kind: crate::application::dto::job::JobKindDto,
+    pub status: crate::application::dto::job::JobStatusDto,
     pub stage: String,
     pub progress_percent: Option<u8>,
     pub message: Option<String>,
     pub started_at: Option<AppTimestamp>,
     pub finished_at: Option<AppTimestamp>,
+    pub error: Option<crate::domain::common::error::AppError>,
 }
 
 pub trait JobStore: Send + Sync {
@@ -2645,11 +2674,14 @@ pub trait JobStore: Send + Sync {
 
 1. `JobStore` 保存 runtime 内部任务快照，不直接存 application DTO
 2. `application/job service` 负责把内部任务快照映射为 `JobSnapshotDto`
+3. 当前 P6 最小实现为了降低前期复杂度暂用 `JobKindDto / JobStatusDto`，这是已知的轻量耦合，后续真实 runner 接入前可再解耦
+4. `list_active` 只返回 `pending / running`
+5. 完成 / 失败任务留在内存中，可通过 `get_status` 查询；首版不做磁盘持久化
 
 ## 10.5 `runtime/events/app_event.rs`
 
 ```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum AppEvent {
     JobProgress(JobProgressEvent),
     JobFinished(JobFinishedEvent),
@@ -2661,7 +2693,8 @@ pub enum AppEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobProgressEvent {
     pub job_id: JobId,
-    pub status: String,
+    pub kind: crate::application::dto::job::JobKindDto,
+    pub status: crate::application::dto::job::JobStatusDto,
     pub stage: String,
     pub progress_percent: Option<u8>,
     pub message: Option<String>,
@@ -2670,7 +2703,12 @@ pub struct JobProgressEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobFinishedEvent {
     pub job_id: JobId,
-    pub status: String,
+    pub kind: crate::application::dto::job::JobKindDto,
+    pub status: crate::application::dto::job::JobStatusDto,
+    pub stage: String,
+    pub progress_percent: Option<u8>,
+    pub message: Option<String>,
+    pub error: Option<crate::application::dto::common::AppErrorDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2689,6 +2727,12 @@ pub struct StandardPackIndexUpdatedEvent {
     pub indexed_at: AppTimestamp,
 }
 ```
+
+实现备注（2026-04-28）：
+
+1. `AppEvent` 是内部枚举，不作为 Tauri payload 直接序列化
+2. Tauri emit 的 payload 是 `JobProgressEvent` 或 `JobFinishedEvent`
+3. `workspace:changed`、`pack:changed`、`standard_pack_index_updated` 尚未落地
 
 ## 11. Presentation 层接口
 
@@ -3155,6 +3199,15 @@ export interface JobApi {
 }
 ```
 
+当前实现采用 `invokeApi<T>` 直接返回数据：
+
+```ts
+export const jobApi = {
+  getJobStatus(input: GetJobStatusInput): Promise<JobSnapshot>;
+  listActiveJobs(): Promise<JobSnapshot[]>;
+}
+```
+
 ## 12.12 `shared/api/events.ts`
 
 ```ts
@@ -3165,6 +3218,13 @@ export interface AppEventsApi {
   onPackChanged(handler: (event: PackChangedEvent) => void): Promise<() => void>;
   onStandardPackIndexUpdated(handler: (event: StandardPackIndexUpdatedEvent) => void): Promise<() => void>;
 }
+```
+
+当前前端已补充 `JobProgressEvent` / `JobFinishedEvent` contract，但尚未实现 `shared/api/events.ts` 包装层。后续任务中心可直接基于 `@tauri-apps/api/event` 监听：
+
+```ts
+listen<JobProgressEvent>("job:progress", handler);
+listen<JobFinishedEvent>("job:finished", handler);
 ```
 
 ## 13. JSON 文件协议接口

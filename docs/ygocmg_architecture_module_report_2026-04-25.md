@@ -1040,6 +1040,13 @@ pub struct PackSession {
 2. Job 结果暂存
 3. 进度百分比和阶段状态
 
+当前状态（2026-04-28）：
+
+1. `JobRuntime`、`JobStore`、`JobContext` 已落地
+2. Job 状态和错误结果以内存 snapshot 保存
+3. `list_active_jobs` 只暴露 `pending / running`
+4. 真实标准包索引 / 导入 / 导出 runner 尚未接入
+
 ### 6.4.5 `runtime/events`
 
 职责：
@@ -1047,6 +1054,13 @@ pub struct PackSession {
 1. 对前端广播 job 进度
 2. 广播 pack 数据刷新事件
 3. 广播工作区切换事件
+
+当前状态（2026-04-28）：
+
+1. `job:progress` / `job:finished` 已落地
+2. 已通过 `AppEventBus` trait 与 Tauri 事件桥解耦
+3. 事件发布按 best-effort 处理，不影响 Job runner 成败
+4. pack / workspace / standard index 事件仍待后续阶段
 
 ## 6.5 Presentation 层
 
@@ -1426,6 +1440,13 @@ pub struct JobProgress {
 4. `pack:changed`
 5. `standard-pack:index-updated`
 
+当前落地：
+
+1. `job:progress`
+2. `job:finished`
+
+后续接入标准包索引时，建议补充 `standard-pack:index-updated` 或同义的标准索引刷新事件。
+
 ## 11. API 设计建议
 
 ## 11.1 API 风格
@@ -1651,6 +1672,10 @@ interface ValidationIssueDto {
 结论：
 
 采用 A2。只把“标准包索引构建、导入、导出”放进 Job 系统，其余命令保持同步。
+
+当前状态（2026-04-28）：
+
+P6 已按 A2 落地后端基础设施。普通 card / strings / resource / workspace / pack 命令仍保持同步 invoke；标准包索引、导入、导出的真实执行 runner 将在后续功能包中接入。
 
 ## 12.2 决策 B：Warning 确认流是 `force=true` 还是 `confirmation_token`
 

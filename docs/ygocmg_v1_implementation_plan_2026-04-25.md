@@ -861,20 +861,34 @@ Application 层负责把 Domain、Infrastructure、Runtime 串成真实用例。
 
 交付内容：
 
-1. Job 状态机
-2. Job 进度
-3. Job 结果缓存
-4. 失败原因缓存
+1. Job 状态机（已落地）
+2. Job 进度（已落地）
+3. Job 结果缓存（已落地为内存态 snapshot）
+4. 失败原因缓存（已落地为 `AppErrorDto`）
+
+当前实现备注（2026-04-28）：
+
+1. 已实现 `JobRuntime`、`JobStore`、`JobContext`
+2. `list_active_jobs` 只返回 `pending / running`
+3. 完成 / 失败任务仍保存在内存中，可通过 `get_job_status` 查询
+4. 首版暂不持久化 Job 历史，也不做容量裁剪
+5. 真实业务 runner 尚未接入，当前通过测试专用 runner 验证生命周期
 
 #### 7.5.5 `runtime/events`
 
 交付内容：
 
-1. `job:progress`
-2. `job:finished`
+1. `job:progress`（已落地）
+2. `job:finished`（已落地）
 3. `workspace:changed`
 4. `pack:changed`
 5. `standard-pack:index-updated`
+
+当前实现备注（2026-04-28）：
+
+1. 已定义 `AppEventBus` trait
+2. 已实现 Tauri 事件桥 `TauriEventBus`
+3. 事件发布按 best-effort 处理，不能因为窗口事件发送失败导致长任务失败
 
 ### 7.6 Presentation 层
 
@@ -1484,6 +1498,9 @@ pack 级写入的最小提交原则：
 
 #### WP7 Job/Event 基础设施
 
+状态：
+后端优先版本已完成（2026-04-28）
+
 目标：
 
 1. 为长任务建立统一调度与展示通道
@@ -1491,22 +1508,26 @@ pack 级写入的最小提交原则：
 
 后端任务：
 
-1. 实现 `JobService`
-2. 实现 `runtime/jobs`
-3. 实现 `runtime/events`
-4. 实现 `job:progress` 与 `job:finished`
+1. 实现 `JobService`（已完成）
+2. 实现 `runtime/jobs`（已完成）
+3. 实现 `runtime/events`（已完成）
+4. 实现 `job:progress` 与 `job:finished`（已完成）
+5. 接入 Tauri 事件桥（已完成）
+6. 保持普通短命令同步调用，不迁入 Job 系统（已确认）
 
 前端任务：
 
-1. 完成全局任务通知区或任务弹层
-2. 完成任务进度订阅
-3. 完成任务结果展示
+1. 完成全局任务通知区或任务弹层（后续）
+2. 完成任务进度订阅（后续）
+3. 完成任务结果展示（后续）
+4. `job` contract 与 `jobApi`（已完成）
+5. `JobProgressEvent` / `JobFinishedEvent` 类型（已完成）
 
 交付物：
 
-1. Job 状态查询
-2. Job 进度事件
-3. 前端任务反馈 UI
+1. Job 状态查询（已完成）
+2. Job 进度事件（已完成）
+3. 前端任务反馈 UI（后续）
 
 依赖：
 
@@ -1514,9 +1535,10 @@ pack 级写入的最小提交原则：
 
 验收标准：
 
-1. 前端可看到任务进度变化
-2. 任务失败原因可回显
-3. 不影响普通短命令调用
+1. 任务进度变化可通过 `job:progress` 事件观察（已完成，测试覆盖）
+2. 任务失败原因可通过 `get_job_status` 回显（已完成，测试覆盖）
+3. 不影响普通短命令调用（已完成，回归测试通过）
+4. 前端可视化任务反馈区（后续）
 
 #### WP8 标准包只读接入
 

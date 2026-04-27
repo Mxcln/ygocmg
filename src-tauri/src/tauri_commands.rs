@@ -7,7 +7,9 @@ use crate::application::dto::card::{
     ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, DeleteCardResultDto, GetCardInput,
     ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
+use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::PreviewExportBundleInput;
+use crate::application::dto::job::GetJobStatusInput;
 use crate::application::dto::resource::{
     CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput, DeleteScriptInput,
     ImportFieldImageInput, ImportMainImageInput, ImportScriptInput, OpenScriptExternalInput,
@@ -18,7 +20,6 @@ use crate::application::dto::strings::{
     UpsertPackStringInput, UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
-use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::domain::common::error::AppError;
 use crate::domain::config::model::GlobalConfig;
 
@@ -184,18 +185,12 @@ pub fn open_pack(
 }
 
 #[tauri::command]
-pub fn close_pack(
-    state: State<'_, AppState>,
-    input: ClosePackInput,
-) -> CommandResult<()> {
+pub fn close_pack(state: State<'_, AppState>, input: ClosePackInput) -> CommandResult<()> {
     crate::presentation::commands::app_commands::close_pack(&state, &input.pack_id)
 }
 
 #[tauri::command]
-pub fn set_active_pack(
-    state: State<'_, AppState>,
-    input: SetActivePackInput,
-) -> CommandResult<()> {
+pub fn set_active_pack(state: State<'_, AppState>, input: SetActivePackInput) -> CommandResult<()> {
     crate::presentation::commands::app_commands::set_active_pack(&state, &input.pack_id)
 }
 
@@ -217,10 +212,7 @@ pub fn update_pack_metadata(
 }
 
 #[tauri::command]
-pub fn delete_pack(
-    state: State<'_, AppState>,
-    input: DeletePackInput,
-) -> CommandResult<()> {
+pub fn delete_pack(state: State<'_, AppState>, input: DeletePackInput) -> CommandResult<()> {
     crate::presentation::commands::app_commands::delete_pack(&state, &input.pack_id)
 }
 
@@ -413,4 +405,19 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> CommandResult<PreviewResultDto<crate::application::dto::export::ExportPreviewDto>> {
     crate::presentation::commands::app_commands::preview_export_bundle(&state, input)
+}
+
+#[tauri::command]
+pub fn get_job_status(
+    state: State<'_, AppState>,
+    input: GetJobStatusInput,
+) -> CommandResult<crate::application::dto::job::JobSnapshotDto> {
+    crate::presentation::commands::app_commands::get_job_status(&state, input)
+}
+
+#[tauri::command]
+pub fn list_active_jobs(
+    state: State<'_, AppState>,
+) -> CommandResult<Vec<crate::application::dto::job::JobSnapshotDto>> {
+    crate::presentation::commands::app_commands::list_active_jobs(&state)
 }
