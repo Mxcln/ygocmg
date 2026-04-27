@@ -45,6 +45,7 @@ export type DialogState =
 interface ShellState {
   workspaceId: string | null;
   workspaceName: string | null;
+  workspacePath: string | null;
 
   openPackIds: string[];
   activePackId: string | null;
@@ -65,7 +66,7 @@ interface ShellState {
   setDialogBusy: (busy: boolean) => void;
   setDialogError: (message: string | null) => void;
 
-  setWorkspace: (id: string, name: string) => void;
+  setWorkspace: (id: string, name: string, path: string) => void;
   clearWorkspace: () => void;
 
   setPackOverviews: (overviews: PackOverview[]) => void;
@@ -80,6 +81,7 @@ interface ShellState {
 export const useShellStore = create<ShellState>()((set) => ({
   workspaceId: null,
   workspaceName: null,
+  workspacePath: null,
 
   openPackIds: [],
   activePackId: null,
@@ -127,10 +129,11 @@ export const useShellStore = create<ShellState>()((set) => ({
       return { modal: { ...state.modal, addPackTab: tab } };
     }),
 
-  setWorkspace: (id, name) =>
+  setWorkspace: (id, name, path) =>
     set({
       workspaceId: id,
       workspaceName: name,
+      workspacePath: path,
       openPackIds: [],
       activePackId: null,
       packMetadataMap: {},
@@ -143,6 +146,7 @@ export const useShellStore = create<ShellState>()((set) => ({
     set({
       workspaceId: null,
       workspaceName: null,
+      workspacePath: null,
       openPackIds: [],
       activePackId: null,
       packMetadataMap: {},

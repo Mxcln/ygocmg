@@ -17,6 +17,7 @@ fn main() {
             app.manage(state);
             Ok(())
         })
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             tauri_commands::initialize,
             tauri_commands::load_config,
@@ -38,7 +39,23 @@ fn main() {
             tauri_commands::update_card,
             tauri_commands::delete_card,
             tauri_commands::confirm_card_write,
-            tauri_commands::suggest_card_code
+            tauri_commands::suggest_card_code,
+            tauri_commands::list_pack_strings,
+            tauri_commands::get_pack_string,
+            tauri_commands::upsert_pack_string,
+            tauri_commands::upsert_pack_string_record,
+            tauri_commands::delete_pack_strings,
+            tauri_commands::remove_pack_string_translation,
+            tauri_commands::confirm_pack_strings_write,
+            tauri_commands::import_main_image,
+            tauri_commands::delete_main_image,
+            tauri_commands::import_field_image,
+            tauri_commands::delete_field_image,
+            tauri_commands::create_empty_script,
+            tauri_commands::import_script,
+            tauri_commands::delete_script,
+            tauri_commands::open_script_external,
+            tauri_commands::preview_export_bundle
         ])
         .run(tauri::generate_context!())
         .expect("failed to run YGOCMG");

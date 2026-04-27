@@ -135,6 +135,7 @@ export interface CardDetail {
   card: CardEntity;
   asset_state: CardAssetState;
   available_languages: LanguageCode[];
+  pack_path: string;
 }
 
 export type CardSortField = "code" | "name";

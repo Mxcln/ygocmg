@@ -10,7 +10,9 @@ use crate::domain::config::model::{GlobalConfig, GlobalConfigFile};
 use crate::domain::config::rules::default_global_config;
 use crate::domain::pack::model::{PackMetadata, PackMetadataFile};
 use crate::domain::resource::path_rules::{pack_field_pics_dir, pack_pics_dir, pack_scripts_dir};
-use crate::domain::strings::model::PackStringsFile;
+use crate::domain::strings::model::{
+    PACK_STRINGS_SCHEMA_VERSION, PackStringEntry, PackStringRecord, PackStringsFile,
+};
 use crate::domain::workspace::model::{WorkspaceFile, WorkspaceMeta, WorkspaceRegistryFile};
 use crate::infrastructure::fs::safe_write::safe_write_bytes;
 
@@ -163,13 +165,83 @@ pub fn load_pack_strings(pack_path: &Path) -> AppResult<PackStringsFile> {
     if !path.exists() {
         return Ok(PackStringsFile::default());
     }
-    let file: PackStringsFile = read_json(&path)?;
-    ensure_schema(path.as_path(), file.schema_version)?;
-    Ok(file)
+    let raw = fs::read(&path).map_err(|source| {
+        AppError::from_io("json_store.read_failed", source)
+            .with_detail("path", path.display().to_string())
+    })?;
+    let value: serde_json::Value = serde_json::from_slice(&raw).map_err(|source| {
+        AppError::new("json_store.deserialize_failed", source.to_string())
+            .with_detail("path", path.display().to_string())
+    })?;
+
+    let schema_version = value
+        .get("schema_version")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(1) as u32;
+
+    match schema_version {
+        PACK_STRINGS_SCHEMA_VERSION => serde_json::from_value(value).map_err(|source| {
+            AppError::new("json_store.deserialize_failed", source.to_string())
+                .with_detail("path", path.display().to_string())
+        }),
+        1 => migrate_legacy_pack_strings(value, &path),
+        actual => Err(
+            AppError::new("json_store.schema_mismatch", "schema version mismatch")
+                .with_detail("path", path.display().to_string())
+                .with_detail("expected", PACK_STRINGS_SCHEMA_VERSION)
+                .with_detail("actual", actual),
+        ),
+    }
 }
 
 pub fn save_pack_strings(pack_path: &Path, strings: &PackStringsFile) -> AppResult<()> {
     write_json(&pack_strings_path(pack_path), strings)
+}
+
+#[derive(serde::Deserialize)]
+struct LegacyPackStringsFile {
+    schema_version: u32,
+    entries: std::collections::BTreeMap<crate::domain::common::ids::LanguageCode, Vec<PackStringEntry>>,
+}
+
+fn migrate_legacy_pack_strings(value: serde_json::Value, path: &Path) -> AppResult<PackStringsFile> {
+    let legacy: LegacyPackStringsFile = serde_json::from_value(value).map_err(|source| {
+        AppError::new("json_store.deserialize_failed", source.to_string())
+            .with_detail("path", path.display().to_string())
+    })?;
+    if legacy.schema_version != 1 {
+        return Err(
+            AppError::new("json_store.schema_mismatch", "schema version mismatch")
+                .with_detail("path", path.display().to_string())
+                .with_detail("expected", 1)
+                .with_detail("actual", legacy.schema_version),
+        );
+    }
+
+    let mut by_key = std::collections::BTreeMap::<
+        (crate::domain::strings::model::PackStringKind, u32),
+        PackStringRecord,
+    >::new();
+
+    for (language, entries) in legacy.entries {
+        for entry in entries {
+            let record = by_key
+                .entry((entry.kind.clone(), entry.key))
+                .or_insert_with(|| PackStringRecord {
+                    kind: entry.kind.clone(),
+                    key: entry.key,
+                    values: std::collections::BTreeMap::new(),
+                });
+            record.values.insert(language.clone(), entry.value);
+        }
+    }
+
+    let mut file = PackStringsFile {
+        schema_version: PACK_STRINGS_SCHEMA_VERSION,
+        entries: by_key.into_values().collect(),
+    };
+    file.sort_entries();
+    Ok(file)
 }
 
 pub fn write_json<T: Serialize>(path: &Path, value: &T) -> AppResult<()> {

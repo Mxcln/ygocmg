@@ -563,7 +563,7 @@ Recommended toolbar contents:
 
 | Capability | Status | Notes |
 |---|---|---|
-| Strings tab shell | Future API required | No current frontend/backend strings command surface is exposed in the app shell |
+| Strings tab shell | Available now | Strings list/query/write/confirm command surface is already exposed and connected in the current app shell |
 | Standard Pack strings reference browsing | Future API required | Standard Pack read-only string APIs are not exposed |
 
 ## 7. Card Editor Drawer
@@ -660,10 +660,10 @@ For v1 this specification chooses:
 
 | Capability | Status | Notes |
 |---|---|---|
-| Open card editor from card row | Future API required | Current app can list cards, but no explicit editable-card snapshot command exists in the active shell |
+| Open card editor from card row | Available now | Current app can open the editable drawer from card rows in the active custom pack shell |
 | Persist card updates | Partially available | Create/update/delete commands exist, but drawer-specific snapshot/load/unsaved workflow is not yet exposed as a dedicated UI contract |
-| Card asset state | Future API required | Full drawer asset workflow is defined in long-term interface docs, not current app commands |
-| Script/image actions | Future API required | Not currently exposed in the active command surface |
+| Card asset state | Available now | Drawer-level card asset state is exposed and refreshed through the current resource command surface |
+| Script/image actions | Available now | Import/delete/create/open actions are exposed for main image, field image, and script resources |
 
 ## 8. Modal Specifications
 
@@ -883,8 +883,8 @@ Success result must show:
 
 | Capability | Status | Notes |
 |---|---|---|
-| Export modal shell | Future API required | No current export command surface is exposed in the app |
-| Preview export | Future API required | Long-term interface design exists, current app does not expose it |
+| Export modal shell | Future API required | Dedicated export modal UI is still not present in the current shell |
+| Preview export | Partially available | A minimal backend `preview_export_bundle` preflight command exists, but no dedicated export modal is wired yet |
 | Execute export | Future API required | Long-term interface design exists, current app does not expose it |
 
 ## 8.4 `+` modal
@@ -1131,10 +1131,10 @@ This section summarizes the current implementation impact.
 | Custom titlebar native controls | Available now |
 | Close-pack command for UI | Partially available |
 | Standard Pack read-only browsing | Future API required |
-| Strings tab command surface | Future API required |
+| Strings tab command surface | Available now |
 | Card drawer snapshot/load contract | Future API required |
-| Card asset actions | Future API required |
-| Export preview/execute | Future API required |
+| Card asset actions | Available now |
+| Export preview/execute | Partially available |
 | Import preview/execute | Future API required |
 
 ## 13. Acceptance Scenarios

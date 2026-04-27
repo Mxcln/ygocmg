@@ -405,8 +405,18 @@ interface CardsFile {
 }
 
 interface PackStringsFile {
-  schema_version: 1;
-  entries: Record<LanguageCode, PackStringEntry[]>;
+  schema_version: 2;
+  entries: PackStringRecord[];
+}
+```
+
+其中：
+
+```ts
+interface PackStringRecord {
+  kind: PackStringKind;
+  key: number;
+  values: Record<LanguageCode, string>;
 }
 ```
 
@@ -554,7 +564,9 @@ interface PackStringsFile {
 
 1. `PackStringEntry`
 2. `PackStringsFile`
-3. 同一语言下 `(kind, key)` 唯一性校验
+3. `PackStringRecord`
+4. pack 内 `(kind, key)` 唯一性校验
+5. 旧 schema 到聚合模型的兼容迁移
 
 #### 7.2.7 `domain/resource`
 
@@ -1438,6 +1450,8 @@ pack 级写入的最小提交原则：
 3. 实现 `PackStringsService`
 4. 实现 `ResourceService`
 5. 实现 `code` 变更资源迁移的最佳努力一致性处理
+6. 实现 `PackStrings` 聚合多语言模型
+7. 实现最小 `preview_export_bundle` 冲突预检骨架
 
 前端任务：
 
@@ -1445,12 +1459,15 @@ pack 级写入的最小提交原则：
 2. 完成 `Strings` tab
 3. 完成主卡图、场地图、脚本区块 UI
 4. 完成脚本外部打开入口
+5. 完成 `Strings` 的十六进制 key 输入与显示
 
 交付物：
 
 1. 批量删除、批量移动、批量 patch
 2. `Strings` tab
 3. 主卡图/场地图/脚本管理
+4. `PackStrings` 多语言聚合模型
+5. 导出冲突预检基础能力
 
 依赖：
 
@@ -1462,6 +1479,8 @@ pack 级写入的最小提交原则：
 2. `(kind, key)` 唯一性正确阻断
 3. `code` 变更后资源文件被正确迁移，或在失败时留下可刷新、可恢复的状态
 4. 场地图片只允许场地魔法绑定
+5. `Strings` key 在 UI 中按十六进制输入和显示
+6. `PackStrings` 可按目标语言正确投影列表视图
 
 #### WP7 Job/Event 基础设施
 

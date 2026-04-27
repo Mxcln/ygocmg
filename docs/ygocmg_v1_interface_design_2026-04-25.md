@@ -785,7 +785,8 @@ pub struct PackStringEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackStringsFile {
-    pub entries: std::collections::BTreeMap<LanguageCode, Vec<PackStringEntry>>,
+    pub schema_version: u32,
+    pub entries: Vec<PackStringRecord>,
 }
 ```
 
@@ -813,7 +814,7 @@ pub enum ResourceKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CardAssetState {
-    pub has_main_image: bool,
+    pub has_image: bool,
     pub has_field_image: bool,
     pub has_script: bool,
 }
@@ -879,7 +880,7 @@ pub enum SortDirection {
 pub struct AppErrorDto {
     pub code: String,
     pub message: String,
-    pub details: std::collections::BTreeMap<String, serde_json::Value>,
+    pub details: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -892,7 +893,10 @@ pub struct ValidationIssueDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WriteResultDto<T> {
-    Ok { data: T },
+    Ok {
+        data: T,
+        warnings: Vec<ValidationIssueDto>,
+    },
     NeedsConfirmation {
         confirmation_token: ConfirmationToken,
         warnings: Vec<ValidationIssueDto>,
@@ -1349,7 +1353,7 @@ pub struct MoveCardsResultDto {
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackStringEntryDto {
-    pub kind: String,
+    pub kind: PackStringKind,
     pub key: u32,
     pub value: String,
 }
@@ -1364,11 +1368,29 @@ pub struct PackStringsPageDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackStringValueDto {
+    pub language: LanguageCode,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackStringRecordDto {
+    pub kind: PackStringKind,
+    pub key: u32,
+    pub values: Vec<PackStringValueDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackStringRecordDetailDto {
+    pub record: PackStringRecordDto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListPackStringsInput {
     pub workspace_id: WorkspaceId,
     pub pack_id: PackId,
     pub language: LanguageCode,
-    pub kind_filter: Option<String>,
+    pub kind_filter: Option<PackStringKind>,
     pub key_filter: Option<u32>,
     pub keyword: Option<String>,
     pub page: u32,
@@ -1384,11 +1406,40 @@ pub struct UpsertPackStringInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetPackStringInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub kind: PackStringKind,
+    pub key: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpsertPackStringRecordInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub record: PackStringRecordDto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeletePackStringsInput {
     pub workspace_id: WorkspaceId,
     pub pack_id: PackId,
+    pub entries: Vec<PackStringKeyDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemovePackStringTranslationInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub kind: PackStringKind,
+    pub key: u32,
     pub language: LanguageCode,
-    pub entries: Vec<(String, u32)>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackStringKeyDto {
+    pub kind: PackStringKind,
+    pub key: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1407,7 +1458,7 @@ pub struct ConfirmPackStringsWriteInput {
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardAssetStateDto {
-    pub has_main_image: bool,
+    pub has_image: bool,
     pub has_field_image: bool,
     pub has_script: bool,
 }
@@ -2336,15 +2387,30 @@ pub trait PackStringsService: Send + Sync {
         input: crate::application::dto::strings::ListPackStringsInput,
     ) -> AppResult<crate::application::dto::strings::PackStringsPageDto>;
 
+    fn get_pack_string(
+        &self,
+        input: crate::application::dto::strings::GetPackStringInput,
+    ) -> AppResult<crate::application::dto::strings::PackStringRecordDetailDto>;
+
     fn upsert_pack_string(
         &self,
         input: crate::application::dto::strings::UpsertPackStringInput,
     ) -> AppResult<crate::application::dto::common::WriteResultDto<crate::application::dto::strings::PackStringsPageDto>>;
 
+    fn upsert_pack_string_record(
+        &self,
+        input: crate::application::dto::strings::UpsertPackStringRecordInput,
+    ) -> AppResult<crate::application::dto::common::WriteResultDto<crate::application::dto::strings::PackStringRecordDetailDto>>;
+
     fn delete_pack_strings(
         &self,
         input: crate::application::dto::strings::DeletePackStringsInput,
     ) -> AppResult<crate::application::dto::common::WriteResultDto<crate::application::dto::strings::DeletePackStringsResultDto>>;
+
+    fn remove_pack_string_translation(
+        &self,
+        input: crate::application::dto::strings::RemovePackStringTranslationInput,
+    ) -> AppResult<crate::application::dto::common::WriteResultDto<crate::application::dto::strings::PackStringRecordDetailDto>>;
 }
 ```
 
@@ -2359,7 +2425,7 @@ pub trait PackStringsConfirmationService: Send + Sync {
     fn confirm_pack_strings_write(
         &self,
         input: crate::application::dto::strings::ConfirmPackStringsWriteInput,
-    ) -> AppResult<serde_json::Value>;
+    ) -> AppResult<crate::application::dto::strings::PackStringsPageDto>;
 }
 ```
 
@@ -2457,11 +2523,6 @@ pub trait ExportService: Send + Sync {
         &self,
         input: crate::application::dto::export::PreviewExportBundleInput,
     ) -> AppResult<crate::application::dto::common::PreviewResultDto<crate::application::dto::export::ExportPreviewDto>>;
-
-    fn execute_export_bundle(
-        &self,
-        input: crate::application::dto::export::ExecuteExportBundleInput,
-    ) -> AppResult<crate::application::dto::job::JobAcceptedDto>;
 }
 ```
 
@@ -2513,7 +2574,7 @@ pub struct PackSession {
     pub code_index: std::collections::HashMap<u32, CardId>,
     pub card_list_cache: Vec<crate::domain::card::model::CardListRow>,
     pub asset_index: std::collections::HashMap<CardId, crate::domain::resource::model::CardAssetState>,
-    pub strings_by_language: std::collections::BTreeMap<LanguageCode, Vec<crate::domain::strings::model::PackStringEntry>>,
+    pub strings: crate::domain::strings::model::PackStringsFile,
 }
 ```
 
@@ -2811,10 +2872,22 @@ pub async fn list_pack_strings(
 ) -> CommandResult<crate::presentation::dto::strings::PackStringsPageDto>;
 
 #[tauri::command]
+pub async fn get_pack_string(
+    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
+    input: crate::presentation::dto::strings::GetPackStringInput,
+) -> CommandResult<crate::presentation::dto::strings::PackStringRecordDetailDto>;
+
+#[tauri::command]
 pub async fn upsert_pack_string(
     state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
     input: crate::presentation::dto::strings::UpsertPackStringInput,
 ) -> CommandResult<crate::presentation::dto::common::WriteResultDto<crate::presentation::dto::strings::PackStringsPageDto>>;
+
+#[tauri::command]
+pub async fn upsert_pack_string_record(
+    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
+    input: crate::presentation::dto::strings::UpsertPackStringRecordInput,
+) -> CommandResult<crate::presentation::dto::common::WriteResultDto<crate::presentation::dto::strings::PackStringRecordDetailDto>>;
 
 #[tauri::command]
 pub async fn delete_pack_strings(
@@ -2823,10 +2896,16 @@ pub async fn delete_pack_strings(
 ) -> CommandResult<crate::presentation::dto::common::WriteResultDto<crate::presentation::dto::strings::DeletePackStringsResultDto>>;
 
 #[tauri::command]
+pub async fn remove_pack_string_translation(
+    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
+    input: crate::presentation::dto::strings::RemovePackStringTranslationInput,
+) -> CommandResult<crate::presentation::dto::common::WriteResultDto<crate::presentation::dto::strings::PackStringRecordDetailDto>>;
+
+#[tauri::command]
 pub async fn confirm_pack_strings_write(
     state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
     input: crate::presentation::dto::strings::ConfirmPackStringsWriteInput,
-) -> CommandResult<serde_json::Value>;
+) -> CommandResult<crate::presentation::dto::strings::PackStringsPageDto>;
 ```
 
 ## 11.7 `presentation/commands/resource_commands.rs`
@@ -2925,12 +3004,6 @@ pub async fn preview_export_bundle(
     state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
     input: crate::presentation::dto::export::PreviewExportBundleInput,
 ) -> CommandResult<crate::presentation::dto::common::PreviewResultDto<crate::presentation::dto::export::ExportPreviewDto>>;
-
-#[tauri::command]
-pub async fn execute_export_bundle(
-    state: tauri::State<'_, crate::bootstrap::app_state::AppState>,
-    input: crate::presentation::dto::export::ExecuteExportBundleInput,
-) -> CommandResult<crate::presentation::dto::job::JobAcceptedDto>;
 ```
 
 ## 11.11 `presentation/commands/job_commands.rs`
@@ -3021,9 +3094,12 @@ export interface CardApi {
 ```ts
 export interface StringsApi {
   listPackStrings(input: ListPackStringsInput): Promise<ApiResult<PackStringsPageDto>>;
+  getPackString(input: GetPackStringInput): Promise<ApiResult<PackStringRecordDetailDto>>;
   upsertPackString(input: UpsertPackStringInput): Promise<ApiResult<WriteResult<PackStringsPageDto>>>;
+  upsertPackStringRecord(input: UpsertPackStringRecordInput): Promise<ApiResult<WriteResult<PackStringRecordDetailDto>>>;
   deletePackStrings(input: DeletePackStringsInput): Promise<ApiResult<WriteResult<DeletePackStringsResultDto>>>;
-  confirmPackStringsWrite(input: ConfirmPackStringsWriteInput): Promise<ApiResult<unknown>>;
+  removePackStringTranslation(input: RemovePackStringTranslationInput): Promise<ApiResult<WriteResult<PackStringRecordDetailDto>>>;
+  confirmPackStringsWrite(input: ConfirmPackStringsWriteInput): Promise<ApiResult<PackStringsPageDto>>;
 }
 ```
 
@@ -3142,8 +3218,8 @@ interface CardsFile {
 
 ```ts
 interface PackStringsFile {
-  schema_version: 1;
-  entries: Record<LanguageCode, PackStringEntry[]>;
+  schema_version: 2;
+  entries: PackStringRecord[];
 }
 ```
 

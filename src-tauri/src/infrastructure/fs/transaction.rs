@@ -8,6 +8,7 @@ use crate::infrastructure::fs::safe_write::safe_write_bytes;
 pub enum FsOperation {
     CreateDir { path: PathBuf },
     WriteFile { path: PathBuf, contents: Vec<u8> },
+    DeleteFile { path: PathBuf },
     Rename { from: PathBuf, to: PathBuf },
 }
 
@@ -15,6 +16,7 @@ pub enum FsOperation {
 enum AppliedOperation {
     CreatedDir { path: PathBuf, created: bool },
     WroteFile { path: PathBuf, original: Option<Vec<u8>> },
+    DeletedFile { path: PathBuf, original: Option<Vec<u8>> },
     Renamed { from: PathBuf, to: PathBuf },
 }
 
@@ -42,6 +44,22 @@ pub fn execute_plan(operations: Vec<FsOperation>) -> AppResult<()> {
                 };
                 safe_write_bytes(&path, &contents)?;
                 AppliedOperation::WroteFile { path, original }
+            }
+            FsOperation::DeleteFile { path } => {
+                let original = if path.exists() {
+                    let bytes = fs::read(&path).map_err(|source| {
+                        AppError::from_io("fs.plan_read_original_failed", source)
+                            .with_detail("path", path.display().to_string())
+                    })?;
+                    fs::remove_file(&path).map_err(|source| {
+                        AppError::from_io("fs.plan_delete_failed", source)
+                            .with_detail("path", path.display().to_string())
+                    })?;
+                    Some(bytes)
+                } else {
+                    None
+                };
+                AppliedOperation::DeletedFile { path, original }
             }
             FsOperation::Rename { from, to } => {
                 if !from.exists() {
@@ -93,6 +111,11 @@ fn rollback(applied: &mut Vec<AppliedOperation>) {
                     let _ = safe_write_bytes(&path, &original);
                 } else if path.exists() {
                     let _ = fs::remove_file(&path);
+                }
+            }
+            AppliedOperation::DeletedFile { path, original } => {
+                if let Some(original) = original {
+                    let _ = safe_write_bytes(&path, &original);
                 }
             }
             AppliedOperation::Renamed { from, to } => {

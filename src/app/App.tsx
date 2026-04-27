@@ -17,6 +17,7 @@ import { CardListPanel } from "../features/card/CardListPanel";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardEditDrawer } from "../features/card/CardEditDrawer";
 import { AppDialog } from "../features/dialogs/AppDialog";
+import { StringsListPanel } from "../features/strings/StringsListPanel";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -245,7 +246,7 @@ export function App() {
         const meta = await workspaceApi.openWorkspace({ path: lastEntry.path });
         if (!active) return;
         setCurrentWorkspace({ meta, path: lastEntry.path });
-        setWorkspace(meta.id, meta.name);
+        setWorkspace(meta.id, meta.name, lastEntry.path);
 
         const overviews = await packApi.listPackOverviews();
         if (!active) return;
@@ -363,7 +364,7 @@ export function App() {
 
   async function handleWorkspaceOpened(meta: WorkspaceMeta, path: string) {
     setCurrentWorkspace({ meta, path });
-    setWorkspace(meta.id, meta.name);
+    setWorkspace(meta.id, meta.name, path);
     try {
       const overviews = await packApi.listPackOverviews();
       setPackOverviews(overviews);
@@ -897,7 +898,7 @@ export function App() {
                   {activeTab === "cards" ? (
                     <CardListPanel onEditCard={handleEditCard} onNewCard={handleNewCard} />
                   ) : (
-                    <p className="content-placeholder">String entries will appear here (P4)</p>
+                    <StringsListPanel />
                   )}
                 </div>
               </div>

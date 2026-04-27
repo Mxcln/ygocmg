@@ -14,7 +14,8 @@ pub struct CodePolicy {
 #[derive(Debug, Clone)]
 pub struct CodeValidationContext {
     pub policy: CodePolicy,
-    pub workspace_custom_codes: BTreeSet<u32>,
+    pub current_pack_codes: BTreeSet<u32>,
+    pub other_custom_codes: BTreeSet<u32>,
     pub standard_codes: BTreeSet<u32>,
 }
 
@@ -41,15 +42,22 @@ pub fn validate_card_code(code: u32, ctx: &CodeValidationContext) -> Vec<Validat
         );
     }
 
-    if ctx.workspace_custom_codes.contains(&code) {
+    if ctx.current_pack_codes.contains(&code) {
         issues.push(ValidationIssue::error(
+            "card.code_conflicts_with_current_pack_card",
+            target.clone(),
+        ));
+    }
+
+    if ctx.other_custom_codes.contains(&code) {
+        issues.push(ValidationIssue::warning(
             "card.code_conflicts_with_workspace_custom_card",
             target.clone(),
         ));
     }
 
     if ctx.standard_codes.contains(&code) {
-        issues.push(ValidationIssue::error(
+        issues.push(ValidationIssue::warning(
             "card.code_conflicts_with_standard_card",
             target.clone(),
         ));
@@ -64,8 +72,9 @@ pub fn validate_card_code(code: u32, ctx: &CodeValidationContext) -> Vec<Validat
     }
 
     let nearest_gap = ctx
-        .workspace_custom_codes
+        .current_pack_codes
         .iter()
+        .chain(ctx.other_custom_codes.iter())
         .chain(ctx.standard_codes.iter())
         .filter_map(|used| used.abs_diff(code).checked_sub(0))
         .min();
@@ -92,12 +101,16 @@ pub fn suggest_next_code(
         .max(ctx.policy.recommended_min);
 
     (start..=ctx.policy.recommended_max).find(|candidate| {
-        if ctx.workspace_custom_codes.contains(candidate) || ctx.standard_codes.contains(candidate) {
+        if ctx.current_pack_codes.contains(candidate)
+            || ctx.other_custom_codes.contains(candidate)
+            || ctx.standard_codes.contains(candidate)
+        {
             return false;
         }
 
-        ctx.workspace_custom_codes
+        ctx.current_pack_codes
             .iter()
+            .chain(ctx.other_custom_codes.iter())
             .chain(ctx.standard_codes.iter())
             .all(|used| used.abs_diff(*candidate) >= ctx.policy.min_gap)
     })

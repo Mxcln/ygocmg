@@ -86,6 +86,7 @@ pub struct CardDetailDto {
     pub card: EditableCardDto,
     pub asset_state: CardAssetState,
     pub available_languages: Vec<LanguageCode>,
+    pub pack_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -5,7 +5,18 @@ use crate::application::dto::card::{
     CardDetailDto, CardListPageDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput,
     DeleteCardResultDto, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
-use crate::application::dto::common::WriteResultDto;
+use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
+use crate::application::dto::export::{ExportPreviewDto, PreviewExportBundleInput};
+use crate::application::dto::resource::{
+    CardAssetStateDto, CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput,
+    DeleteScriptInput, ImportFieldImageInput, ImportMainImageInput, ImportScriptInput,
+    OpenScriptExternalInput,
+};
+use crate::application::dto::strings::{
+    ConfirmPackStringsWriteInput, DeletePackStringsInput, DeletePackStringsResultDto,
+    GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto,
+    RemovePackStringTranslationInput, UpsertPackStringInput, UpsertPackStringRecordInput,
+};
 use crate::domain::common::error::AppResult;
 use crate::domain::config::model::GlobalConfig;
 use crate::domain::pack::model::{PackMetadata, PackOverview};
@@ -179,4 +190,131 @@ pub fn suggest_card_code(
     input: SuggestCodeInput,
 ) -> AppResult<crate::application::dto::card::CodeSuggestionDto> {
     crate::application::card::service::CardService::new(state).suggest_code(input)
+}
+
+pub fn list_pack_strings(state: &AppState, input: ListPackStringsInput) -> AppResult<PackStringsPageDto> {
+    crate::application::strings::service::PackStringsService::new(state).list_pack_strings(input)
+}
+
+pub fn get_pack_string(
+    state: &AppState,
+    input: GetPackStringInput,
+) -> AppResult<PackStringRecordDetailDto> {
+    crate::application::strings::service::PackStringsService::new(state).get_pack_string(input)
+}
+
+pub fn upsert_pack_string(
+    state: &AppState,
+    input: UpsertPackStringInput,
+) -> AppResult<WriteResultDto<PackStringsPageDto>> {
+    crate::application::strings::confirmation_service::PackStringsConfirmationService::new(state)
+        .upsert_pack_string(input)
+}
+
+pub fn upsert_pack_string_record(
+    state: &AppState,
+    input: UpsertPackStringRecordInput,
+) -> AppResult<WriteResultDto<PackStringRecordDetailDto>> {
+    crate::application::strings::confirmation_service::PackStringsConfirmationService::new(state)
+        .upsert_pack_string_record(input)
+}
+
+pub fn delete_pack_strings(
+    state: &AppState,
+    input: DeletePackStringsInput,
+) -> AppResult<WriteResultDto<DeletePackStringsResultDto>> {
+    let (_, deleted_count) = crate::application::pack::write_service::PackWriteService::new(state)
+        .delete_pack_strings(&input.workspace_id, &input.pack_id, &input.entries)?;
+    Ok(WriteResultDto::Ok {
+        data: DeletePackStringsResultDto { deleted_count },
+        warnings: Vec::new(),
+    })
+}
+
+pub fn remove_pack_string_translation(
+    state: &AppState,
+    input: RemovePackStringTranslationInput,
+) -> AppResult<WriteResultDto<DeletePackStringsResultDto>> {
+    let (_, changed) = crate::application::pack::write_service::PackWriteService::new(state)
+        .remove_pack_string_translation(
+            &input.workspace_id,
+            &input.pack_id,
+            &input.kind,
+            input.key,
+            &input.language,
+        )?;
+    Ok(WriteResultDto::Ok {
+        data: DeletePackStringsResultDto {
+            deleted_count: usize::from(changed),
+        },
+        warnings: Vec::new(),
+    })
+}
+
+pub fn confirm_pack_strings_write(
+    state: &AppState,
+    input: ConfirmPackStringsWriteInput,
+) -> AppResult<PackStringsPageDto> {
+    crate::application::strings::confirmation_service::PackStringsConfirmationService::new(state)
+        .confirm_pack_strings_write(input)
+}
+
+pub fn import_main_image(
+    state: &AppState,
+    input: ImportMainImageInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).import_main_image(input)
+}
+
+pub fn delete_main_image(
+    state: &AppState,
+    input: DeleteMainImageInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).delete_main_image(input)
+}
+
+pub fn import_field_image(
+    state: &AppState,
+    input: ImportFieldImageInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).import_field_image(input)
+}
+
+pub fn delete_field_image(
+    state: &AppState,
+    input: DeleteFieldImageInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).delete_field_image(input)
+}
+
+pub fn create_empty_script(
+    state: &AppState,
+    input: CreateEmptyScriptInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).create_empty_script(input)
+}
+
+pub fn import_script(
+    state: &AppState,
+    input: ImportScriptInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).import_script(input)
+}
+
+pub fn delete_script(
+    state: &AppState,
+    input: DeleteScriptInput,
+) -> AppResult<WriteResultDto<CardAssetStateDto>> {
+    crate::application::resource::service::ResourceService::new(state).delete_script(input)
+}
+
+pub fn open_script_external(state: &AppState, input: OpenScriptExternalInput) -> AppResult<()> {
+    crate::application::resource::service::ResourceService::new(state).open_script_external(input)
+}
+
+pub fn preview_export_bundle(
+    state: &AppState,
+    input: PreviewExportBundleInput,
+) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
+    crate::application::export::service::ExportService::new(state).preview_export_bundle(input)
 }

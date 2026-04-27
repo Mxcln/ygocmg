@@ -9,6 +9,9 @@ use crate::domain::card::code::{suggest_next_code, CodePolicy, CodeValidationCon
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::ValidationIssue;
 use crate::domain::config::rules::default_global_config;
+use crate::domain::namespace::model::{
+    build_pack_strings_namespace_index, WorkspaceNamespaceIndex,
+};
 use crate::infrastructure::json_store;
 use crate::infrastructure::pack_locator;
 
@@ -91,6 +94,7 @@ impl<'a> CardService<'a> {
             card: card.into(),
             asset_state,
             available_languages,
+            pack_path: pack.pack_path.to_string_lossy().to_string(),
         })
     }
 
@@ -119,7 +123,8 @@ impl<'a> CardService<'a> {
         let workspace_meta = json_store::load_workspace_meta(&workspace_path)?;
         let inventory = crate::application::pack::service::load_pack_inventory(&workspace_path)?;
 
-        let mut workspace_codes = BTreeSet::new();
+        let mut current_pack_codes = BTreeSet::new();
+        let mut other_custom_codes = BTreeSet::new();
         for current_pack_id in workspace_meta.pack_order {
             let pack_path = pack_locator::resolve_pack_path(&inventory, &current_pack_id)?;
             let cards = json_store::load_cards(&pack_path).unwrap_or_default();
@@ -127,7 +132,11 @@ impl<'a> CardService<'a> {
                 if current_pack_id == pack_id && exclude_card_id == Some(card.id.as_str()) {
                     continue;
                 }
-                workspace_codes.insert(card.code);
+                if current_pack_id == pack_id {
+                    current_pack_codes.insert(card.code);
+                } else {
+                    other_custom_codes.insert(card.code);
+                }
             }
         }
 
@@ -139,9 +148,41 @@ impl<'a> CardService<'a> {
                 hard_max: 268_435_455,
                 min_gap: config.custom_code_min_gap,
             },
-            workspace_custom_codes: workspace_codes,
-            standard_codes: BTreeSet::new(),
+            current_pack_codes,
+            other_custom_codes,
+            standard_codes: self.state.standard_baseline.standard_codes.clone(),
         })
+    }
+
+    pub fn build_workspace_namespace_index(
+        &self,
+        exclude_pack_id: Option<&str>,
+    ) -> AppResult<WorkspaceNamespaceIndex> {
+        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
+            .current_workspace_path()?;
+        let workspace_meta = json_store::load_workspace_meta(&workspace_path)?;
+        let inventory = crate::application::pack::service::load_pack_inventory(&workspace_path)?;
+
+        let mut index = WorkspaceNamespaceIndex::default();
+        for current_pack_id in workspace_meta.pack_order {
+            if exclude_pack_id == Some(current_pack_id.as_str()) {
+                continue;
+            }
+
+            let pack_path = pack_locator::resolve_pack_path(&inventory, &current_pack_id)?;
+            let cards = json_store::load_cards(&pack_path).unwrap_or_default();
+            let strings = json_store::load_pack_strings(&pack_path).unwrap_or_default();
+
+            index.codes_by_pack.insert(
+                current_pack_id.clone(),
+                cards.into_iter().map(|card| card.code).collect(),
+            );
+            index
+                .strings_by_pack
+                .insert(current_pack_id, build_pack_strings_namespace_index(&strings));
+        }
+
+        Ok(index)
     }
 
     fn suggestion_warnings(

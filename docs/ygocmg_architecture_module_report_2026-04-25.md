@@ -511,7 +511,7 @@ pub enum ResourceKind {
 }
 
 pub struct CardAssetState {
-    pub has_main_image: bool,
+    pub has_image: bool,
     pub has_field_image: bool,
     pub has_script: bool,
 }
@@ -818,15 +818,14 @@ pub trait ImportService {
 
 ```rust
 pub trait ExportService {
-    fn preview_export_bundle(&self, input: PreviewExportBundleInput) -> AppResult<ExportPreviewDto>;
-    fn execute_export_bundle(&self, input: ExecuteExportBundleInput) -> AppResult<JobAcceptedDto>;
+    fn preview_export_bundle(&self, input: PreviewExportBundleInput) -> AppResult<PreviewResultDto<ExportPreviewDto>>;
 }
 ```
 
 说明：
 
 1. `preview_export_bundle` 负责生成一次性 `preview_token`
-2. `execute_export_bundle` 只接收 `preview_token`
+2. 当前实现仅交付 `preview_export_bundle` 预检骨架，`execute_export_bundle` 仍待后续阶段
 3. 执行前必须复核相关输入和源数据快照未变化
 
 ### 6.2.11 `application/jobs`
@@ -988,7 +987,7 @@ pub struct PackSession {
     pub code_index: HashMap<u32, CardId>,
     pub card_list_cache: Vec<CardListRow>,
     pub asset_index: HashMap<CardId, CardAssetState>,
-    pub strings_index: PackStringsIndex,
+    pub strings: PackStringsFile,
 }
 ```
 
@@ -1561,14 +1560,13 @@ search_standard_cards
 preview_import_pack
 execute_import_pack
 preview_export_bundle
-execute_export_bundle
 get_job_status
 list_active_jobs
 ```
 
 说明：
 
-1. `execute_import_pack` 和 `execute_export_bundle` 的核心输入应为 `preview_token`
+1. `execute_import_pack` 的核心输入应为 `preview_token`
 2. 若后续需要中止长任务，再补充 `cancel_job`
 
 ## 11.4 前端 API 包装层

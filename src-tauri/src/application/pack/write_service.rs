@@ -1,8 +1,12 @@
+use std::collections::BTreeSet;
+use std::path::Path;
+
 use uuid::Uuid;
 
+use crate::application::dto::strings::PackStringKeyDto;
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{validate_card_code, CodeValidationContext};
-use crate::domain::card::model::{CardEntity, CardUpdateInput};
+use crate::domain::card::model::{CardEntity, CardUpdateInput, PrimaryType, SpellSubtype};
 use crate::domain::card::normalize::{apply_card_update, create_card_entity, normalize_card_input};
 use crate::domain::card::validate::{
     collect_card_warnings, validate_card_structure, validate_card_update_input,
@@ -11,6 +15,17 @@ use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::{CardId, PackId, WorkspaceId};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue};
 use crate::domain::common::time::now_utc;
+use crate::domain::namespace::model::{
+    build_pack_strings_namespace_index, PackStringsNamespaceContext,
+};
+use crate::domain::namespace::validate::validate_pack_string_record_namespace;
+use crate::domain::resource::model::CardAssetState;
+use crate::domain::resource::path_rules::{card_image_path, field_image_path, script_path};
+use crate::domain::strings::model::{
+    PackStringEntry, PackStringRecord, PackStringsFile, RemovePackStringTranslationOutcome,
+    UpsertPackStringRecordOutcome, UpsertPackStringTranslationOutcome,
+};
+use crate::domain::strings::validate::validate_pack_strings;
 use crate::infrastructure::fs::transaction::{execute_plan, FsOperation};
 use crate::infrastructure::json_store;
 use crate::runtime::sessions::PackSession;
@@ -33,6 +48,27 @@ pub struct PreparedUpdateCardWrite {
     pub normalized_input: CardUpdateInput,
     pub existing: CardEntity,
     pub updated: CardEntity,
+    pub warnings: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedUpsertPackStringWrite {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub snapshot: PackSession,
+    pub language: String,
+    pub entry: PackStringEntry,
+    pub next_strings: PackStringsFile,
+    pub warnings: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedUpsertPackStringRecordWrite {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub snapshot: PackSession,
+    pub record: PackStringRecord,
+    pub next_strings: PackStringsFile,
     pub warnings: Vec<ValidationIssue>,
 }
 
@@ -347,12 +383,403 @@ impl<'a> PackWriteService<'a> {
         self.replace_and_refresh(workspace_id, pack_id, next_session)
     }
 
+    pub fn prepare_upsert_pack_string(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        language: &str,
+        entry: PackStringEntry,
+    ) -> AppResult<PreparedUpsertPackStringWrite> {
+        reject_authoring_system_string(&entry.kind, entry.key)?;
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let mut next_strings = snapshot.strings.clone();
+
+        let mut warnings = Vec::new();
+        match next_strings.upsert_translation(language, &entry) {
+            UpsertPackStringTranslationOutcome::NoChange => {
+                return Ok(PreparedUpsertPackStringWrite {
+                    workspace_id: workspace_id.to_string(),
+                    pack_id: pack_id.to_string(),
+                    snapshot,
+                    language: language.to_string(),
+                    entry,
+                    next_strings,
+                    warnings,
+                });
+            }
+            UpsertPackStringTranslationOutcome::Updated { .. } => {
+                warnings.push(crate::application::strings::confirmation_service::overwrite_warning(
+                    language, &entry,
+                ));
+            }
+            UpsertPackStringTranslationOutcome::Inserted => {}
+        }
+
+        if let Some(record) = next_strings.get_record(&entry.kind, entry.key) {
+            warnings.extend(self.pack_string_namespace_warnings(&snapshot, record, None));
+        }
+        validate_pack_strings_or_err(&next_strings)?;
+
+        Ok(PreparedUpsertPackStringWrite {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            snapshot,
+            language: language.to_string(),
+            entry,
+            next_strings,
+            warnings,
+        })
+    }
+
+    pub fn prepare_upsert_pack_string_record(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        record: PackStringRecord,
+    ) -> AppResult<PreparedUpsertPackStringRecordWrite> {
+        reject_authoring_system_string(&record.kind, record.key)?;
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let mut next_strings = snapshot.strings.clone();
+        let previous = snapshot
+            .strings
+            .get_record(&record.kind, record.key)
+            .cloned();
+
+        let mut warnings = Vec::new();
+        match next_strings.upsert_record(record.clone()) {
+            UpsertPackStringRecordOutcome::NoChange => {
+                return Ok(PreparedUpsertPackStringRecordWrite {
+                    workspace_id: workspace_id.to_string(),
+                    pack_id: pack_id.to_string(),
+                    snapshot,
+                    record,
+                    next_strings,
+                    warnings,
+                });
+            }
+            UpsertPackStringRecordOutcome::Inserted => {}
+            UpsertPackStringRecordOutcome::Replaced { previous } => {
+                warnings.push(
+                    crate::application::strings::confirmation_service::overwrite_record_warning(
+                        &previous,
+                        &record,
+                    ),
+                );
+            }
+        }
+
+        warnings.extend(self.pack_string_namespace_warnings(&snapshot, &record, previous.as_ref()));
+        validate_pack_strings_or_err(&next_strings)?;
+
+        Ok(PreparedUpsertPackStringRecordWrite {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            snapshot,
+            record,
+            next_strings,
+            warnings,
+        })
+    }
+
+    pub fn commit_prepared_upsert_pack_string(
+        &self,
+        prepared: &PreparedUpsertPackStringWrite,
+    ) -> AppResult<PackSession> {
+        self.commit_pack_strings(
+            &prepared.workspace_id,
+            &prepared.pack_id,
+            &prepared.snapshot,
+            prepared.next_strings.clone(),
+        )
+    }
+
+    pub fn commit_prepared_upsert_pack_string_record(
+        &self,
+        prepared: &PreparedUpsertPackStringRecordWrite,
+    ) -> AppResult<PackSession> {
+        self.commit_pack_strings(
+            &prepared.workspace_id,
+            &prepared.pack_id,
+            &prepared.snapshot,
+            prepared.next_strings.clone(),
+        )
+    }
+
+    pub fn delete_pack_strings(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        keys: &[PackStringKeyDto],
+    ) -> AppResult<(PackSession, usize)> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let key_set = keys
+            .iter()
+            .map(|item| (item.kind.clone(), item.key))
+            .collect::<BTreeSet<_>>();
+        let mut next_strings = snapshot.strings.clone();
+        let deleted_count =
+            next_strings.delete_records(&key_set.into_iter().collect::<Vec<_>>());
+        if deleted_count == 0 {
+            return Ok((snapshot, 0));
+        }
+
+        validate_pack_strings_or_err(&next_strings)?;
+        let next_metadata = crate::domain::pack::summary::touch_pack_metadata(
+            &snapshot.metadata,
+            now_utc(),
+        );
+        execute_plan(vec![
+            FsOperation::WriteFile {
+                path: json_store::pack_strings_path(&snapshot.pack_path),
+                contents: encode_pack_strings(&next_strings)?,
+            },
+            FsOperation::WriteFile {
+                path: json_store::pack_metadata_path(&snapshot.pack_path),
+                contents: encode_pack_metadata(&next_metadata)?,
+            },
+        ])?;
+
+        let next_session = crate::application::pack::service::build_pack_session(
+            snapshot.pack_path.clone(),
+            next_metadata,
+            snapshot.cards.clone(),
+            next_strings,
+            snapshot.revision + 1,
+        )?;
+        Ok((self.replace_and_refresh(workspace_id, pack_id, next_session)?, deleted_count))
+    }
+
+    pub fn remove_pack_string_translation(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        kind: &crate::domain::strings::model::PackStringKind,
+        key: u32,
+        language: &str,
+    ) -> AppResult<(PackSession, bool)> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let mut next_strings = snapshot.strings.clone();
+        let changed = match next_strings.remove_translation(kind, key, language) {
+            RemovePackStringTranslationOutcome::NoChange => false,
+            RemovePackStringTranslationOutcome::Updated(_) => true,
+            RemovePackStringTranslationOutcome::DeletedRecord => true,
+        };
+        if !changed {
+            return Ok((snapshot, false));
+        }
+
+        validate_pack_strings_or_err(&next_strings)?;
+        let next_metadata = crate::domain::pack::summary::touch_pack_metadata(
+            &snapshot.metadata,
+            now_utc(),
+        );
+        execute_plan(vec![
+            FsOperation::WriteFile {
+                path: json_store::pack_strings_path(&snapshot.pack_path),
+                contents: encode_pack_strings(&next_strings)?,
+            },
+            FsOperation::WriteFile {
+                path: json_store::pack_metadata_path(&snapshot.pack_path),
+                contents: encode_pack_metadata(&next_metadata)?,
+            },
+        ])?;
+
+        let next_session = crate::application::pack::service::build_pack_session(
+            snapshot.pack_path.clone(),
+            next_metadata,
+            snapshot.cards.clone(),
+            next_strings,
+            snapshot.revision + 1,
+        )?;
+        Ok((self.replace_and_refresh(workspace_id, pack_id, next_session)?, true))
+    }
+
+    pub fn import_main_image(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+        source_path: &Path,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let target_path = card_image_path(&snapshot.pack_path, card.code);
+        let contents = crate::infrastructure::assets::import_main_image(source_path)?;
+        self.apply_asset_operation(
+            workspace_id,
+            pack_id,
+            snapshot,
+            card_id,
+            vec![FsOperation::WriteFile {
+                path: target_path,
+                contents,
+            }],
+        )
+    }
+
+    pub fn delete_main_image(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let target_path = card_image_path(&snapshot.pack_path, card.code);
+        self.apply_asset_delete(workspace_id, pack_id, snapshot, card_id, target_path)
+    }
+
+    pub fn import_field_image(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+        source_path: &Path,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        require_field_spell(card)?;
+        let target_path = field_image_path(&snapshot.pack_path, card.code);
+        let contents = crate::infrastructure::assets::import_field_image(source_path)?;
+        self.apply_asset_operation(
+            workspace_id,
+            pack_id,
+            snapshot,
+            card_id,
+            vec![FsOperation::WriteFile {
+                path: target_path,
+                contents,
+            }],
+        )
+    }
+
+    pub fn delete_field_image(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let target_path = field_image_path(&snapshot.pack_path, card.code);
+        self.apply_asset_delete(workspace_id, pack_id, snapshot, card_id, target_path)
+    }
+
+    pub fn create_empty_script(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let target_path = script_path(&snapshot.pack_path, card.code);
+        if target_path.exists() {
+            return Err(
+                AppError::new("resource.script_exists", "script file already exists")
+                    .with_detail("path", target_path.display().to_string()),
+            );
+        }
+        self.apply_asset_operation(
+            workspace_id,
+            pack_id,
+            snapshot,
+            card_id,
+            vec![FsOperation::WriteFile {
+                path: target_path,
+                contents: Vec::new(),
+            }],
+        )
+    }
+
+    pub fn import_script(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+        source_path: &Path,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let contents = std::fs::read(source_path).map_err(|source| {
+            AppError::from_io("resource.script_read_failed", source)
+                .with_detail("path", source_path.display().to_string())
+        })?;
+        let target_path = script_path(&snapshot.pack_path, card.code);
+        self.apply_asset_operation(
+            workspace_id,
+            pack_id,
+            snapshot,
+            card_id,
+            vec![FsOperation::WriteFile {
+                path: target_path,
+                contents,
+            }],
+        )
+    }
+
+    pub fn delete_script(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_id: &str,
+    ) -> AppResult<CardAssetState> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card = require_card(&snapshot, card_id)?;
+        let target_path = script_path(&snapshot.pack_path, card.code);
+        self.apply_asset_delete(workspace_id, pack_id, snapshot, card_id, target_path)
+    }
+
     fn replace_and_refresh(
         &self,
         workspace_id: &str,
         pack_id: &str,
         next_session: PackSession,
-    ) -> AppResult<PackSession> {
+        ) -> AppResult<PackSession> {
         crate::application::pack::service::replace_open_pack_session(
             self.state,
             workspace_id,
@@ -373,6 +800,136 @@ impl<'a> PackWriteService<'a> {
             .invalidate_pack(workspace_id, pack_id);
         Ok(next_session)
     }
+
+    fn apply_asset_operation(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        snapshot: PackSession,
+        card_id: &str,
+        mut operations: Vec<FsOperation>,
+    ) -> AppResult<CardAssetState> {
+        let next_metadata =
+            crate::domain::pack::summary::touch_pack_metadata(&snapshot.metadata, now_utc());
+        operations.push(FsOperation::WriteFile {
+            path: json_store::pack_metadata_path(&snapshot.pack_path),
+            contents: encode_pack_metadata(&next_metadata)?,
+        });
+        execute_plan(operations)?;
+        let next_session = crate::application::pack::service::build_pack_session(
+            snapshot.pack_path.clone(),
+            next_metadata,
+            snapshot.cards.clone(),
+            snapshot.strings.clone(),
+            snapshot.revision + 1,
+        )?;
+        let next_session = self.replace_and_refresh(workspace_id, pack_id, next_session)?;
+        next_session
+            .asset_index
+            .get(card_id)
+            .cloned()
+            .ok_or_else(|| AppError::new("card.not_found", "card was not found"))
+    }
+
+    fn apply_asset_delete(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        snapshot: PackSession,
+        card_id: &str,
+        target_path: std::path::PathBuf,
+    ) -> AppResult<CardAssetState> {
+        self.apply_asset_operation(
+            workspace_id,
+            pack_id,
+            snapshot,
+            card_id,
+            vec![FsOperation::DeleteFile { path: target_path }],
+        )
+    }
+
+    fn commit_pack_strings(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        snapshot: &PackSession,
+        next_strings: PackStringsFile,
+    ) -> AppResult<PackSession> {
+        if snapshot.strings == next_strings {
+            return Ok(snapshot.clone());
+        }
+        let next_metadata =
+            crate::domain::pack::summary::touch_pack_metadata(&snapshot.metadata, now_utc());
+
+        execute_plan(vec![
+            FsOperation::WriteFile {
+                path: json_store::pack_strings_path(&snapshot.pack_path),
+                contents: encode_pack_strings(&next_strings)?,
+            },
+            FsOperation::WriteFile {
+                path: json_store::pack_metadata_path(&snapshot.pack_path),
+                contents: encode_pack_metadata(&next_metadata)?,
+            },
+        ])?;
+
+        let next_session = crate::application::pack::service::build_pack_session(
+            snapshot.pack_path.clone(),
+            next_metadata,
+            snapshot.cards.clone(),
+            next_strings,
+            snapshot.revision + 1,
+        )?;
+        self.replace_and_refresh(workspace_id, pack_id, next_session)
+    }
+
+    fn pack_string_namespace_warnings(
+        &self,
+        snapshot: &PackSession,
+        record: &PackStringRecord,
+        previous: Option<&PackStringRecord>,
+    ) -> Vec<ValidationIssue> {
+        let workspace_index =
+            crate::application::card::service::CardService::new(self.state)
+                .build_workspace_namespace_index(Some(&snapshot.pack_id))
+                .unwrap_or_default();
+        let mut other_custom = workspace_index
+            .strings_by_pack
+            .values()
+            .fold(
+                crate::domain::namespace::model::PackStringNamespaceIndex::default(),
+                |mut acc, item| {
+                    acc.extend(item);
+                    acc
+                },
+            );
+
+        if let Some(previous) = previous {
+            let previous_index = build_pack_strings_namespace_index(&PackStringsFile {
+                schema_version: snapshot.strings.schema_version,
+                entries: vec![previous.clone()],
+            });
+            for key in previous_index.system_keys {
+                other_custom.system_keys.remove(&key);
+            }
+            for key in previous_index.victory_keys {
+                other_custom.victory_keys.remove(&key);
+            }
+            for key in previous_index.counter_keys {
+                other_custom.counter_keys.remove(&key);
+            }
+            for base in previous_index.setname_bases {
+                other_custom.setname_bases.remove(&base);
+            }
+        }
+
+        validate_pack_string_record_namespace(
+            record,
+            &PackStringsNamespaceContext {
+                other_custom,
+                standard: self.state.standard_baseline.strings.clone(),
+            },
+        )
+    }
 }
 
 fn encode_cards(cards: &[CardEntity]) -> AppResult<Vec<u8>> {
@@ -389,4 +946,63 @@ fn encode_pack_metadata(metadata: &crate::domain::pack::model::PackMetadata) -> 
         data: metadata.clone(),
     })
     .map_err(|source| AppError::new("json_store.serialize_failed", source.to_string()))
+}
+
+fn encode_pack_strings(strings: &PackStringsFile) -> AppResult<Vec<u8>> {
+    serde_json::to_vec_pretty(strings)
+        .map_err(|source| AppError::new("json_store.serialize_failed", source.to_string()))
+}
+
+fn validate_pack_strings_or_err(strings: &PackStringsFile) -> AppResult<()> {
+    let issues = validate_pack_strings(strings);
+    if issues.iter().any(|issue| matches!(issue.level, IssueLevel::Error)) {
+        let error_issues = issues
+            .into_iter()
+            .filter(|issue| matches!(issue.level, IssueLevel::Error))
+            .collect::<Vec<_>>();
+        return Err(
+            AppError::new(
+                "pack_strings.validation_failed",
+                "pack strings contain validation errors",
+            )
+            .with_detail("issues", &error_issues),
+        );
+    }
+    Ok(())
+}
+
+fn require_card<'a>(snapshot: &'a PackSession, card_id: &str) -> AppResult<&'a CardEntity> {
+    snapshot
+        .cards
+        .iter()
+        .find(|card| card.id == card_id)
+        .ok_or_else(|| AppError::new("card.not_found", "card was not found"))
+}
+
+fn require_field_spell(card: &CardEntity) -> AppResult<()> {
+    if matches!(card.primary_type, PrimaryType::Spell)
+        && matches!(card.spell_subtype, Some(SpellSubtype::Field))
+    {
+        return Ok(());
+    }
+    Err(AppError::new(
+        "resource.field_image_requires_field_spell",
+        "field image can only be attached to field spell cards",
+    ))
+}
+
+fn reject_authoring_system_string(
+    kind: &crate::domain::strings::model::PackStringKind,
+    key: u32,
+) -> AppResult<()> {
+    if matches!(kind, crate::domain::strings::model::PackStringKind::System) {
+        return Err(
+            AppError::new(
+                "pack_strings.system_not_supported_for_custom_packs",
+                "system strings are reserved and cannot be authored in custom packs",
+            )
+            .with_detail("key", key),
+        );
+    }
+    Ok(())
 }

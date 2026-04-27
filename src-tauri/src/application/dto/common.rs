@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::common::error::AppError;
-use crate::domain::common::ids::ConfirmationToken;
+use crate::domain::common::ids::{ConfirmationToken, PreviewToken};
 use crate::domain::common::issue::ValidationIssue;
+use crate::domain::common::time::AppTimestamp;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationFeedback {
@@ -27,6 +28,14 @@ pub enum WriteResultDto<T> {
         warnings: Vec<ValidationIssue>,
         preview: Option<serde_json::Value>,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreviewResultDto<T> {
+    pub preview_token: PreviewToken,
+    pub snapshot_hash: String,
+    pub expires_at: AppTimestamp,
+    pub data: T,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

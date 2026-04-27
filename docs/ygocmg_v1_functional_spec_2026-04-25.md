@@ -775,17 +775,31 @@ interface PackStringEntry {
   value: string;
 }
 
+interface PackStringRecord {
+  kind: PackStringKind;
+  key: number;
+  values: Record<LanguageCode, string>;
+}
+
 interface PackStringsFile {
-  schema_version: 1;
-  entries: Record<LanguageCode, PackStringEntry[]>;
+  schema_version: 2;
+  entries: PackStringRecord[];
 }
 ```
 
 约束：
 
-1. 同一语言下，`(kind, key)` 组合必须唯一
-2. 导入、编辑、保存、导出都必须检查该唯一性
-3. 若存在相同 `(kind, key)` 且 `value` 不同，属于冲突而不是覆盖
+1. `PackStrings` 的主实体是 `(kind, key)`
+2. 同一 `pack` 内，`(kind, key)` 组合必须唯一
+3. 多语言 value 统一挂在同一条 `PackStringRecord` 下
+4. `list_pack_strings(language)` 是从聚合模型投影出的语言视图
+5. 导入、编辑、保存、导出都必须检查该唯一性与 value 完整性
+
+补充说明：
+
+1. 自定义包作者态不再允许新增 `system`
+2. `setname / counter / victory` 继续允许编辑
+3. 相关 key 在作者态以十六进制输入和显示
 
 ### 9.4 Strings 编辑要求
 
@@ -1075,7 +1089,7 @@ interface PackStringsFile {
 导入时处理：
 
 1. CDB `datas/texts` -> `CardEntity.texts[source_language]`
-2. `strings.conf` -> `PackStrings.entries[source_language]`
+2. `strings.conf` -> `PackStrings.entries[*].values[source_language]`
 3. `pics/<code>.jpg` -> 主卡图资源
 4. `pics/field/<code>.jpg` -> 场地图片资源
 5. `script/c<code>.lua` -> 单卡脚本资源
@@ -1154,9 +1168,15 @@ interface PackStringsFile {
 
 1. 多个 `pack` 之间是否存在相同 `code`
 2. 多个 `pack` 之间是否存在同一资源目标路径冲突
-3. 多个 `pack` 之间是否存在相同 `PackStrings(kind, key)` 且值不同
+3. 多个 `pack` 之间是否存在相同 `PackStrings(kind, key)` 或相同 `setname base` 的冲突
 4. 所有卡片是否满足结构一致性要求
 5. 所选导出语言是否完整
+
+当前实现补充：
+
+1. `setname` 冲突按 `base = key & 0x0fff` 判断
+2. `counter` 与 `victory` 冲突按 full key 判断
+3. `PackStrings` 缺失目标导出语言 value 会阻断导出预检
 
 导出必须采用“先预检、后执行”的两阶段流程：
 

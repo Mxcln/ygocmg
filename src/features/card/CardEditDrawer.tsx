@@ -65,6 +65,7 @@ export function CardEditDrawer({
   const [draft, setDraft] = useState<CardEntity | null>(null);
   const [assetState, setAssetState] = useState<CardAssetState>(EMPTY_ASSET_STATE);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [packPath, setPackPath] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DrawerTab>("text");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -109,6 +110,7 @@ export function CardEditDrawer({
       setDraft(cardDetail.card);
       setAssetState(cardDetail.asset_state);
       setAvailableLanguages(cardDetail.available_languages);
+      setPackPath(cardDetail.pack_path);
     }
   }, [cardDetail]);
 
@@ -186,6 +188,7 @@ export function CardEditDrawer({
               setDraft(detail.card);
               setAssetState(detail.asset_state);
               setAvailableLanguages(detail.available_languages);
+              setPackPath(detail.pack_path);
               closeDialog();
               onSaved();
               handleAnimatedClose();
@@ -296,9 +299,16 @@ export function CardEditDrawer({
         ) : draft ? (
           <div className="card-edit-body">
             <CardAssetBar
+              workspaceId={workspaceId}
+              packId={packId}
+              cardId={isCreate ? null : cardId}
+              cardCode={draft.code}
+              packPath={packPath}
               assetState={assetState}
               primaryType={draft.primary_type}
               spellSubtype={draft.spell_subtype}
+              onAssetChanged={(next) => setAssetState(next)}
+              onError={(msg) => setErrorMsg(msg)}
             />
             <div className="card-form-area">
               <div className="card-form-tabs">

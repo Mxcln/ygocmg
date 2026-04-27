@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
+use std::path::Path;
 
 use tempfile::tempdir;
 use ygocmg_core::bootstrap::wiring::build_app_state;
@@ -8,10 +9,20 @@ use ygocmg_core::application::dto::card::{
     ListCardsInput, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
 };
 use ygocmg_core::application::dto::common::WriteResultDto;
-use ygocmg_core::domain::card::model::{
-    Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race,
+use ygocmg_core::application::dto::resource::{
+    CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput, DeleteScriptInput,
+    ImportFieldImageInput, ImportMainImageInput, ImportScriptInput, OpenScriptExternalInput,
 };
-use ygocmg_core::domain::resource::path_rules::script_path;
+use ygocmg_core::application::dto::strings::{
+    ConfirmPackStringsWriteInput, DeletePackStringsInput, ListPackStringsInput, PackStringEntryDto,
+    PackStringKeyDto, UpsertPackStringInput,
+};
+use ygocmg_core::domain::card::model::{
+    Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race, SpellSubtype,
+};
+use ygocmg_core::domain::config::rules::default_global_config;
+use ygocmg_core::domain::resource::path_rules::{card_image_path, field_image_path, script_path};
+use ygocmg_core::domain::strings::model::PackStringKind;
 use ygocmg_core::infrastructure::json_store;
 use ygocmg_core::infrastructure::pack_locator;
 use ygocmg_core::presentation::commands::app_commands;
@@ -814,4 +825,767 @@ fn deleting_workspace_directory_removes_directory_and_clears_session() {
 
     let sessions = state.sessions.read().unwrap();
     assert!(sessions.current_workspace.is_none());
+}
+
+#[test]
+fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-pack-strings");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack Strings",
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let empty = app_commands::list_pack_strings(
+        &state,
+        ListPackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            kind_filter: None,
+            key_filter: None,
+            keyword: None,
+            page: 1,
+            page_size: 20,
+        },
+    )
+    .unwrap();
+    assert_eq!(empty.total, 0);
+
+    let before_updated_at = json_store::load_pack_metadata(
+        &pack_locator::resolve_pack_path(
+            &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+            &pack.id,
+        )
+        .unwrap(),
+    )
+    .unwrap()
+    .updated_at;
+
+    let inserted = app_commands::upsert_pack_string(
+        &state,
+        UpsertPackStringInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            entry: PackStringEntryDto {
+                kind: PackStringKind::Setname,
+                key: 0x345,
+                value: "Alpha".to_string(),
+            },
+        },
+    )
+    .unwrap();
+    match inserted {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(warnings.is_empty());
+            assert_eq!(data.total, 1);
+            assert_eq!(data.items[0].value, "Alpha");
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let after_updated_at = json_store::load_pack_metadata(
+        &pack_locator::resolve_pack_path(
+            &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+            &pack.id,
+        )
+        .unwrap(),
+    )
+    .unwrap()
+    .updated_at;
+    assert!(after_updated_at >= before_updated_at);
+
+    for (kind, key, value) in [
+        (PackStringKind::Setname, 0x346, "Beta"),
+        (PackStringKind::Counter, 0x222, "Gamma"),
+        (PackStringKind::Victory, 0x155, "Delta"),
+    ] {
+        let result = app_commands::upsert_pack_string(
+            &state,
+            UpsertPackStringInput {
+                workspace_id: workspace.id.clone(),
+                pack_id: pack.id.clone(),
+                language: "zh-CN".to_string(),
+                entry: PackStringEntryDto {
+                    kind,
+                    key,
+                    value: value.to_string(),
+                },
+            },
+        )
+        .unwrap();
+        match result {
+            WriteResultDto::Ok { .. } => {}
+            WriteResultDto::NeedsConfirmation {
+                confirmation_token, ..
+            } => {
+                app_commands::confirm_pack_strings_write(
+                    &state,
+                    ConfirmPackStringsWriteInput { confirmation_token },
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    let filtered = app_commands::list_pack_strings(
+        &state,
+        ListPackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            kind_filter: Some(PackStringKind::Setname),
+            key_filter: None,
+            keyword: Some("a".to_string()),
+            page: 1,
+            page_size: 10,
+        },
+    )
+    .unwrap();
+    assert_eq!(filtered.total, 2);
+    assert_eq!(filtered.items[0].key, 0x345);
+    assert_eq!(filtered.items[1].key, 0x346);
+
+    let key_filtered = app_commands::list_pack_strings(
+        &state,
+        ListPackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            kind_filter: None,
+            key_filter: Some(0x222),
+            keyword: None,
+            page: 1,
+            page_size: 10,
+        },
+    )
+    .unwrap();
+    assert_eq!(key_filtered.total, 1);
+    assert_eq!(key_filtered.items[0].kind, PackStringKind::Counter);
+
+    let paged = app_commands::list_pack_strings(
+        &state,
+        ListPackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            kind_filter: None,
+            key_filter: None,
+            keyword: None,
+            page: 2,
+            page_size: 2,
+        },
+    )
+    .unwrap();
+    assert_eq!(paged.total, 4);
+    assert_eq!(paged.items.len(), 2);
+
+    let confirmation_token = match app_commands::upsert_pack_string(
+        &state,
+        UpsertPackStringInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            entry: PackStringEntryDto {
+                kind: PackStringKind::Setname,
+                key: 0x345,
+                value: "Alpha Updated".to_string(),
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            warnings,
+            ..
+        } => {
+            assert_eq!(warnings.len(), 1);
+            confirmation_token
+        }
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+
+    let confirmed = app_commands::confirm_pack_strings_write(
+        &state,
+        ConfirmPackStringsWriteInput { confirmation_token },
+    )
+    .unwrap();
+    assert_eq!(confirmed.total, 4);
+    let updated_entry = confirmed
+        .items
+        .iter()
+        .find(|entry| entry.kind == PackStringKind::Setname && entry.key == 0x345)
+        .expect("updated setname string should be present");
+    assert_eq!(updated_entry.value, "Alpha Updated");
+
+    let stale_token = match app_commands::upsert_pack_string(
+        &state,
+        UpsertPackStringInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "zh-CN".to_string(),
+            entry: PackStringEntryDto {
+                kind: PackStringKind::Setname,
+                key: 0x346,
+                value: "Beta Updated".to_string(),
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            ..
+        } => confirmation_token,
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+
+    let intervening_delete = app_commands::delete_pack_strings(
+        &state,
+        DeletePackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            entries: vec![PackStringKeyDto {
+                kind: PackStringKind::Counter,
+                key: 0x222,
+            }],
+        },
+    )
+    .unwrap();
+    match intervening_delete {
+        WriteResultDto::Ok { data, warnings } => {
+            assert_eq!(data.deleted_count, 1);
+            assert!(warnings.is_empty());
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let stale_error = app_commands::confirm_pack_strings_write(
+        &state,
+        ConfirmPackStringsWriteInput {
+            confirmation_token: stale_token,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(stale_error.code, "confirmation.invalid_token");
+
+    let noop_delete = app_commands::delete_pack_strings(
+        &state,
+        DeletePackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            entries: vec![PackStringKeyDto {
+                kind: PackStringKind::Setname,
+                key: 9999,
+            }],
+        },
+    )
+    .unwrap();
+    match noop_delete {
+        WriteResultDto::Ok { data, warnings } => {
+            assert_eq!(data.deleted_count, 0);
+            assert!(warnings.is_empty());
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let deleted = app_commands::delete_pack_strings(
+        &state,
+        DeletePackStringsInput {
+            workspace_id: workspace.id,
+            pack_id: pack.id,
+            entries: vec![
+                PackStringKeyDto {
+                    kind: PackStringKind::Victory,
+                    key: 0x155,
+                },
+            ],
+        },
+    )
+    .unwrap();
+    match deleted {
+        WriteResultDto::Ok { data, warnings } => {
+            assert_eq!(data.deleted_count, 1);
+            assert!(warnings.is_empty());
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+#[test]
+fn resource_management_supports_images_scripts_and_external_editor_validation() -> Result<(), Box<dyn std::error::Error>> {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-resources");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Pack Resources",
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+    let pack_path = pack_locator::resolve_pack_path(
+        &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+        &pack.id,
+    )
+    .unwrap();
+
+    let monster = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_000_100,
+        PrimaryType::Monster,
+        None,
+        "Monster",
+    );
+    let field_spell = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_000_110,
+        PrimaryType::Spell,
+        Some(SpellSubtype::Field),
+        "Field Spell",
+    );
+
+    let source_dir = tempdir().unwrap();
+    let main_png = source_dir.path().join("main.png");
+    create_png(&main_png, 123, 200)?;
+    let field_png = source_dir.path().join("field.png");
+    create_png(&field_png, 321, 100)?;
+    let script_file = source_dir.path().join("script.lua");
+    fs::write(&script_file, "-- imported script").unwrap();
+
+    let main_result = app_commands::import_main_image(
+        &state,
+        ImportMainImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+            source_path: main_png.clone(),
+        },
+    )
+    .unwrap();
+    match main_result {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(data.has_image);
+            assert!(warnings.is_empty());
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+    let saved_main = card_image_path(&pack_path, 100_000_100);
+    assert!(saved_main.exists());
+    let main_image = image::ImageReader::open(&saved_main).unwrap().decode().unwrap();
+    assert_eq!(main_image.width(), 400);
+    assert_eq!(main_image.height(), 580);
+
+    let not_field_error = app_commands::import_field_image(
+        &state,
+        ImportFieldImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+            source_path: field_png.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(not_field_error.code, "resource.field_image_requires_field_spell");
+
+    let field_result = app_commands::import_field_image(
+        &state,
+        ImportFieldImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: field_spell.id.clone(),
+            source_path: field_png.clone(),
+        },
+    )
+    .unwrap();
+    match field_result {
+        WriteResultDto::Ok { data, .. } => assert!(data.has_field_image),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+    let saved_field = field_image_path(&pack_path, 100_000_110);
+    assert!(saved_field.exists());
+    let field_image = image::ImageReader::open(&saved_field).unwrap().decode().unwrap();
+    assert_eq!(field_image.width(), 321);
+    assert_eq!(field_image.height(), 100);
+
+    let empty_script = app_commands::create_empty_script(
+        &state,
+        CreateEmptyScriptInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap();
+    match empty_script {
+        WriteResultDto::Ok { data, .. } => assert!(data.has_script),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let duplicate_script_error = app_commands::create_empty_script(
+        &state,
+        CreateEmptyScriptInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(duplicate_script_error.code, "resource.script_exists");
+
+    let imported_script = app_commands::import_script(
+        &state,
+        ImportScriptInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+            source_path: script_file.clone(),
+        },
+    )
+    .unwrap();
+    match imported_script {
+        WriteResultDto::Ok { data, .. } => assert!(data.has_script),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+    let script_path_on_disk = script_path(&pack_path, 100_000_100);
+    assert_eq!(fs::read_to_string(&script_path_on_disk).unwrap(), "-- imported script");
+
+    let no_editor_error = app_commands::open_script_external(
+        &state,
+        OpenScriptExternalInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(no_editor_error.code, "resource.external_editor_not_configured");
+
+    let mut config = default_global_config();
+    config.external_text_editor_path = Some(source_dir.path().join("missing-editor.exe"));
+    app_commands::save_config(&state, &config).unwrap();
+    let missing_editor_error = app_commands::open_script_external(
+        &state,
+        OpenScriptExternalInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(missing_editor_error.code, "resource.external_editor_missing");
+
+    let delete_script = app_commands::delete_script(
+        &state,
+        DeleteScriptInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap();
+    match delete_script {
+        WriteResultDto::Ok { data, .. } => assert!(!data.has_script),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let mut config = default_global_config();
+    config.external_text_editor_path = Some(std::env::current_exe()?);
+    app_commands::save_config(&state, &config).unwrap();
+    let missing_script_error = app_commands::open_script_external(
+        &state,
+        OpenScriptExternalInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(missing_script_error.code, "resource.script_missing");
+
+    let delete_main = app_commands::delete_main_image(
+        &state,
+        DeleteMainImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+        },
+    )
+    .unwrap();
+    match delete_main {
+        WriteResultDto::Ok { data, .. } => assert!(!data.has_image),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let delete_field = app_commands::delete_field_image(
+        &state,
+        DeleteFieldImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: field_spell.id.clone(),
+        },
+    )
+    .unwrap();
+    match delete_field {
+        WriteResultDto::Ok { data, .. } => assert!(!data.has_field_image),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let imported_again_main = app_commands::import_main_image(
+        &state,
+        ImportMainImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+            source_path: main_png,
+        },
+    )
+    .unwrap();
+    match imported_again_main {
+        WriteResultDto::Ok { data, .. } => assert!(data.has_image),
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+    app_commands::import_field_image(
+        &state,
+        ImportFieldImageInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: field_spell.id.clone(),
+            source_path: field_png,
+        },
+    )
+    .unwrap();
+    app_commands::import_script(
+        &state,
+        ImportScriptInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_id: monster.id.clone(),
+            source_path: script_file,
+        },
+    )
+    .unwrap();
+
+    let updated = update_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        &monster.id,
+        100_000_120,
+        PrimaryType::Monster,
+        None,
+        "Monster Updated",
+    );
+    assert_eq!(updated.code, 100_000_120);
+    assert!(!card_image_path(&pack_path, 100_000_100).exists());
+    assert!(!script_path(&pack_path, 100_000_100).exists());
+    assert!(card_image_path(&pack_path, 100_000_120).exists());
+    assert!(script_path(&pack_path, 100_000_120).exists());
+
+    let updated_field = update_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        &field_spell.id,
+        100_000_130,
+        PrimaryType::Spell,
+        Some(SpellSubtype::Field),
+        "Field Updated",
+    );
+    assert_eq!(updated_field.code, 100_000_130);
+    assert!(!field_image_path(&pack_path, 100_000_110).exists());
+    assert!(field_image_path(&pack_path, 100_000_130).exists());
+    Ok(())
+}
+
+fn create_card_direct(
+    state: &ygocmg_core::bootstrap::app_state::AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    code: u32,
+    primary_type: PrimaryType,
+    spell_subtype: Option<SpellSubtype>,
+    name: &str,
+) -> ygocmg_core::application::dto::card::EditableCardDto {
+    let is_monster = matches!(primary_type, PrimaryType::Monster);
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: name.to_string(),
+            desc: format!("{name} desc"),
+            strings: vec![],
+        },
+    );
+
+    match app_commands::create_card(
+        state,
+        CreateCardInput {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            card: CardUpdateInput {
+                code,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type,
+                texts,
+                monster_flags: if is_monster {
+                    Some(vec![MonsterFlag::Effect])
+                } else {
+                    None
+                },
+                atk: if is_monster {
+                    Some(1500)
+                } else {
+                    None
+                },
+                def: if is_monster {
+                    Some(1200)
+                } else {
+                    None
+                },
+                race: if is_monster {
+                    Some(Race::Warrior)
+                } else {
+                    None
+                },
+                attribute: if is_monster {
+                    Some(Attribute::Light)
+                } else {
+                    None
+                },
+                level: if is_monster {
+                    Some(4)
+                } else {
+                    None
+                },
+                pendulum: None,
+                link: None,
+                spell_subtype,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data.card,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+fn update_card_direct(
+    state: &ygocmg_core::bootstrap::app_state::AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    card_id: &str,
+    code: u32,
+    primary_type: PrimaryType,
+    spell_subtype: Option<SpellSubtype>,
+    name: &str,
+) -> ygocmg_core::application::dto::card::EditableCardDto {
+    let is_monster = matches!(primary_type, PrimaryType::Monster);
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: name.to_string(),
+            desc: format!("{name} desc"),
+            strings: vec![],
+        },
+    );
+
+    match app_commands::update_card(
+        state,
+        UpdateCardInput {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            card_id: card_id.to_string(),
+            card: CardUpdateInput {
+                code,
+                alias: 0,
+                setcode: 0,
+                ot: Ot::Custom,
+                category: 0,
+                primary_type,
+                texts,
+                monster_flags: if is_monster {
+                    Some(vec![MonsterFlag::Effect])
+                } else {
+                    None
+                },
+                atk: if is_monster {
+                    Some(1600)
+                } else {
+                    None
+                },
+                def: if is_monster {
+                    Some(1200)
+                } else {
+                    None
+                },
+                race: if is_monster {
+                    Some(Race::Warrior)
+                } else {
+                    None
+                },
+                attribute: if is_monster {
+                    Some(Attribute::Light)
+                } else {
+                    None
+                },
+                level: if is_monster {
+                    Some(4)
+                } else {
+                    None
+                },
+                pendulum: None,
+                link: None,
+                spell_subtype,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data.card,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+fn create_png(path: &Path, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let image = image::RgbImage::from_fn(width, height, |x, y| {
+        image::Rgb([(x % 255) as u8, (y % 255) as u8, ((x + y) % 255) as u8])
+    });
+    image.save(path)?;
+    Ok(())
 }
