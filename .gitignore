@@ -24,6 +24,7 @@ src-tauri/gen/
 Thumbs.db
 .vscode/
 .idea/
+.cursor/
 
 review/
 !docs/review/
