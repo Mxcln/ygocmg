@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { cardApi } from "../../shared/api/cardApi";
 import type { CardSortField, SortDirection, CardListRow, CardListPage } from "../../shared/contracts/card";
@@ -17,6 +18,10 @@ function subtypeTagClass(tag: string, primaryType: string): string {
     return `subtype-tag flag-${tag.toLowerCase().replace(/[^a-z]/g, "")}`;
   }
   return `subtype-tag ${primaryType}`;
+}
+
+function cardImageSrc(packPath: string, code: number, revision: number): string {
+  return `${convertFileSrc(`${packPath}/pics/${code}.jpg`)}?v=${revision}`;
 }
 
 interface CardListPanelProps {
@@ -53,6 +58,8 @@ export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
+  const packPath = data?.pack_path ?? null;
+  const revision = data?.revision ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function handleSearchChange(value: string) {
@@ -130,10 +137,19 @@ export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
                 onClick={() => handleRowClick(card)}
               >
                 <div className="card-list-thumb">
-                  <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1">
-                    <rect x="1" y="1" width="14" height="18" rx="1.5" />
-                    <rect x="3" y="3" width="10" height="8" rx="0.5" />
-                  </svg>
+                  {card.has_image && packPath ? (
+                    <img
+                      src={cardImageSrc(packPath, card.code, revision)}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1">
+                      <rect x="1" y="1" width="14" height="18" rx="1.5" />
+                      <rect x="3" y="3" width="10" height="8" rx="0.5" />
+                    </svg>
+                  )}
                 </div>
                 <span className="card-list-code">{card.code}</span>
                 <span className="card-list-name" title={card.name}>

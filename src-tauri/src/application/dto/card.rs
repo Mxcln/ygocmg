@@ -95,6 +95,8 @@ pub struct CardListPageDto {
     pub page: u32,
     pub page_size: u32,
     pub total: u64,
+    pub pack_path: String,
+    pub revision: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

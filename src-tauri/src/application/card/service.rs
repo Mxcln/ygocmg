@@ -71,6 +71,8 @@ impl<'a> CardService<'a> {
             page,
             page_size,
             total,
+            pack_path: pack.pack_path.to_string_lossy().to_string(),
+            revision: pack.revision,
         })
     }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardApi } from "../../shared/api/cardApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError } from "../../shared/utils/format";
@@ -73,6 +73,7 @@ export function CardEditDrawer({
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [closing, setClosing] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const activeMeta = useShellStore((s) =>
     s.activePackId ? s.packMetadataMap[s.activePackId] : null,
@@ -119,6 +120,14 @@ export function CardEditDrawer({
       setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
     },
     [],
+  );
+
+  const handleAssetChanged = useCallback(
+    (next: CardAssetState) => {
+      setAssetState(next);
+      void queryClient.invalidateQueries({ queryKey: ["cards"] });
+    },
+    [queryClient],
   );
 
   function handleAnimatedClose() {
@@ -307,7 +316,7 @@ export function CardEditDrawer({
               assetState={assetState}
               primaryType={draft.primary_type}
               spellSubtype={draft.spell_subtype}
-              onAssetChanged={(next) => setAssetState(next)}
+              onAssetChanged={handleAssetChanged}
               onError={(msg) => setErrorMsg(msg)}
             />
             <div className="card-form-area">

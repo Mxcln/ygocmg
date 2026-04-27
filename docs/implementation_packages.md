@@ -234,7 +234,7 @@
 当前完成情况（前端）：
 1. `CardListPanel` — CSS Grid 表格布局，带表头行，列包含：缩略图、Code、Name、Type（固定宽度 badge）、Subtype（彩色 tag，monster flag 各有独立配色）、ATK、DEF、Lv、资源图标（has_image / has_script）
 2. `CardEditDrawer` — 全区域覆盖式 drawer（覆盖 meta-bar），滑入/滑出动画，左栏卡图 + 右栏 Text/Info 双 tab 表单
-3. `CardAssetBar` — 400×580 卡图预览占位，分段按钮组样式（Image: Import/Delete, Script: Create/Import/Edit/Delete）
+3. `CardAssetBar` — 350px 宽、400/580 比例的卡图预览占位，分段按钮组样式（Image: Import/Delete, Script: Create/Import/Edit/Delete）
 4. `CardInfoForm` — 全字段编辑（code/alias/setcode/ot/category/primary_type/monster_flags/atk/def/race/attribute/level/pendulum/link/spell_subtype/trap_subtype），类型联动显示/隐藏
 5. `CardTextForm` — 多语言切换 + name/effect/strings(16) 编辑
 6. `cardApi.ts` — 新增 `deleteCard` 方法

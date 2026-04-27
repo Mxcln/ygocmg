@@ -146,6 +146,8 @@ export interface CardListPage {
   page: number;
   page_size: number;
   total: number;
+  pack_path: string;
+  revision: number;
 }
 
 export interface ListCardsInput {

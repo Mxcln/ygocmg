@@ -1451,7 +1451,8 @@ textarea.meta-edit-input {
 /* ── Card Asset Bar (left panel) ── */
 
 .card-asset-bar {
-  width: 400px;
+  box-sizing: content-box;
+  width: 300px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -1462,7 +1463,8 @@ textarea.meta-edit-input {
 }
 
 .card-pic-preview {
-  width: 100%;
+  width: 300px;
+  max-width: 100%;
   aspect-ratio: 400 / 580;
   border-radius: 4px;
   background: var(--panel-muted);
