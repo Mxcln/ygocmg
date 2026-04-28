@@ -10,6 +10,9 @@ export type ModalType =
 
 export type WorkspaceSubView = "recent" | "create" | "openByPath";
 export type AddPackTab = "openPack" | "createPack" | "importPack";
+export type ActiveView =
+  | { type: "custom_pack"; packId: string }
+  | { type: "standard_pack" };
 
 export interface ModalState {
   type: ModalType;
@@ -49,6 +52,7 @@ interface ShellState {
 
   openPackIds: string[];
   activePackId: string | null;
+  activeView: ActiveView | null;
 
   packMetadataMap: Record<string, PackMetadata>;
   packOverviews: PackOverview[];
@@ -73,6 +77,7 @@ interface ShellState {
 
   setOpenPacks: (ids: string[], activeId: string | null) => void;
   setActivePack: (id: string | null) => void;
+  setActiveStandardPack: () => void;
   addOpenPack: (id: string, metadata: PackMetadata) => void;
   updatePackMetadata: (id: string, metadata: PackMetadata) => void;
   removeOpenPack: (id: string) => void;
@@ -85,6 +90,7 @@ export const useShellStore = create<ShellState>()((set) => ({
 
   openPackIds: [],
   activePackId: null,
+  activeView: null,
 
   packMetadataMap: {},
   packOverviews: [],
@@ -136,6 +142,7 @@ export const useShellStore = create<ShellState>()((set) => ({
       workspacePath: path,
       openPackIds: [],
       activePackId: null,
+      activeView: null,
       packMetadataMap: {},
       packOverviews: [],
       dialog: null,
@@ -149,6 +156,7 @@ export const useShellStore = create<ShellState>()((set) => ({
       workspacePath: null,
       openPackIds: [],
       activePackId: null,
+      activeView: null,
       packMetadataMap: {},
       packOverviews: [],
       dialog: null,
@@ -158,19 +166,34 @@ export const useShellStore = create<ShellState>()((set) => ({
   setPackOverviews: (overviews) => set({ packOverviews: overviews }),
 
   setOpenPacks: (ids, activeId) =>
-    set({ openPackIds: ids, activePackId: activeId }),
+    set({
+      openPackIds: ids,
+      activePackId: activeId,
+      activeView: activeId ? { type: "custom_pack", packId: activeId } : null,
+    }),
 
-  setActivePack: (id) => set({ activePackId: id }),
+  setActivePack: (id) =>
+    set({
+      activePackId: id,
+      activeView: id ? { type: "custom_pack", packId: id } : null,
+    }),
+
+  setActiveStandardPack: () => set({ activeView: { type: "standard_pack" } }),
 
   addOpenPack: (id, metadata) =>
     set((state) => {
       const nextMap = { ...state.packMetadataMap, [id]: metadata };
       if (state.openPackIds.includes(id)) {
-        return { activePackId: id, packMetadataMap: nextMap };
+        return {
+          activePackId: id,
+          activeView: { type: "custom_pack", packId: id },
+          packMetadataMap: nextMap,
+        };
       }
       return {
         openPackIds: [...state.openPackIds, id],
         activePackId: id,
+        activeView: { type: "custom_pack", packId: id },
         packMetadataMap: nextMap,
       };
     }),
@@ -187,7 +210,13 @@ export const useShellStore = create<ShellState>()((set) => ({
         state.activePackId === id
           ? ids[ids.length - 1] ?? null
           : state.activePackId;
+      const activeView =
+        state.activeView?.type === "standard_pack"
+          ? state.activeView
+          : activeId
+            ? { type: "custom_pack" as const, packId: activeId }
+            : null;
       const { [id]: _, ...nextMap } = state.packMetadataMap;
-      return { openPackIds: ids, activePackId: activeId, packMetadataMap: nextMap };
+      return { openPackIds: ids, activePackId: activeId, activeView, packMetadataMap: nextMap };
     }),
 }));

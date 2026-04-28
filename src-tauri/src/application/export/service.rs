@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::application::dto::common::PreviewResultDto;
 use crate::application::dto::export::{ExportPreviewDto, PreviewExportBundleInput};
 use crate::bootstrap::AppState;
+use crate::domain::card::code::STANDARD_RESERVED_CODE_MAX;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
 use crate::domain::common::time::{AppTimestamp, now_utc};
@@ -101,6 +102,10 @@ impl<'a> ExportService<'a> {
         let mut setname_base_owners = BTreeMap::<u16, Vec<String>>::new();
         let mut counter_owners = BTreeMap::<u32, Vec<String>>::new();
         let mut victory_owners = BTreeMap::<u32, Vec<String>>::new();
+        let standard_baseline = crate::infrastructure::standard_pack::standard_baseline_from_index(
+            self.state.app_data_dir(),
+        )
+        .unwrap_or_else(|| self.state.standard_baseline.clone());
 
         for pack in packs {
             for card in &pack.cards {
@@ -127,7 +132,7 @@ impl<'a> ExportService<'a> {
 
                 match record.kind {
                     PackStringKind::System => {
-                        if self.state.standard_baseline.strings.system_keys.contains(&record.key) {
+                        if standard_baseline.strings.system_keys.contains(&record.key) {
                             issues.push(
                                 ValidationIssue::error(
                                     "export.system_key_conflicts_with_standard_pack",
@@ -146,7 +151,7 @@ impl<'a> ExportService<'a> {
                             .entry(base)
                             .or_default()
                             .push(pack.pack_id.clone());
-                        if self.state.standard_baseline.strings.setname_bases.contains(&base) {
+                        if standard_baseline.strings.setname_bases.contains(&base) {
                             issues.push(
                                 ValidationIssue::error(
                                     "export.setname_base_conflicts_with_standard_pack",
@@ -166,7 +171,7 @@ impl<'a> ExportService<'a> {
                             .entry(record.key)
                             .or_default()
                             .push(pack.pack_id.clone());
-                        if self.state.standard_baseline.strings.counter_keys.contains(&record.key) {
+                        if standard_baseline.strings.counter_keys.contains(&record.key) {
                             issues.push(
                                 ValidationIssue::error(
                                     "export.counter_key_conflicts_with_standard_pack",
@@ -184,7 +189,7 @@ impl<'a> ExportService<'a> {
                             .entry(record.key)
                             .or_default()
                             .push(pack.pack_id.clone());
-                        if self.state.standard_baseline.strings.victory_keys.contains(&record.key) {
+                        if standard_baseline.strings.victory_keys.contains(&record.key) {
                             issues.push(
                                 ValidationIssue::error(
                                     "export.victory_key_conflicts_with_standard_pack",
@@ -212,13 +217,22 @@ impl<'a> ExportService<'a> {
                     .with_param("pack_ids", owners),
                 );
             }
-            if self.state.standard_baseline.standard_codes.contains(&code) {
+            if standard_baseline.standard_codes.contains(&code) {
                 issues.push(
                     ValidationIssue::error(
                         "export.code_conflicts_with_standard_pack",
                         ValidationTarget::new("export").with_field("code"),
                     )
                     .with_param("code", code),
+                );
+            } else if code <= STANDARD_RESERVED_CODE_MAX {
+                issues.push(
+                    ValidationIssue::warning(
+                        "export.code_in_standard_reserved_range",
+                        ValidationTarget::new("export").with_field("code"),
+                    )
+                    .with_param("code", code)
+                    .with_param("reserved_max", STANDARD_RESERVED_CODE_MAX),
                 );
             }
         }

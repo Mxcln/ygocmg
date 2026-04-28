@@ -3,4 +3,7 @@ pub mod fs;
 pub mod json_store;
 pub mod pack_locator;
 pub mod standard_baseline;
+pub mod standard_pack;
+pub mod strings_conf;
 pub mod tauri_event_bus;
+pub mod ygopro_cdb;

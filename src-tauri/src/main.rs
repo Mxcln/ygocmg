@@ -60,6 +60,11 @@ fn main() {
             tauri_commands::delete_script,
             tauri_commands::open_script_external,
             tauri_commands::preview_export_bundle,
+            tauri_commands::get_standard_pack_status,
+            tauri_commands::rebuild_standard_pack_index,
+            tauri_commands::search_standard_cards,
+            tauri_commands::search_standard_strings,
+            tauri_commands::get_standard_card,
             tauri_commands::get_job_status,
             tauri_commands::list_active_jobs
         ])

@@ -12,7 +12,8 @@ import type {
 
 interface CardInfoFormProps {
   draft: CardEntity;
-  onChange: (patch: Partial<CardEntity>) => void;
+  onChange?: (patch: Partial<CardEntity>) => void;
+  readonly?: boolean;
 }
 
 const ALL_OT: Ot[] = ["ocg", "tcg", "custom"];
@@ -59,13 +60,18 @@ function displayLabel(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
+export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoFormProps) {
   const isMonster = draft.primary_type === "monster";
   const isSpell = draft.primary_type === "spell";
   const isTrap = draft.primary_type === "trap";
   const flags = draft.monster_flags ?? [];
   const isLink = isMonster && flags.includes("link");
   const isPendulum = isMonster && flags.includes("pendulum");
+
+  function emitChange(patch: Partial<CardEntity>) {
+    if (readonly || !onChange) return;
+    onChange(patch);
+  }
 
   function handlePrimaryTypeChange(pt: PrimaryType) {
     if (pt === draft.primary_type) return;
@@ -82,7 +88,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
     }
     if (pt !== "spell") patch.spell_subtype = null;
     if (pt !== "trap") patch.trap_subtype = null;
-    onChange(patch);
+    emitChange(patch);
   }
 
   function toggleMonsterFlag(flag: MonsterFlag) {
@@ -107,7 +113,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
     if (flag === "pendulum" && current.includes("pendulum")) {
       patch.pendulum = null;
     }
-    onChange(patch);
+    emitChange(patch);
   }
 
   function toggleLinkMarker(marker: LinkMarker) {
@@ -115,7 +121,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
     const next = current.includes(marker)
       ? current.filter((m) => m !== marker)
       : [...current, marker];
-    onChange({ link: { markers: next } });
+    emitChange({ link: { markers: next } });
   }
 
   function handleNumberInput(
@@ -123,18 +129,18 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
     value: string,
   ) {
     if (value === "" || value === "-") {
-      onChange({ [field]: 0 });
+      emitChange({ [field]: 0 });
       return;
     }
     if (value === "?") {
       if (field === "atk" || field === "def") {
-        onChange({ [field]: -2 });
+        emitChange({ [field]: -2 });
       }
       return;
     }
     const parsed = Number.parseInt(value, 10);
     if (Number.isFinite(parsed)) {
-      onChange({ [field]: parsed });
+      emitChange({ [field]: parsed });
     }
   }
 
@@ -155,6 +161,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
           inputMode="numeric"
           value={draft.code}
           onChange={(e) => handleNumberInput("code", e.target.value)}
+          readOnly={readonly}
         />
       </div>
       <div className="card-info-field">
@@ -165,6 +172,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
           inputMode="numeric"
           value={draft.alias}
           onChange={(e) => handleNumberInput("alias", e.target.value)}
+          readOnly={readonly}
         />
       </div>
 
@@ -177,9 +185,10 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
           onChange={(e) => {
             const raw = e.target.value.replace(/^0x/i, "");
             const parsed = Number.parseInt(raw, 16);
-            if (Number.isFinite(parsed)) onChange({ setcode: parsed });
-            else if (raw === "") onChange({ setcode: 0 });
+            if (Number.isFinite(parsed)) emitChange({ setcode: parsed });
+            else if (raw === "") emitChange({ setcode: 0 });
           }}
+          readOnly={readonly}
         />
       </div>
       <div className="card-info-field">
@@ -187,7 +196,8 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
         <select
           className="card-info-select"
           value={draft.ot}
-          onChange={(e) => onChange({ ot: e.target.value as Ot })}
+          onChange={(e) => emitChange({ ot: e.target.value as Ot })}
+          disabled={readonly}
         >
           {ALL_OT.map((o) => (
             <option key={o} value={o}>{displayLabel(o)}</option>
@@ -204,9 +214,10 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
           onChange={(e) => {
             const raw = e.target.value.replace(/^0x/i, "");
             const parsed = Number.parseInt(raw, 16);
-            if (Number.isFinite(parsed)) onChange({ category: parsed });
-            else if (raw === "") onChange({ category: 0 });
+            if (Number.isFinite(parsed)) emitChange({ category: parsed });
+            else if (raw === "") emitChange({ category: 0 });
           }}
+          readOnly={readonly}
         />
       </div>
       <div className="card-info-field">
@@ -218,6 +229,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
               type="button"
               className={`card-type-radio ${draft.primary_type === pt ? "active" : ""}`}
               onClick={() => handlePrimaryTypeChange(pt)}
+              disabled={readonly}
             >
               {displayLabel(pt)}
             </button>
@@ -239,6 +251,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                     type="button"
                     className={`monster-flag-chip ${flags.includes(flag) ? "selected" : ""}`}
                     onClick={() => toggleMonsterFlag(flag)}
+                    disabled={readonly}
                   >
                     {displayLabel(flag)}
                   </button>
@@ -252,8 +265,9 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                 className="card-info-select"
                 value={draft.attribute ?? ""}
                 onChange={(e) =>
-                  onChange({ attribute: (e.target.value || null) as Attribute | null })
+                  emitChange({ attribute: (e.target.value || null) as Attribute | null })
                 }
+                disabled={readonly}
               >
                 <option value="">—</option>
                 {ALL_ATTRIBUTES.map((a) => (
@@ -267,8 +281,9 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                 className="card-info-select"
                 value={draft.race ?? ""}
                 onChange={(e) =>
-                  onChange({ race: (e.target.value || null) as Race | null })
+                  emitChange({ race: (e.target.value || null) as Race | null })
                 }
+                disabled={readonly}
               >
                 <option value="">—</option>
                 {ALL_RACES.map((r) => (
@@ -285,6 +300,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                 value={formatStatValue(draft.atk)}
                 onChange={(e) => handleNumberInput("atk", e.target.value)}
                 placeholder="e.g. 2500 or ?"
+                readOnly={readonly}
               />
             </div>
             {!isLink && (
@@ -296,6 +312,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                   value={formatStatValue(draft.def)}
                   onChange={(e) => handleNumberInput("def", e.target.value)}
                   placeholder="e.g. 2000 or ?"
+                  readOnly={readonly}
                 />
               </div>
             )}
@@ -310,6 +327,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                   inputMode="numeric"
                   value={draft.level ?? ""}
                   onChange={(e) => handleNumberInput("level", e.target.value)}
+                  readOnly={readonly}
                 />
               </div>
             )}
@@ -325,13 +343,14 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                     value={draft.pendulum?.left_scale ?? 0}
                     onChange={(e) => {
                       const v = Number.parseInt(e.target.value, 10);
-                      onChange({
+                      emitChange({
                         pendulum: {
                           left_scale: Number.isFinite(v) ? v : 0,
                           right_scale: draft.pendulum?.right_scale ?? 0,
                         },
                       });
                     }}
+                    readOnly={readonly}
                   />
                 </div>
                 <div className="card-info-field">
@@ -343,13 +362,14 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                     value={draft.pendulum?.right_scale ?? 0}
                     onChange={(e) => {
                       const v = Number.parseInt(e.target.value, 10);
-                      onChange({
+                      emitChange({
                         pendulum: {
                           left_scale: draft.pendulum?.left_scale ?? 0,
                           right_scale: Number.isFinite(v) ? v : 0,
                         },
                       });
                     }}
+                    readOnly={readonly}
                   />
                 </div>
               </>
@@ -371,6 +391,7 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                         className={`link-marker-cell ${selected ? "selected" : ""}`}
                         onClick={() => toggleLinkMarker(marker)}
                         title={displayLabel(marker)}
+                        disabled={readonly}
                       >
                         {LINK_MARKER_ARROWS[marker]}
                       </button>
@@ -394,8 +415,9 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                 className="card-info-select"
                 value={draft.spell_subtype ?? ""}
                 onChange={(e) =>
-                  onChange({ spell_subtype: (e.target.value || null) as SpellSubtype | null })
+                  emitChange({ spell_subtype: (e.target.value || null) as SpellSubtype | null })
                 }
+                disabled={readonly}
               >
                 <option value="">—</option>
                 {ALL_SPELL_SUBTYPES.map((s) => (
@@ -418,8 +440,9 @@ export function CardInfoForm({ draft, onChange }: CardInfoFormProps) {
                 className="card-info-select"
                 value={draft.trap_subtype ?? ""}
                 onChange={(e) =>
-                  onChange({ trap_subtype: (e.target.value || null) as TrapSubtype | null })
+                  emitChange({ trap_subtype: (e.target.value || null) as TrapSubtype | null })
                 }
+                disabled={readonly}
               >
                 <option value="">—</option>
                 {ALL_TRAP_SUBTYPES.map((t) => (

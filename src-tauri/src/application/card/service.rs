@@ -5,7 +5,9 @@ use crate::application::dto::card::{
     GetCardInput, ListCardsInput, SortDirectionDto, SuggestCodeInput,
 };
 use crate::bootstrap::AppState;
-use crate::domain::card::code::{suggest_next_code, CodePolicy, CodeValidationContext};
+use crate::domain::card::code::{
+    suggest_next_code, CodePolicy, CodeValidationContext, STANDARD_RESERVED_CODE_MAX,
+};
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::ValidationIssue;
 use crate::domain::config::rules::default_global_config;
@@ -142,9 +144,14 @@ impl<'a> CardService<'a> {
             }
         }
 
+        let baseline = crate::infrastructure::standard_pack::standard_baseline_from_index(
+            self.state.app_data_dir(),
+        )
+        .unwrap_or_else(|| self.state.standard_baseline.clone());
+
         Ok(CodeValidationContext {
             policy: CodePolicy {
-                reserved_max: 99_999_999,
+                reserved_max: STANDARD_RESERVED_CODE_MAX,
                 recommended_min: config.custom_code_recommended_min,
                 recommended_max: config.custom_code_recommended_max,
                 hard_max: 268_435_455,
@@ -152,7 +159,7 @@ impl<'a> CardService<'a> {
             },
             current_pack_codes,
             other_custom_codes,
-            standard_codes: self.state.standard_baseline.standard_codes.clone(),
+            standard_codes: baseline.standard_codes,
         })
     }
 

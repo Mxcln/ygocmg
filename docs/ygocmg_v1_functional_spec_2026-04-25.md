@@ -872,6 +872,15 @@ interface PackStringsFile {
 2. 删除
 3. 移入工作区
 
+标准包索引策略：
+
+1. 标准包索引是应用数据目录中的可丢弃 cache，不是 source of truth
+2. 索引源只包括 `ygopro_path` 根目录唯一 `.cdb`、根目录 `strings.conf`、`pics/`、`pics/field/`、`script/`
+3. 不扫描或合并 `expansions/`
+4. `pics/`、`pics/field/`、`script/` 只用于只读资源状态；构建索引时应先扫描目录再按 card code 做内存查询
+5. `.cdb` 或 `strings.conf` metadata 变化时，应用只标记索引为 stale，不监听运行中更新，也不自动 rebuild
+6. stale 或源路径缺失时，旧索引仍可浏览；用户手动 rebuild 后更新 cache
+
 ## 12. Pack 页面功能规范
 
 ### 12.1 页面结构

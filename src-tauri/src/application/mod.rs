@@ -5,5 +5,6 @@ pub mod export;
 pub mod jobs;
 pub mod pack;
 pub mod resource;
+pub mod standard_pack;
 pub mod strings;
 pub mod workspace;

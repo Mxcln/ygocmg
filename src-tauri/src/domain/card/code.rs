@@ -2,6 +2,8 @@ use std::collections::BTreeSet;
 
 use crate::domain::common::issue::{ValidationIssue, ValidationTarget};
 
+pub const STANDARD_RESERVED_CODE_MAX: u32 = 99_999_999;
+
 #[derive(Debug, Clone)]
 pub struct CodePolicy {
     pub reserved_max: u32,
@@ -30,7 +32,7 @@ pub fn validate_card_code(code: u32, ctx: &CodeValidationContext) -> Vec<Validat
 
     if code <= ctx.policy.reserved_max {
         issues.push(
-            ValidationIssue::error("card.code_reserved_range", target.clone())
+            ValidationIssue::warning("card.code_reserved_range", target.clone())
                 .with_param("reserved_max", ctx.policy.reserved_max),
         );
     }
@@ -57,7 +59,7 @@ pub fn validate_card_code(code: u32, ctx: &CodeValidationContext) -> Vec<Validat
     }
 
     if ctx.standard_codes.contains(&code) {
-        issues.push(ValidationIssue::warning(
+        issues.push(ValidationIssue::error(
             "card.code_conflicts_with_standard_card",
             target.clone(),
         ));

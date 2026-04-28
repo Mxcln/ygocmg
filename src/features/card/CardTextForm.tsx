@@ -6,7 +6,8 @@ interface CardTextFormProps {
   draft: CardEntity;
   availableLanguages: LanguageCode[];
   displayLanguageOrder: LanguageCode[];
-  onChange: (patch: Partial<CardEntity>) => void;
+  onChange?: (patch: Partial<CardEntity>) => void;
+  readonly?: boolean;
 }
 
 const EMPTY_STRINGS = Array.from({ length: 16 }, () => "");
@@ -26,6 +27,7 @@ export function CardTextForm({
   availableLanguages,
   displayLanguageOrder,
   onChange,
+  readonly = false,
 }: CardTextFormProps) {
   const allLangs = availableLanguages.length > 0
     ? availableLanguages
@@ -42,6 +44,7 @@ export function CardTextForm({
   const currentTexts = ensureCardTexts(draft.texts[activeLang]);
 
   function updateTexts(patch: Partial<CardTexts>) {
+    if (readonly || !onChange) return;
     const updated: CardTexts = { ...currentTexts, ...patch };
     onChange({
       texts: { ...draft.texts, [activeLang]: updated },
@@ -84,6 +87,7 @@ export function CardTextForm({
           type="text"
           value={currentTexts.name}
           onChange={(e) => updateTexts({ name: e.target.value })}
+          readOnly={readonly}
         />
       </div>
 
@@ -94,6 +98,7 @@ export function CardTextForm({
           rows={6}
           value={currentTexts.desc}
           onChange={(e) => updateTexts({ desc: e.target.value })}
+          readOnly={readonly}
         />
       </div>
 
@@ -128,6 +133,7 @@ export function CardTextForm({
                 type="text"
                 value={s}
                 onChange={(e) => updateString(i, e.target.value)}
+                readOnly={readonly}
               />
             </div>
           ))}

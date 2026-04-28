@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CardEditDrawer } from "../features/card/CardEditDrawer";
 import { AppDialog } from "../features/dialogs/AppDialog";
 import { StringsListPanel } from "../features/strings/StringsListPanel";
+import { StandardPackView } from "../features/standardPack/StandardPackView";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -97,8 +98,10 @@ export function App() {
   const closeDialog = useShellStore((s) => s.closeDialog);
   const openPackIds = useShellStore((s) => s.openPackIds);
   const activePackId = useShellStore((s) => s.activePackId);
+  const activeView = useShellStore((s) => s.activeView);
   const packMetadataMap = useShellStore((s) => s.packMetadataMap);
   const setActivePack = useShellStore((s) => s.setActivePack);
+  const setActiveStandardPack = useShellStore((s) => s.setActiveStandardPack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
   const removeOpenPack = useShellStore((s) => s.removeOpenPack);
   const updatePackMetadataInStore = useShellStore((s) => s.updatePackMetadata);
@@ -113,6 +116,13 @@ export function App() {
     setNotice({ tone, title, detail });
   }
 
+  function handleConfigSaved(nextConfig: GlobalConfig) {
+    configRef.current = nextConfig;
+    setConfig(nextConfig);
+    void queryClient.invalidateQueries({ queryKey: ["standard-pack-status"] });
+    void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
+  }
+
   async function persistActivePack(packId: string) {
     setActivePack(packId);
     setMetaExpanded(false);
@@ -125,6 +135,15 @@ export function App() {
     } catch (err) {
       handleNotice("error", "Failed to switch pack", formatError(err));
     }
+  }
+
+  function handleOpenStandardPack() {
+    setActiveStandardPack();
+    setMetaExpanded(false);
+    setMetaEditing(false);
+    setMetaDraft(null);
+    setEditingCardId(null);
+    setIsCreatingCard(false);
   }
 
   async function persistSidebarWidth(nextWidth: number) {
@@ -434,7 +453,8 @@ export function App() {
   }
 
   async function handleSavePackMetadata() {
-    if (!activePackId || !metaDraft) return;
+    const packId = activeView?.type === "custom_pack" ? activeView.packId : activePackId;
+    if (!packId || !metaDraft) return;
     const trimmedName = metaDraft.name.trim();
     if (!trimmedName) {
       handleNotice("error", "Validation Error", "Pack name cannot be empty.");
@@ -449,7 +469,7 @@ export function App() {
         .filter(Boolean);
 
       const updated = await packApi.updatePackMetadata({
-        packId: activePackId,
+        packId,
         name: trimmedName,
         author: metaDraft.author.trim(),
         version: metaDraft.version.trim(),
@@ -458,7 +478,7 @@ export function App() {
         defaultExportLanguage: metaDraft.defaultExportLanguage.trim() || null,
       });
 
-      updatePackMetadataInStore(activePackId, updated);
+      updatePackMetadataInStore(packId, updated);
       const overviews = await packApi.listPackOverviews();
       setPackOverviews(overviews);
       setMetaEditing(false);
@@ -506,7 +526,10 @@ export function App() {
   }
 
   const workspaceName = currentWorkspace?.meta.name ?? "No Workspace Open";
-  const activeMeta = activePackId ? packMetadataMap[activePackId] : null;
+  const activeCustomPackId =
+    activeView?.type === "custom_pack" ? activeView.packId : activePackId;
+  const isStandardView = activeView?.type === "standard_pack";
+  const activeMeta = activeCustomPackId ? packMetadataMap[activeCustomPackId] : null;
   const shellStyle = { "--sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   const preferredTextLanguages = activeMeta?.display_language_order.join(", ") || "—";
   const summaryDetail = activeMeta
@@ -590,7 +613,12 @@ export function App() {
             {openPackIds.map((packId) => {
               const meta = packMetadataMap[packId];
               return (
-                <div key={packId} className={`pack-item-row ${activePackId === packId ? "active" : ""}`}>
+                <div
+                  key={packId}
+                  className={`pack-item-row ${
+                    activeView?.type === "custom_pack" && activeView.packId === packId ? "active" : ""
+                  }`}
+                >
                   <button
                     type="button"
                     className="pack-item-name"
@@ -629,7 +657,11 @@ export function App() {
           </div>
 
           <div className="sidebar-bottom">
-            <button type="button" className="pack-item pack-standard" disabled>
+            <button
+              type="button"
+              className={`pack-item pack-standard ${isStandardView ? "active" : ""}`}
+              onClick={handleOpenStandardPack}
+            >
               Standard Pack
             </button>
           </div>
@@ -654,7 +686,9 @@ export function App() {
             </div>
           )}
 
-          {!activePackId ? (
+          {isStandardView ? (
+            <StandardPackView />
+          ) : !activeCustomPackId ? (
             <div className="empty-state">
               <p className="empty-label">No Pack Open</p>
               <p className="empty-hint">
@@ -667,8 +701,8 @@ export function App() {
             <>
               <div className="meta-bar">
                 <div className="meta-summary">
-                  <strong className="meta-pack-name" title={activeMeta?.name ?? activePackId}>
-                    {activeMeta?.name ?? activePackId}
+                  <strong className="meta-pack-name" title={activeMeta?.name ?? activeCustomPackId}>
+                    {activeMeta?.name ?? activeCustomPackId}
                   </strong>
                   <span className="meta-detail" title={summaryDetail}>
                     {summaryDetail}
@@ -854,7 +888,7 @@ export function App() {
                               type="button"
                               className="ghost-button danger-ghost"
                               onClick={() => {
-                                const packId = activePackId!;
+                                const packId = activeCustomPackId!;
                                 openDialog({
                                   kind: "confirm",
                                   title: "Delete pack",
@@ -903,9 +937,9 @@ export function App() {
                 </div>
               </div>
 
-              {cardDrawerOpen && activePackId && (
+              {cardDrawerOpen && activeCustomPackId && (
                 <CardEditDrawer
-                  packId={activePackId}
+                  packId={activeCustomPackId}
                   workspaceId={useShellStore.getState().workspaceId!}
                   cardId={isCreatingCard ? null : editingCardId}
                   onClose={handleDrawerClose}
@@ -932,7 +966,7 @@ export function App() {
               />
             )}
             {modal.type === "settings" && (
-              <SettingsModal config={config} onConfigSaved={setConfig} onNotice={handleNotice} />
+              <SettingsModal config={config} onConfigSaved={handleConfigSaved} onNotice={handleNotice} />
             )}
             {modal.type === "addPack" && (
               <AddPackModal

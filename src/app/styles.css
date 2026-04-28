@@ -325,6 +325,13 @@ body.is-resizing-sidebar * {
   font-size: 12px;
 }
 
+.pack-standard.active {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: rgba(17, 94, 95, 0.22);
+  font-weight: 700;
+}
+
 .pack-standard:disabled {
   cursor: not-allowed;
   opacity: 0.7;
@@ -1358,6 +1365,142 @@ textarea.meta-edit-input {
   font-size: 13px;
 }
 
+/* ── Standard Pack ── */
+
+.standard-view {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.standard-pack-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.standard-pack-summary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.standard-pack-summary strong {
+  font-size: 14px;
+  color: var(--text-0);
+}
+
+.standard-pack-summary span {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.standard-pack-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.standard-status-strip,
+.standard-job-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--bg-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.standard-status-strip span,
+.standard-job-strip span,
+.standard-job-strip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.standard-status-strip.stale,
+.standard-status-strip.missing_index {
+  background: rgba(153, 98, 22, 0.08);
+}
+
+.standard-status-strip.missing_source,
+.standard-status-strip.not_configured,
+.standard-job-strip.failed {
+  background: rgba(171, 67, 56, 0.08);
+}
+
+.status-pill,
+.readonly-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-message {
+  color: var(--danger);
+}
+
+.standard-job-strip {
+  background: rgba(17, 94, 95, 0.08);
+}
+
+.standard-job-strip.succeeded {
+  background: rgba(33, 107, 76, 0.08);
+}
+
+.standard-strings-placeholder {
+  display: grid;
+  gap: 14px;
+  max-width: 680px;
+}
+
+.standard-strings-grid {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.standard-strings-grid span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.standard-strings-grid strong {
+  min-width: 0;
+  color: var(--text-0);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Card Edit Drawer ── */
 
 .card-edit-backdrop {
@@ -1531,6 +1674,56 @@ textarea.meta-edit-input {
 
 .asset-seg-btn.danger:hover:not(:disabled) {
   background: var(--danger-soft);
+}
+
+.standard-inspector-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.standard-inspector-title strong {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-0);
+  font-size: 14px;
+}
+
+.standard-inspector-title span {
+  color: var(--text-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.standard-asset-bar .card-pic-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.asset-readonly-grid {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 7px 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.asset-readonly-grid span {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.asset-readonly-grid strong {
+  color: var(--text-1);
+  font-size: 12px;
 }
 
 /* ── Card Form Area (right panel) ── */

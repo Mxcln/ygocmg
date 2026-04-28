@@ -373,7 +373,7 @@ Standard Pack tile:
 | Open a pack | Available now | `open_pack` command exists |
 | Close a pack | Partially available | Backend close behavior exists in service design, but current Tauri command surface does not expose a close-pack command |
 | List all custom packs in workspace for `Open Pack` tab | Partially available | `list_pack_overviews` exists, but current frontend shell does not yet consume it for the modal flow |
-| Standard Pack read-only state | Future API required | No current Standard Pack frontend/backend command surface is exposed |
+| Standard Pack read-only state | Available now | Standard Pack view is exposed as a read-only active view and does not write workspace session |
 
 ## 6. Right Work Area
 
@@ -472,7 +472,7 @@ For Standard Pack:
 | Pack name/author/version | Available now | Present in `PackMetadata` / `PackOverview` |
 | Preferred text languages summary | Available now | Derived from `display_language_order` in pack metadata |
 | Full pack metadata for active custom pack | Available now | `open_pack` returns pack metadata |
-| Standard Pack metadata/status | Future API required | Standard Pack read-only integration is not yet exposed |
+| Standard Pack metadata/status | Available now | Standard Pack status, source path, index state, stale state, and rebuild action are exposed |
 
 ## 6.5 Main tabbed content region
 
@@ -531,7 +531,7 @@ If the current active view is Standard Pack:
 |---|---|---|
 | List cards for active custom pack | Available now | `list_cards` exists |
 | Create/update/delete cards | Partially available | Backend commands exist, but the drawer-level editable snapshot flow is not yet defined in the current frontend shell |
-| Standard Pack card browsing | Future API required | Read-only standard pack browsing APIs are not exposed in the current app |
+| Standard Pack card browsing | Available now | Standard Pack cards support search, sort, pagination, and read-only detail inspection |
 
 ## 6.7 `Strings` tab
 
@@ -564,7 +564,7 @@ Recommended toolbar contents:
 | Capability | Status | Notes |
 |---|---|---|
 | Strings tab shell | Available now | Strings list/query/write/confirm command surface is already exposed and connected in the current app shell |
-| Standard Pack strings reference browsing | Future API required | Standard Pack read-only string APIs are not exposed |
+| Standard Pack strings reference browsing | Available now | Standard Pack strings support read-only filtering, search, and pagination |
 
 ## 7. Card Editor Drawer
 
@@ -1130,7 +1130,7 @@ This section summarizes the current implementation impact.
 | List cards for custom pack | Available now |
 | Custom titlebar native controls | Available now |
 | Close-pack command for UI | Partially available |
-| Standard Pack read-only browsing | Future API required |
+| Standard Pack read-only browsing | Available now |
 | Strings tab command surface | Available now |
 | Card drawer snapshot/load contract | Future API required |
 | Card asset actions | Available now |

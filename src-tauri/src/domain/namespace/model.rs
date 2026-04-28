@@ -1,15 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use serde::{Deserialize, Serialize};
+
 use crate::domain::common::ids::PackId;
 use crate::domain::strings::model::{PackStringKind, PackStringRecord, PackStringsFile};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StandardNamespaceBaseline {
     pub standard_codes: BTreeSet<u32>,
     pub strings: StandardStringNamespaceBaseline,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StandardStringNamespaceBaseline {
     pub system_keys: BTreeSet<u32>,
     pub victory_keys: BTreeSet<u32>,

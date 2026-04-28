@@ -922,11 +922,14 @@ impl<'a> PackWriteService<'a> {
             }
         }
 
+        let standard = crate::infrastructure::standard_pack::standard_strings(self.state.app_data_dir())
+            .unwrap_or_else(|| self.state.standard_baseline.strings.clone());
+
         validate_pack_string_record_namespace(
             record,
             &PackStringsNamespaceContext {
                 other_custom,
-                standard: self.state.standard_baseline.strings.clone(),
+                standard,
             },
         )
     }

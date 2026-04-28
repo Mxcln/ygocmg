@@ -12,6 +12,10 @@ use crate::application::dto::resource::{
     DeleteScriptInput, ImportFieldImageInput, ImportMainImageInput, ImportScriptInput,
     OpenScriptExternalInput,
 };
+use crate::application::dto::standard_pack::{
+    GetStandardCardInput, SearchStandardCardsInput, StandardCardDetailDto, StandardCardPageDto,
+    StandardPackStatusDto,
+};
 use crate::application::dto::strings::{
     ConfirmPackStringsWriteInput, DeletePackStringsInput, DeletePackStringsResultDto,
     GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto,
@@ -336,6 +340,37 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
     crate::application::export::service::ExportService::new(state).preview_export_bundle(input)
+}
+
+pub fn get_standard_pack_status(state: &AppState) -> StandardPackStatusDto {
+    crate::application::standard_pack::service::StandardPackService::new(state).get_status()
+}
+
+pub fn rebuild_standard_pack_index(
+    state: &AppState,
+) -> AppResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::application::standard_pack::service::StandardPackService::new(state).rebuild_index()
+}
+
+pub fn search_standard_cards(
+    state: &AppState,
+    input: SearchStandardCardsInput,
+) -> AppResult<StandardCardPageDto> {
+    crate::application::standard_pack::service::StandardPackService::new(state).search_cards(input)
+}
+
+pub fn search_standard_strings(
+    state: &AppState,
+    input: crate::application::dto::standard_pack::SearchStandardStringsInput,
+) -> AppResult<crate::application::dto::standard_pack::StandardStringsPageDto> {
+    crate::application::standard_pack::service::StandardPackService::new(state).search_strings(input)
+}
+
+pub fn get_standard_card(
+    state: &AppState,
+    input: GetStandardCardInput,
+) -> AppResult<StandardCardDetailDto> {
+    crate::application::standard_pack::service::StandardPackService::new(state).get_card(input)
 }
 
 pub fn get_job_status(state: &AppState, input: GetJobStatusInput) -> AppResult<JobSnapshotDto> {

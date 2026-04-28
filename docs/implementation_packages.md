@@ -50,9 +50,17 @@
    - 前端新增 `job` contract 与 `jobApi`
    - 新增 `job_runtime` 集成测试，覆盖成功、失败、active jobs、进度事件
    - 已根据审阅修复 progress 事件发布错误传播、恢复 Debug 能力、补充 store 断言和 TS event payload 类型
-9. 下一步建议根据目标选择：
+9. `P7 标准包只读接入` 已完成 Cards 薄片并补齐标准 Strings 只读浏览：
+   - 标准包不建立作者态 pack 磁盘模型，只从全局 `ygopro_path` 的 YGOPro 根目录读取唯一根目录 `.cdb`
+   - 标准包索引缓存 `<app_data>/standard_pack/index.json` 已升级为 schema v2，包含 CDB 卡片、asset state、`strings.conf` 完整只读记录与 namespace baseline
+   - 新增 `rebuild_standard_pack_index` Job、标准包状态、Cards 搜索分页、Strings 搜索分页、只读详情 API
+   - 前端 Standard Pack 入口支持状态/重建、Cards 搜索排序分页、只读详情、Strings 只读搜索/过滤/分页
+   - rebuild 时资源状态通过一次性扫描 `pics/`、`pics/field/`、`script/` 建索引，不再逐卡访问文件系统
+   - 标准源文件变化只标记 stale，不做文件监听或自动 rebuild；旧索引仍可浏览，用户手动 rebuild 后更新
+   - 自定义卡号与导出预检已优先使用 P7 标准索引；标准卡号完全重复为 hard error，标准保留范围未重复为 warning
+10. 下一步建议根据目标选择：
    - 如果优先补生产效率，推进 `P5 批量编辑`
-   - 如果优先打通导入导出链路，推进 `P7 标准包只读接入`，随后接 `P8 / P9`
+   - 如果优先打通导入导出链路，基于 P7 接 `P8 / P9`
 
 ## 当前最小实现
 
@@ -87,11 +95,10 @@
 
 1. 设置、workspace、pack、card 等业务页面与完整交互 UI
 2. 批量编辑与批量移动
-3. 标准包只读接入与真实索引构建 runner
-4. 导入预检与导入执行
-5. 多包导出执行
-6. 前端任务中心 UI / 任务结果展示
-7. 前端 i18n
+3. 导入预检与导入执行
+4. 多包导出执行
+5. 前端任务中心 UI / 任务结果展示
+6. 前端 i18n
 
 ## 推荐功能包
 
@@ -356,19 +363,22 @@
 1. 完整前端任务中心 UI
 2. `cancel_job`
 3. Job 历史持久化或容量裁剪
-4. 标准包索引、导入、导出的真实 runner
+4. 导入、导出的真实 runner
 5. `preview_token` cache 与 execute 阶段复核
 
 依赖：
 1. P2
 
 后续衔接：
-1. `P7` 应首先把 `rebuild_standard_pack_index -> JobAcceptedDto` 接入 `JobRuntime`
+1. `P7` 已把 `rebuild_standard_pack_index -> JobAcceptedDto` 接入 `JobRuntime`
 2. `P8` 的 `execute_import_pack(preview_token)` 应提交 `import_pack` job，并在 runner 开始时复核 preview 快照
 3. `P9` 的 `execute_export_bundle(preview_token)` 应提交 `export_bundle` job，复用当前 `preview_export_bundle` 的 `snapshot_hash` 思路
 4. 后续真实 runner 必须避免长时间持有 `sessions.write()`，只在读取快照和最终提交状态时短暂加锁
 
 ### P7 标准包只读接入
+
+状态：
+已完成 Cards / Strings 只读接入（2026-04-28）
 
 目标：
 接入 YGOPro 标准包作为只读参考源。
@@ -377,6 +387,29 @@
 1. 标准包索引缓存
 2. 标准卡搜索
 3. 标准卡号冲突检查
+
+当前完成情况：
+1. 后端新增 `standard_pack` 读侧模块，使用 `rusqlite` 读取标准 YGOPro `datas` / `texts`
+2. `.cdb` 发现规则固定为 `ygopro_path` 根目录必须且只能有一个 `.cdb`，不扫描 `expansions/`
+3. 标准包索引以可丢弃 cache 写入 `<app_data>/standard_pack/index.json`
+4. asset state 只读检测 `pics/`、`pics/field/`、`script/`，不复制、不写入资源
+5. `strings.conf` 已进入标准 namespace baseline，用于 strings 冲突检查，并保存完整只读记录用于浏览
+6. 新增 `get_standard_pack_status`、`rebuild_standard_pack_index`、`search_standard_cards`、`search_standard_strings`、`get_standard_card`
+7. `rebuild_standard_pack_index` 已接入 `JobRuntime`，前端通过 `get_job_status` 轮询
+8. 前端 `shellStore` 已扩展为 `custom_pack` / `standard_pack` active view，Standard Pack 按钮启用且不写 workspace session
+9. 前端抽出 `CardBrowserPanel`，自定义包与标准包复用搜索、排序、分页和列表视觉
+10. 标准包详情使用只读 `StandardCardInspector`，不显示新建、编辑、删除或资源写入入口
+11. 自定义卡写入与导出预检优先使用 P7 标准索引，索引缺失时回退旧 `standard_baseline`
+12. 标准卡号完全重复为 hard error；标准保留范围内但未重复为 warning
+13. 标准 Strings tab 已复用通用 `StringsBrowserPanel` 的 readonly 模式，支持过滤、搜索和分页
+14. 标准 CDB 读取已抽到 `ygopro_cdb`，并增加必要表/列 schema 校验
+15. 标准资源状态已改为目录预扫描：一次扫描 `pics/`、`pics/field/`、`script/`，再按 card code 做内存查询
+16. 标准包更新策略已收敛为轻量 stale 检测：不监听运行中更新，不自动 rebuild，旧索引优先可用
+
+本轮未做：
+1. 标准包加入 workspace session
+2. 标准卡编辑、删除、资源导入或脚本写入
+3. `expansions/` 合并索引
 
 依赖：
 1. P1
@@ -443,11 +476,11 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P7 标准包只读接入` 开始。
+下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P8 导入` 开始。
 
 原因：
 
 1. P0、P1、P2、P3、P4 已形成连续可用链路
 2. 单卡编辑、资源管理、strings 管理都已具备作者态闭环
 3. P6 已经把长任务基础设施落地，后续可以直接服务标准包索引、导入和导出执行
-4. 若优先提升编辑效率，推进 P5；若优先打通导入导出链路，推进 P7，然后接 P8 / P9
+4. 若优先提升编辑效率，推进 P5；若优先打通导入导出链路，基于已完成的 P7 继续推进 P8 / P9

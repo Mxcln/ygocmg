@@ -19,6 +19,9 @@ use crate::application::dto::strings::{
     GetPackStringInput, ListPackStringsInput, RemovePackStringTranslationInput,
     UpsertPackStringInput, UpsertPackStringRecordInput,
 };
+use crate::application::dto::standard_pack::{
+    GetStandardCardInput, SearchStandardCardsInput, SearchStandardStringsInput,
+};
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppError;
 use crate::domain::config::model::GlobalConfig;
@@ -405,6 +408,44 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> CommandResult<PreviewResultDto<crate::application::dto::export::ExportPreviewDto>> {
     crate::presentation::commands::app_commands::preview_export_bundle(&state, input)
+}
+
+#[tauri::command]
+pub fn get_standard_pack_status(
+    state: State<'_, AppState>,
+) -> crate::application::dto::standard_pack::StandardPackStatusDto {
+    crate::presentation::commands::app_commands::get_standard_pack_status(&state)
+}
+
+#[tauri::command]
+pub fn rebuild_standard_pack_index(
+    state: State<'_, AppState>,
+) -> CommandResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::presentation::commands::app_commands::rebuild_standard_pack_index(&state)
+}
+
+#[tauri::command]
+pub fn search_standard_cards(
+    state: State<'_, AppState>,
+    input: SearchStandardCardsInput,
+) -> CommandResult<crate::application::dto::standard_pack::StandardCardPageDto> {
+    crate::presentation::commands::app_commands::search_standard_cards(&state, input)
+}
+
+#[tauri::command]
+pub fn search_standard_strings(
+    state: State<'_, AppState>,
+    input: SearchStandardStringsInput,
+) -> CommandResult<crate::application::dto::standard_pack::StandardStringsPageDto> {
+    crate::presentation::commands::app_commands::search_standard_strings(&state, input)
+}
+
+#[tauri::command]
+pub fn get_standard_card(
+    state: State<'_, AppState>,
+    input: GetStandardCardInput,
+) -> CommandResult<crate::application::dto::standard_pack::StandardCardDetailDto> {
+    crate::presentation::commands::app_commands::get_standard_card(&state, input)
 }
 
 #[tauri::command]
