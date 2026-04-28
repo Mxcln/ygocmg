@@ -34,14 +34,17 @@ impl<'a> WorkspaceService<'a> {
         description: Option<String>,
     ) -> AppResult<WorkspaceMeta> {
         let workspace_path = root.to_path_buf();
-        if workspace_path.exists() && workspace_path.read_dir().map(|mut it| it.next().is_some()).unwrap_or(false) {
-            return Err(
-                AppError::new(
-                    "workspace.path_not_empty",
-                    "workspace target path must be empty or missing",
-                )
-                .with_detail("path", workspace_path.display().to_string()),
-            );
+        if workspace_path.exists()
+            && workspace_path
+                .read_dir()
+                .map(|mut it| it.next().is_some())
+                .unwrap_or(false)
+        {
+            return Err(AppError::new(
+                "workspace.path_not_empty",
+                "workspace target path must be empty or missing",
+            )
+            .with_detail("path", workspace_path.display().to_string()));
         }
 
         fs::create_dir_all(&workspace_path).map_err(|source| {
@@ -99,7 +102,10 @@ impl<'a> WorkspaceService<'a> {
 
         {
             let mut sessions = self.state.sessions.write().map_err(|_| {
-                AppError::new("workspace.session_lock_poisoned", "workspace session lock poisoned")
+                AppError::new(
+                    "workspace.session_lock_poisoned",
+                    "workspace session lock poisoned",
+                )
             })?;
             sessions.set_workspace(session.clone());
         }
@@ -142,7 +148,9 @@ impl<'a> WorkspaceService<'a> {
 
     pub fn remove_workspace_record(&self, workspace_id: &str) -> AppResult<()> {
         let mut registry = json_store::load_workspace_registry(self.state.app_data_dir())?;
-        registry.workspaces.retain(|entry| entry.workspace_id != workspace_id);
+        registry
+            .workspaces
+            .retain(|entry| entry.workspace_id != workspace_id);
         json_store::save_workspace_registry(self.state.app_data_dir(), &registry)
     }
 
@@ -158,7 +166,9 @@ impl<'a> WorkspaceService<'a> {
 
     fn upsert_registry_entry(&self, next: WorkspaceRegistryEntry) -> AppResult<()> {
         let mut registry = json_store::load_workspace_registry(self.state.app_data_dir())?;
-        registry.workspaces.retain(|entry| entry.workspace_id != next.workspace_id);
+        registry
+            .workspaces
+            .retain(|entry| entry.workspace_id != next.workspace_id);
         registry.workspaces.push(next);
         registry
             .workspaces
@@ -168,7 +178,10 @@ impl<'a> WorkspaceService<'a> {
 
     pub fn current_workspace_path(&self) -> AppResult<PathBuf> {
         let sessions = self.state.sessions.read().map_err(|_| {
-            AppError::new("workspace.session_lock_poisoned", "workspace session lock poisoned")
+            AppError::new(
+                "workspace.session_lock_poisoned",
+                "workspace session lock poisoned",
+            )
         })?;
         sessions
             .current_workspace
@@ -183,14 +196,18 @@ impl<'a> WorkspaceService<'a> {
         workspace_path: &Path,
     ) -> AppResult<()> {
         let mut sessions = self.state.sessions.write().map_err(|_| {
-            AppError::new("workspace.session_lock_poisoned", "workspace session lock poisoned")
+            AppError::new(
+                "workspace.session_lock_poisoned",
+                "workspace session lock poisoned",
+            )
         })?;
 
         let should_clear = sessions
             .current_workspace
             .as_ref()
             .map(|session| {
-                session.meta.id == workspace_id || session.workspace_path.as_path() == workspace_path
+                session.meta.id == workspace_id
+                    || session.workspace_path.as_path() == workspace_path
             })
             .unwrap_or(false);
 

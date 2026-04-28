@@ -1,7 +1,5 @@
 use crate::domain::common::issue::{ValidationIssue, ValidationTarget};
-use crate::domain::namespace::model::{
-    PackStringsNamespaceContext, counter_low12, setname_base,
-};
+use crate::domain::namespace::model::{PackStringsNamespaceContext, counter_low12, setname_base};
 use crate::domain::strings::model::{PackStringKind, PackStringRecord};
 
 pub const RECOMMENDED_SETNAME_BASE_MIN: u16 = 0x0300;

@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::common::ids::{ConfirmationToken, LanguageCode, PackId, WorkspaceId};
-use crate::domain::strings::model::{
-    PackStringEntry, PackStringKind, PackStringRecord,
-};
+use crate::domain::strings::model::{PackStringEntry, PackStringKind, PackStringRecord};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PackStringEntryDto {

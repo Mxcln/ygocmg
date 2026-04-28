@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::domain::namespace::model::{
-    StandardNamespaceBaseline, StandardStringNamespaceBaseline,
-};
+use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringNamespaceBaseline};
 
 pub fn load_standard_namespace_baseline() -> StandardNamespaceBaseline {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))

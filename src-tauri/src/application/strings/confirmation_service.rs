@@ -2,8 +2,9 @@ use uuid::Uuid;
 
 use crate::application::dto::common::WriteResultDto;
 use crate::application::dto::strings::{
-    ConfirmPackStringsWriteInput, GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto,
-    PackStringsPageDto, UpsertPackStringInput, UpsertPackStringRecordInput,
+    ConfirmPackStringsWriteInput, GetPackStringInput, ListPackStringsInput,
+    PackStringRecordDetailDto, PackStringsPageDto, UpsertPackStringInput,
+    UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::{AppError, AppResult};
@@ -28,8 +29,12 @@ impl<'a> PackStringsConfirmationService<'a> {
         &self,
         input: UpsertPackStringInput,
     ) -> AppResult<WriteResultDto<PackStringsPageDto>> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
         let prepared = write_service.prepare_upsert_pack_string(
             &input.workspace_id,
             &input.pack_id,
@@ -118,27 +123,24 @@ impl<'a> PackStringsConfirmationService<'a> {
             &entry.pack_id,
         )?;
         if current_snapshot.revision != entry.pack_revision {
-            return Err(
-                AppError::new(
-                    "confirmation.stale_revision",
-                    "confirmation token no longer matches the pack revision",
-                )
-                .with_detail("expected_revision", entry.pack_revision)
-                .with_detail("actual_revision", current_snapshot.revision),
-            );
+            return Err(AppError::new(
+                "confirmation.stale_revision",
+                "confirmation token no longer matches the pack revision",
+            )
+            .with_detail("expected_revision", entry.pack_revision)
+            .with_detail("actual_revision", current_snapshot.revision));
         }
         if current_snapshot.source_stamp != entry.source_stamp {
-            return Err(
-                AppError::new(
-                    "confirmation.stale_source_stamp",
-                    "confirmation token no longer matches current disk state",
-                )
-                .with_detail("expected_source_stamp", entry.source_stamp)
-                .with_detail("actual_source_stamp", current_snapshot.source_stamp),
-            );
+            return Err(AppError::new(
+                "confirmation.stale_source_stamp",
+                "confirmation token no longer matches current disk state",
+            )
+            .with_detail("expected_source_stamp", entry.source_stamp)
+            .with_detail("actual_source_stamp", current_snapshot.source_stamp));
         }
 
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
         let prepared = write_service.prepare_upsert_pack_string(
             &entry.workspace_id,
             &entry.pack_id,
@@ -156,10 +158,7 @@ impl<'a> PackStringsConfirmationService<'a> {
                 key_filter: None,
                 keyword: None,
                 page: 1,
-                page_size: next_session
-                    .strings
-                    .language_entry_count(&language)
-                    .max(1) as u32,
+                page_size: next_session.strings.language_entry_count(&language).max(1) as u32,
             },
         )
     }
@@ -168,8 +167,12 @@ impl<'a> PackStringsConfirmationService<'a> {
         &self,
         input: UpsertPackStringRecordInput,
     ) -> AppResult<WriteResultDto<PackStringRecordDetailDto>> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
         let prepared = write_service.prepare_upsert_pack_string_record(
             &input.workspace_id,
             &input.pack_id,
@@ -207,9 +210,10 @@ impl<'a> PackStringsConfirmationService<'a> {
                 pack_id: input.pack_id,
                 pack_revision: prepared.snapshot.revision,
                 source_stamp: prepared.snapshot.source_stamp.clone(),
-                input_snapshot: crate::runtime::confirmation_cache::PackStringRecordConfirmationInputSnapshot {
-                    record: prepared.record.clone(),
-                },
+                input_snapshot:
+                    crate::runtime::confirmation_cache::PackStringRecordConfirmationInputSnapshot {
+                        record: prepared.record.clone(),
+                    },
                 warnings: prepared.warnings.clone(),
             });
 
@@ -221,7 +225,10 @@ impl<'a> PackStringsConfirmationService<'a> {
     }
 }
 
-pub fn overwrite_warning(language: &str, entry: &crate::domain::strings::model::PackStringEntry) -> ValidationIssue {
+pub fn overwrite_warning(
+    language: &str,
+    entry: &crate::domain::strings::model::PackStringEntry,
+) -> ValidationIssue {
     crate::domain::common::issue::ValidationIssue::warning(
         "pack_strings.overwrite_existing_value",
         crate::domain::common::issue::ValidationTarget::new("pack_strings")
@@ -243,6 +250,9 @@ pub fn overwrite_record_warning(
     )
     .with_param("kind", &next.kind)
     .with_param("key", next.key)
-    .with_param("previous_languages", previous.values.keys().collect::<Vec<_>>())
+    .with_param(
+        "previous_languages",
+        previous.values.keys().collect::<Vec<_>>(),
+    )
     .with_param("next_languages", next.values.keys().collect::<Vec<_>>())
 }

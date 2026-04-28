@@ -52,11 +52,9 @@ pub fn safe_write_bytes(path: &Path, contents: &[u8]) -> AppResult<()> {
             let _ = fs::rename(&backup_path, path);
         }
         let _ = fs::remove_file(&temp_path);
-        return Err(
-            AppError::from_io("fs.commit_rename_failed", source)
-                .with_detail("path", path.display().to_string())
-                .with_detail("temp_path", temp_path.display().to_string()),
-        );
+        return Err(AppError::from_io("fs.commit_rename_failed", source)
+            .with_detail("path", path.display().to_string())
+            .with_detail("temp_path", temp_path.display().to_string()));
     }
 
     if target_exists {

@@ -14,10 +14,22 @@ pub enum FsOperation {
 
 #[derive(Debug)]
 enum AppliedOperation {
-    CreatedDir { path: PathBuf, created: bool },
-    WroteFile { path: PathBuf, original: Option<Vec<u8>> },
-    DeletedFile { path: PathBuf, original: Option<Vec<u8>> },
-    Renamed { from: PathBuf, to: PathBuf },
+    CreatedDir {
+        path: PathBuf,
+        created: bool,
+    },
+    WroteFile {
+        path: PathBuf,
+        original: Option<Vec<u8>>,
+    },
+    DeletedFile {
+        path: PathBuf,
+        original: Option<Vec<u8>>,
+    },
+    Renamed {
+        from: PathBuf,
+        to: PathBuf,
+    },
 }
 
 pub fn execute_plan(operations: Vec<FsOperation>) -> AppResult<()> {
@@ -67,14 +79,12 @@ pub fn execute_plan(operations: Vec<FsOperation>) -> AppResult<()> {
                 }
                 if to.exists() {
                     rollback(&mut applied);
-                    return Err(
-                        AppError::new(
-                            "fs.plan_rename_target_exists",
-                            "rename target already exists",
-                        )
-                        .with_detail("from", from.display().to_string())
-                        .with_detail("to", to.display().to_string()),
-                    );
+                    return Err(AppError::new(
+                        "fs.plan_rename_target_exists",
+                        "rename target already exists",
+                    )
+                    .with_detail("from", from.display().to_string())
+                    .with_detail("to", to.display().to_string()));
                 }
                 if let Some(parent) = to.parent() {
                     fs::create_dir_all(parent).map_err(|source| {

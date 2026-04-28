@@ -26,7 +26,14 @@ impl<'a> PackStringsService<'a> {
             .strings
             .project_language_entries(&input.language)
             .into_iter()
-            .filter(|entry| matches_filters(entry, input.kind_filter.as_ref(), input.key_filter, &keyword))
+            .filter(|entry| {
+                matches_filters(
+                    entry,
+                    input.kind_filter.as_ref(),
+                    input.key_filter,
+                    &keyword,
+                )
+            })
             .collect::<Vec<_>>();
 
         items.sort_by(|left, right| left.kind.cmp(&right.kind).then(left.key.cmp(&right.key)));
@@ -69,7 +76,9 @@ impl<'a> PackStringsService<'a> {
             .strings
             .get_record(&input.kind, input.key)
             .cloned()
-            .ok_or_else(|| AppError::new("pack_strings.not_found", "pack string record was not found"))?;
+            .ok_or_else(|| {
+                AppError::new("pack_strings.not_found", "pack string record was not found")
+            })?;
 
         Ok(PackStringRecordDetailDto {
             record: record.into(),

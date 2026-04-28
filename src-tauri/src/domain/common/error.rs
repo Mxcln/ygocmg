@@ -23,11 +23,7 @@ impl AppError {
         }
     }
 
-    pub fn with_detail(
-        mut self,
-        key: impl Into<String>,
-        value: impl Serialize,
-    ) -> Self {
+    pub fn with_detail(mut self, key: impl Into<String>, value: impl Serialize) -> Self {
         let encoded = serde_json::to_value(value).unwrap_or(Value::Null);
         self.details.insert(key.into(), encoded);
         self

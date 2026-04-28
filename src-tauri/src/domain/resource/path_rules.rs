@@ -34,11 +34,24 @@ pub fn detect_card_asset_state(pack_path: &Path, code: u32) -> CardAssetState {
     }
 }
 
-pub fn planned_asset_renames(pack_path: &Path, old_code: u32, new_code: u32) -> Vec<(PathBuf, PathBuf)> {
+pub fn planned_asset_renames(
+    pack_path: &Path,
+    old_code: u32,
+    new_code: u32,
+) -> Vec<(PathBuf, PathBuf)> {
     [
-        (card_image_path(pack_path, old_code), card_image_path(pack_path, new_code)),
-        (field_image_path(pack_path, old_code), field_image_path(pack_path, new_code)),
-        (script_path(pack_path, old_code), script_path(pack_path, new_code)),
+        (
+            card_image_path(pack_path, old_code),
+            card_image_path(pack_path, new_code),
+        ),
+        (
+            field_image_path(pack_path, old_code),
+            field_image_path(pack_path, new_code),
+        ),
+        (
+            script_path(pack_path, old_code),
+            script_path(pack_path, new_code),
+        ),
     ]
     .into_iter()
     .collect()

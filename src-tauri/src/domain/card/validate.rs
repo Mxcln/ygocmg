@@ -1,7 +1,5 @@
 use crate::domain::card::code::{CodeValidationContext, validate_card_code};
-use crate::domain::card::model::{
-    CardEntity, CardUpdateInput, MonsterFlag, PrimaryType, QMARK,
-};
+use crate::domain::card::model::{CardEntity, CardUpdateInput, MonsterFlag, PrimaryType, QMARK};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
 
 pub fn validate_card_structure(card: &CardEntity) -> Vec<ValidationIssue> {
@@ -44,7 +42,10 @@ pub fn validate_card_update_input(input: &CardUpdateInput) -> Vec<ValidationIssu
         ));
     }
 
-    let has_name = input.texts.values().any(|texts| !texts.name.trim().is_empty());
+    let has_name = input
+        .texts
+        .values()
+        .any(|texts| !texts.name.trim().is_empty());
     if !has_name {
         issues.push(ValidationIssue::error(
             "card.name_required",
@@ -52,7 +53,8 @@ pub fn validate_card_update_input(input: &CardUpdateInput) -> Vec<ValidationIssu
         ));
     }
 
-    let stats_valid = |value: Option<i32>| value.is_none_or(|number| number >= 0 || number == QMARK);
+    let stats_valid =
+        |value: Option<i32>| value.is_none_or(|number| number >= 0 || number == QMARK);
     if !stats_valid(input.atk) {
         issues.push(ValidationIssue::error(
             "card.atk_invalid",

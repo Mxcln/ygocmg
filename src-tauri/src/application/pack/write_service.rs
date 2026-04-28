@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::application::dto::strings::PackStringKeyDto;
 use crate::bootstrap::AppState;
-use crate::domain::card::code::{validate_card_code, CodeValidationContext};
+use crate::domain::card::code::{CodeValidationContext, validate_card_code};
 use crate::domain::card::model::{CardEntity, CardUpdateInput, PrimaryType, SpellSubtype};
 use crate::domain::card::normalize::{apply_card_update, create_card_entity, normalize_card_input};
 use crate::domain::card::validate::{
@@ -16,7 +16,7 @@ use crate::domain::common::ids::{CardId, PackId, WorkspaceId};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue};
 use crate::domain::common::time::now_utc;
 use crate::domain::namespace::model::{
-    build_pack_strings_namespace_index, PackStringsNamespaceContext,
+    PackStringsNamespaceContext, build_pack_strings_namespace_index,
 };
 use crate::domain::namespace::validate::validate_pack_string_record_namespace;
 use crate::domain::resource::model::CardAssetState;
@@ -26,7 +26,7 @@ use crate::domain::strings::model::{
     UpsertPackStringRecordOutcome, UpsertPackStringTranslationOutcome,
 };
 use crate::domain::strings::validate::validate_pack_strings;
-use crate::infrastructure::fs::transaction::{execute_plan, FsOperation};
+use crate::infrastructure::fs::transaction::{FsOperation, execute_plan};
 use crate::infrastructure::json_store;
 use crate::runtime::sessions::PackSession;
 
@@ -155,7 +155,11 @@ impl<'a> PackWriteService<'a> {
         }
 
         let card = if let Some(existing_seed) = seeded_card {
-            create_card_entity(existing_seed.id, normalized.clone(), existing_seed.created_at)
+            create_card_entity(
+                existing_seed.id,
+                normalized.clone(),
+                existing_seed.created_at,
+            )
         } else {
             create_card_entity(Uuid::now_v7().to_string(), normalized.clone(), now)
         };
@@ -317,7 +321,8 @@ impl<'a> PackWriteService<'a> {
         }
 
         let mut next_metadata = prepared.snapshot.metadata.clone();
-        next_metadata = crate::domain::pack::summary::touch_pack_metadata(&next_metadata, now_utc());
+        next_metadata =
+            crate::domain::pack::summary::touch_pack_metadata(&next_metadata, now_utc());
         operations.push(FsOperation::WriteFile {
             path: json_store::cards_path(&prepared.snapshot.pack_path),
             contents: encode_cards(&next_cards)?,
@@ -412,9 +417,11 @@ impl<'a> PackWriteService<'a> {
                 });
             }
             UpsertPackStringTranslationOutcome::Updated { .. } => {
-                warnings.push(crate::application::strings::confirmation_service::overwrite_warning(
-                    language, &entry,
-                ));
+                warnings.push(
+                    crate::application::strings::confirmation_service::overwrite_warning(
+                        language, &entry,
+                    ),
+                );
             }
             UpsertPackStringTranslationOutcome::Inserted => {}
         }
@@ -469,8 +476,7 @@ impl<'a> PackWriteService<'a> {
             UpsertPackStringRecordOutcome::Replaced { previous } => {
                 warnings.push(
                     crate::application::strings::confirmation_service::overwrite_record_warning(
-                        &previous,
-                        &record,
+                        &previous, &record,
                     ),
                 );
             }
@@ -529,17 +535,14 @@ impl<'a> PackWriteService<'a> {
             .map(|item| (item.kind.clone(), item.key))
             .collect::<BTreeSet<_>>();
         let mut next_strings = snapshot.strings.clone();
-        let deleted_count =
-            next_strings.delete_records(&key_set.into_iter().collect::<Vec<_>>());
+        let deleted_count = next_strings.delete_records(&key_set.into_iter().collect::<Vec<_>>());
         if deleted_count == 0 {
             return Ok((snapshot, 0));
         }
 
         validate_pack_strings_or_err(&next_strings)?;
-        let next_metadata = crate::domain::pack::summary::touch_pack_metadata(
-            &snapshot.metadata,
-            now_utc(),
-        );
+        let next_metadata =
+            crate::domain::pack::summary::touch_pack_metadata(&snapshot.metadata, now_utc());
         execute_plan(vec![
             FsOperation::WriteFile {
                 path: json_store::pack_strings_path(&snapshot.pack_path),
@@ -558,7 +561,10 @@ impl<'a> PackWriteService<'a> {
             next_strings,
             snapshot.revision + 1,
         )?;
-        Ok((self.replace_and_refresh(workspace_id, pack_id, next_session)?, deleted_count))
+        Ok((
+            self.replace_and_refresh(workspace_id, pack_id, next_session)?,
+            deleted_count,
+        ))
     }
 
     pub fn remove_pack_string_translation(
@@ -585,10 +591,8 @@ impl<'a> PackWriteService<'a> {
         }
 
         validate_pack_strings_or_err(&next_strings)?;
-        let next_metadata = crate::domain::pack::summary::touch_pack_metadata(
-            &snapshot.metadata,
-            now_utc(),
-        );
+        let next_metadata =
+            crate::domain::pack::summary::touch_pack_metadata(&snapshot.metadata, now_utc());
         execute_plan(vec![
             FsOperation::WriteFile {
                 path: json_store::pack_strings_path(&snapshot.pack_path),
@@ -607,7 +611,10 @@ impl<'a> PackWriteService<'a> {
             next_strings,
             snapshot.revision + 1,
         )?;
-        Ok((self.replace_and_refresh(workspace_id, pack_id, next_session)?, true))
+        Ok((
+            self.replace_and_refresh(workspace_id, pack_id, next_session)?,
+            true,
+        ))
     }
 
     pub fn import_main_image(
@@ -779,7 +786,7 @@ impl<'a> PackWriteService<'a> {
         workspace_id: &str,
         pack_id: &str,
         next_session: PackSession,
-        ) -> AppResult<PackSession> {
+    ) -> AppResult<PackSession> {
         crate::application::pack::service::replace_open_pack_session(
             self.state,
             workspace_id,
@@ -888,20 +895,16 @@ impl<'a> PackWriteService<'a> {
         record: &PackStringRecord,
         previous: Option<&PackStringRecord>,
     ) -> Vec<ValidationIssue> {
-        let workspace_index =
-            crate::application::card::service::CardService::new(self.state)
-                .build_workspace_namespace_index(Some(&snapshot.pack_id))
-                .unwrap_or_default();
-        let mut other_custom = workspace_index
-            .strings_by_pack
-            .values()
-            .fold(
-                crate::domain::namespace::model::PackStringNamespaceIndex::default(),
-                |mut acc, item| {
-                    acc.extend(item);
-                    acc
-                },
-            );
+        let workspace_index = crate::application::card::service::CardService::new(self.state)
+            .build_workspace_namespace_index(Some(&snapshot.pack_id))
+            .unwrap_or_default();
+        let mut other_custom = workspace_index.strings_by_pack.values().fold(
+            crate::domain::namespace::model::PackStringNamespaceIndex::default(),
+            |mut acc, item| {
+                acc.extend(item);
+                acc
+            },
+        );
 
         if let Some(previous) = previous {
             let previous_index = build_pack_strings_namespace_index(&PackStringsFile {
@@ -922,8 +925,9 @@ impl<'a> PackWriteService<'a> {
             }
         }
 
-        let standard = crate::infrastructure::standard_pack::standard_strings(self.state.app_data_dir())
-            .unwrap_or_else(|| self.state.standard_baseline.strings.clone());
+        let standard =
+            crate::infrastructure::standard_pack::standard_strings(self.state.app_data_dir())
+                .unwrap_or_else(|| self.state.standard_baseline.strings.clone());
 
         validate_pack_string_record_namespace(
             record,
@@ -958,18 +962,19 @@ fn encode_pack_strings(strings: &PackStringsFile) -> AppResult<Vec<u8>> {
 
 fn validate_pack_strings_or_err(strings: &PackStringsFile) -> AppResult<()> {
     let issues = validate_pack_strings(strings);
-    if issues.iter().any(|issue| matches!(issue.level, IssueLevel::Error)) {
+    if issues
+        .iter()
+        .any(|issue| matches!(issue.level, IssueLevel::Error))
+    {
         let error_issues = issues
             .into_iter()
             .filter(|issue| matches!(issue.level, IssueLevel::Error))
             .collect::<Vec<_>>();
-        return Err(
-            AppError::new(
-                "pack_strings.validation_failed",
-                "pack strings contain validation errors",
-            )
-            .with_detail("issues", &error_issues),
-        );
+        return Err(AppError::new(
+            "pack_strings.validation_failed",
+            "pack strings contain validation errors",
+        )
+        .with_detail("issues", &error_issues));
     }
     Ok(())
 }
@@ -999,13 +1004,11 @@ fn reject_authoring_system_string(
     key: u32,
 ) -> AppResult<()> {
     if matches!(kind, crate::domain::strings::model::PackStringKind::System) {
-        return Err(
-            AppError::new(
-                "pack_strings.system_not_supported_for_custom_packs",
-                "system strings are reserved and cannot be authored in custom packs",
-            )
-            .with_detail("key", key),
-        );
+        return Err(AppError::new(
+            "pack_strings.system_not_supported_for_custom_packs",
+            "system strings are reserved and cannot be authored in custom packs",
+        )
+        .with_detail("key", key));
     }
     Ok(())
 }

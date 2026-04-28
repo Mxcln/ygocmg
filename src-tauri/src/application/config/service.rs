@@ -20,7 +20,10 @@ impl<'a> ConfigService<'a> {
 
     pub fn save(&self, config: &GlobalConfig) -> AppResult<Vec<ValidationIssue>> {
         let issues = validate_global_config(config);
-        if issues.iter().any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error)) {
+        if issues
+            .iter()
+            .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
+        {
             return Err(AppError::new(
                 "config.validation_failed",
                 "global config contains validation errors",

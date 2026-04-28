@@ -101,10 +101,7 @@ impl ConfirmationCache {
         self.pack_strings_entries.remove(token)
     }
 
-    pub fn insert_pack_string_record_entry(
-        &mut self,
-        entry: PackStringRecordConfirmationEntry,
-    ) {
+    pub fn insert_pack_string_record_entry(&mut self, entry: PackStringRecordConfirmationEntry) {
         self.pack_string_record_entries
             .insert(entry.confirmation_token.clone(), entry);
     }
@@ -117,15 +114,12 @@ impl ConfirmationCache {
     }
 
     pub fn invalidate_pack(&mut self, workspace_id: &str, pack_id: &str) {
-        self.card_entries.retain(|_, entry| {
-            !(entry.workspace_id == workspace_id && entry.pack_id == pack_id)
-        });
-        self.pack_strings_entries.retain(|_, entry| {
-            !(entry.workspace_id == workspace_id && entry.pack_id == pack_id)
-        });
-        self.pack_string_record_entries.retain(|_, entry| {
-            !(entry.workspace_id == workspace_id && entry.pack_id == pack_id)
-        });
+        self.card_entries
+            .retain(|_, entry| !(entry.workspace_id == workspace_id && entry.pack_id == pack_id));
+        self.pack_strings_entries
+            .retain(|_, entry| !(entry.workspace_id == workspace_id && entry.pack_id == pack_id));
+        self.pack_string_record_entries
+            .retain(|_, entry| !(entry.workspace_id == workspace_id && entry.pack_id == pack_id));
     }
 
     pub fn invalidate_workspace(&mut self, workspace_id: &str) {

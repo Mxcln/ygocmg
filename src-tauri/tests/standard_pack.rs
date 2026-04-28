@@ -4,15 +4,15 @@ use std::time::{Duration, Instant};
 
 use rusqlite::Connection;
 use tempfile::tempdir;
-use ygocmg_core::application::dto::card::{SortDirectionDto, CreateCardInput};
-use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
+use ygocmg_core::application::dto::card::{CreateCardInput, SortDirectionDto};
 use ygocmg_core::application::dto::export::PreviewExportBundleInput;
-use ygocmg_core::application::dto::strings::{
-    PackStringRecordDto, PackStringValueDto, UpsertPackStringRecordInput,
-};
+use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
 use ygocmg_core::application::dto::standard_pack::{
     SearchStandardCardsInput, SearchStandardStringsInput, StandardCardSortFieldDto,
     StandardStringSortFieldDto,
+};
+use ygocmg_core::application::dto::strings::{
+    PackStringRecordDto, PackStringValueDto, UpsertPackStringRecordInput,
 };
 use ygocmg_core::application::standard_pack::service::StandardPackService;
 use ygocmg_core::bootstrap::AppState;
@@ -27,17 +27,21 @@ use ygocmg_core::presentation::commands::app_commands;
 fn discover_source_requires_exactly_one_root_cdb() {
     let root = tempdir().unwrap();
 
-    let missing = ygocmg_core::infrastructure::standard_pack::discover_source(root.path())
-        .unwrap_err();
+    let missing =
+        ygocmg_core::infrastructure::standard_pack::discover_source(root.path()).unwrap_err();
     assert_eq!(missing.code, "standard_pack.cdb_missing");
 
-    create_test_cdb(&root.path().join("cards.cdb"), &[(100, "Alpha", 0x1 | 0x10)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(100, "Alpha", 0x1 | 0x10)],
+    )
+    .unwrap();
     let source = ygocmg_core::infrastructure::standard_pack::discover_source(root.path()).unwrap();
     assert!(source.cdb_path.ends_with("cards.cdb"));
 
     create_test_cdb(&root.path().join("other.cdb"), &[(101, "Beta", 0x2)]).unwrap();
-    let multiple = ygocmg_core::infrastructure::standard_pack::discover_source(root.path())
-        .unwrap_err();
+    let multiple =
+        ygocmg_core::infrastructure::standard_pack::discover_source(root.path()).unwrap_err();
     assert_eq!(multiple.code, "standard_pack.multiple_cdb_files");
 }
 
@@ -96,7 +100,11 @@ fn rebuild_index_accepts_signed_32_bit_cdb_bitfields() {
 fn card_code_context_uses_standard_index_before_fallback_baseline() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(12345678, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(12345678, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
@@ -123,7 +131,11 @@ fn card_code_context_uses_standard_index_before_fallback_baseline() {
 fn rebuild_index_job_success_and_failure_are_queryable() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
 
     let state = AppState::new(app.path().to_path_buf()).unwrap();
     let mut config = ygocmg_core::domain::config::rules::default_global_config();
@@ -139,30 +151,26 @@ fn rebuild_index_job_success_and_failure_are_queryable() {
     fs::remove_file(root.path().join("cards.cdb")).unwrap();
     let failed = app_commands::rebuild_standard_pack_index(&state).unwrap();
     let snapshot = wait_for_status(&state, &failed.job_id, JobStatusDto::Failed);
-    assert_eq!(
-        snapshot.error.unwrap().code,
-        "standard_pack.cdb_missing"
-    );
+    assert_eq!(snapshot.error.unwrap().code, "standard_pack.cdb_missing");
 }
 
 #[test]
 fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(12345678, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(12345678, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
     let state = AppState::new(app.path().to_path_buf()).unwrap();
-    let workspace_meta = app_commands::create_workspace(
-        &state,
-        workspace.path().to_path_buf(),
-        "ws",
-        None,
-    )
-    .unwrap();
+    let workspace_meta =
+        app_commands::create_workspace(&state, workspace.path().to_path_buf(), "ws", None).unwrap();
     app_commands::open_workspace(&state, workspace.path().to_path_buf()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -201,10 +209,16 @@ fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
             warnings,
             ..
         } => {
-            assert!(warnings.iter().any(|issue| issue.code == "card.code_reserved_range"));
-            assert!(warnings
-                .iter()
-                .all(|issue| matches!(issue.level, IssueLevel::Warning)));
+            assert!(
+                warnings
+                    .iter()
+                    .any(|issue| issue.code == "card.code_reserved_range")
+            );
+            assert!(
+                warnings
+                    .iter()
+                    .all(|issue| matches!(issue.level, IssueLevel::Warning))
+            );
         }
         ygocmg_core::application::dto::common::WriteResultDto::Ok { .. } => {
             panic!("reserved standard range should require confirmation")
@@ -216,7 +230,11 @@ fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
 fn strings_conf_namespace_enters_standard_baseline() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
     fs::write(
         root.path().join("strings.conf"),
         "!victory\n10 Test victory\n!counter\n101 Test counter\n!setname\n20 Test set\n",
@@ -228,13 +246,8 @@ fn strings_conf_namespace_enters_standard_baseline() {
 
     let workspace = tempdir().unwrap();
     let state = AppState::new(app.path().to_path_buf()).unwrap();
-    let workspace_meta = app_commands::create_workspace(
-        &state,
-        workspace.path().to_path_buf(),
-        "ws",
-        None,
-    )
-    .unwrap();
+    let workspace_meta =
+        app_commands::create_workspace(&state, workspace.path().to_path_buf(), "ws", None).unwrap();
     app_commands::open_workspace(&state, workspace.path().to_path_buf()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -282,7 +295,11 @@ fn strings_conf_namespace_enters_standard_baseline() {
 fn standard_strings_are_indexed_and_searchable() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
     fs::write(
         root.path().join("strings.conf"),
         "!system\n123 System value\n!victory\n10 Victory value\n!counter\n101 Counter value\n!setname\n20 Set value\n",
@@ -331,7 +348,11 @@ fn standard_strings_are_indexed_and_searchable() {
 #[test]
 fn standard_strings_parse_ygopro_inline_format() {
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
     fs::write(
         root.path().join("strings.conf"),
         "!system 1 通常召唤\n!victory 0x10 特殊胜利\n!counter 0x101 指示物\n!setname 0x20 系列名\n",
@@ -344,11 +365,12 @@ fn standard_strings_parse_ygopro_inline_format() {
     assert!(index.strings.baseline.victory_keys.contains(&0x10));
     assert!(index.strings.baseline.counter_keys.contains(&0x101));
     assert!(index.strings.baseline.setname_bases.contains(&0x20));
-    assert!(index
-        .strings
-        .records
-        .iter()
-        .any(|record| record.values.get("default").is_some_and(|value| value == "通常召唤")));
+    assert!(index.strings.records.iter().any(|record| {
+        record
+            .values
+            .get("default")
+            .is_some_and(|value| value == "通常召唤")
+    }));
 }
 
 #[test]
@@ -374,13 +396,18 @@ fn schema_mismatch_requires_rebuild() {
 fn source_missing_keeps_existing_index_browsable() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
     fs::write(root.path().join("strings.conf"), "!system\n1 Hello\n").unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
     let missing_path = root.path().join("missing");
-    let status = ygocmg_core::infrastructure::standard_pack::status(app.path(), Some(&missing_path));
+    let status =
+        ygocmg_core::infrastructure::standard_pack::status(app.path(), Some(&missing_path));
     assert!(status.index_exists);
     assert!(status.message.is_some());
 
@@ -414,7 +441,11 @@ fn source_missing_keeps_existing_index_browsable() {
 fn source_change_marks_stale_without_auto_rebuild() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(123, "Original", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Original", 0x1 | 0x20)],
+    )
+    .unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
@@ -458,15 +489,26 @@ fn rebuild_index_uses_prescanned_asset_state() {
     let root = tempdir().unwrap();
     create_test_cdb(
         &root.path().join("cards.cdb"),
-        &[(123, "Has Assets", 0x1 | 0x20), (124, "No Assets", 0x1 | 0x20)],
+        &[
+            (123, "Has Assets", 0x1 | 0x20),
+            (124, "No Assets", 0x1 | 0x20),
+        ],
     )
     .unwrap();
     fs::create_dir_all(root.path().join("pics").join("field")).unwrap();
     fs::create_dir_all(root.path().join("script")).unwrap();
     fs::write(root.path().join("pics").join("123.jpg"), "image").unwrap();
-    fs::write(root.path().join("pics").join("field").join("123.jpg"), "field").unwrap();
+    fs::write(
+        root.path().join("pics").join("field").join("123.jpg"),
+        "field",
+    )
+    .unwrap();
     fs::write(root.path().join("script").join("c123.lua"), "-- script").unwrap();
-    fs::write(root.path().join("script").join("not-a-card.lua"), "-- ignored").unwrap();
+    fs::write(
+        root.path().join("script").join("not-a-card.lua"),
+        "-- ignored",
+    )
+    .unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     let with_assets = index
@@ -504,20 +546,19 @@ fn malformed_cdb_schema_returns_clear_error() {
 fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
-    create_test_cdb(&root.path().join("cards.cdb"), &[(12345678, "Indexed", 0x1 | 0x20)]).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(12345678, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
 
     let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
     let state = AppState::new(app.path().to_path_buf()).unwrap();
-    let workspace_meta = app_commands::create_workspace(
-        &state,
-        workspace.path().to_path_buf(),
-        "ws",
-        None,
-    )
-    .unwrap();
+    let workspace_meta =
+        app_commands::create_workspace(&state, workspace.path().to_path_buf(), "ws", None).unwrap();
     app_commands::open_workspace(&state, workspace.path().to_path_buf()).unwrap();
 
     let conflict_pack = app_commands::create_pack(
@@ -543,22 +584,20 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
     .unwrap();
     let warning_pack = app_commands::open_pack(&state, &warning_pack.id).unwrap();
 
-    let inventory = ygocmg_core::infrastructure::pack_locator::load_workspace_pack_inventory(
-        workspace.path(),
-    )
-    .unwrap();
-    let conflict_path = ygocmg_core::infrastructure::pack_locator::resolve_pack_path(
-        &inventory,
-        &conflict_pack.id,
-    )
-    .unwrap();
-    let warning_path = ygocmg_core::infrastructure::pack_locator::resolve_pack_path(
-        &inventory,
-        &warning_pack.id,
-    )
-    .unwrap();
+    let inventory =
+        ygocmg_core::infrastructure::pack_locator::load_workspace_pack_inventory(workspace.path())
+            .unwrap();
+    let conflict_path =
+        ygocmg_core::infrastructure::pack_locator::resolve_pack_path(&inventory, &conflict_pack.id)
+            .unwrap();
+    let warning_path =
+        ygocmg_core::infrastructure::pack_locator::resolve_pack_path(&inventory, &warning_pack.id)
+            .unwrap();
     save_direct_cards(&conflict_path, vec![test_card_entity(12345678, "Conflict")]);
-    save_direct_cards(&warning_path, vec![test_card_entity(12_345_679, "Reserved")]);
+    save_direct_cards(
+        &warning_path,
+        vec![test_card_entity(12_345_679, "Reserved")],
+    );
 
     app_commands::close_pack(&state, &conflict_pack.id).unwrap();
     app_commands::close_pack(&state, &warning_pack.id).unwrap();
@@ -657,10 +696,7 @@ fn test_card_entity(code: u32, name: &str) -> ygocmg_core::domain::card::model::
     )
 }
 
-fn save_direct_cards(
-    pack_path: &Path,
-    cards: Vec<ygocmg_core::domain::card::model::CardEntity>,
-) {
+fn save_direct_cards(pack_path: &Path, cards: Vec<ygocmg_core::domain::card::model::CardEntity>) {
     let cards_file = ygocmg_core::domain::card::model::CardsFile {
         schema_version: ygocmg_core::infrastructure::json_store::SCHEMA_VERSION,
         cards,
@@ -690,7 +726,10 @@ fn wait_for_status(
         if snapshot.status == expected {
             return snapshot;
         }
-        assert!(Instant::now() < deadline, "timed out waiting for job status");
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for job status"
+        );
         std::thread::sleep(Duration::from_millis(10));
     }
 }

@@ -39,7 +39,9 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn current_workspace_id(&self) -> Option<&WorkspaceId> {
-        self.current_workspace.as_ref().map(|workspace| &workspace.meta.id)
+        self.current_workspace
+            .as_ref()
+            .map(|workspace| &workspace.meta.id)
     }
 
     pub fn set_workspace(&mut self, session: WorkspaceSession) {

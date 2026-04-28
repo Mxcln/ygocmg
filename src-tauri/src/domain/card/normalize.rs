@@ -1,6 +1,4 @@
-use crate::domain::card::model::{
-    CardEntity, CardUpdateInput, MonsterFlag, PrimaryType,
-};
+use crate::domain::card::model::{CardEntity, CardUpdateInput, MonsterFlag, PrimaryType};
 use crate::domain::common::ids::CardId;
 use crate::domain::common::time::AppTimestamp;
 
@@ -72,11 +70,7 @@ pub fn normalize_card_input(mut input: CardUpdateInput) -> CardUpdateInput {
     input
 }
 
-pub fn create_card_entity(
-    new_id: CardId,
-    input: CardUpdateInput,
-    now: AppTimestamp,
-) -> CardEntity {
+pub fn create_card_entity(new_id: CardId, input: CardUpdateInput, now: AppTimestamp) -> CardEntity {
     let normalized = normalize_card_input(input);
     CardEntity {
         id: new_id,

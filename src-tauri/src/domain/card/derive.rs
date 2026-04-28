@@ -60,14 +60,14 @@ fn format_trap_subtype(subtype: &Option<TrapSubtype>) -> &'static str {
 
 fn derive_subtype_display(card: &CardEntity) -> String {
     match &card.primary_type {
-        PrimaryType::Monster => {
-            match &card.monster_flags {
-                Some(flags) if !flags.is_empty() => {
-                    flags.iter().map(format_monster_flag).collect::<Vec<_>>().join(" / ")
-                }
-                _ => "Normal".to_string(),
-            }
-        }
+        PrimaryType::Monster => match &card.monster_flags {
+            Some(flags) if !flags.is_empty() => flags
+                .iter()
+                .map(format_monster_flag)
+                .collect::<Vec<_>>()
+                .join(" / "),
+            _ => "Normal".to_string(),
+        },
         PrimaryType::Spell => format_spell_subtype(&card.spell_subtype).to_string(),
         PrimaryType::Trap => format_trap_subtype(&card.trap_subtype).to_string(),
     }

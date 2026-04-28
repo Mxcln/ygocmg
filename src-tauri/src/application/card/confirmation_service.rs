@@ -20,14 +20,15 @@ impl<'a> CardWriteConfirmationService<'a> {
         Self { state }
     }
 
-    pub fn create_card(
-        &self,
-        input: CreateCardInput,
-    ) -> AppResult<WriteResultDto<CardDetailDto>> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
+    pub fn create_card(&self, input: CreateCardInput) -> AppResult<WriteResultDto<CardDetailDto>> {
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
         let card_service = crate::application::card::service::CardService::new(self.state);
         let code_context = card_service.build_code_context(&input.pack_id, None)?;
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
         let prepared = write_service.prepare_create_card(
             &input.workspace_id,
             &input.pack_id,
@@ -81,14 +82,15 @@ impl<'a> CardWriteConfirmationService<'a> {
         })
     }
 
-    pub fn update_card(
-        &self,
-        input: UpdateCardInput,
-    ) -> AppResult<WriteResultDto<CardDetailDto>> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
+    pub fn update_card(&self, input: UpdateCardInput) -> AppResult<WriteResultDto<CardDetailDto>> {
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
         let card_service = crate::application::card::service::CardService::new(self.state);
         let code_context = card_service.build_code_context(&input.pack_id, Some(&input.card_id))?;
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
         let prepared = write_service.prepare_update_card(
             &input.workspace_id,
             &input.pack_id,
@@ -177,28 +179,25 @@ impl<'a> CardWriteConfirmationService<'a> {
             &pack_id,
         )?;
         if current_snapshot.revision != pack_revision {
-            return Err(
-                AppError::new(
-                    "confirmation.stale_revision",
-                    "confirmation token no longer matches the pack revision",
-                )
-                .with_detail("expected_revision", pack_revision)
-                .with_detail("actual_revision", current_snapshot.revision),
-            );
+            return Err(AppError::new(
+                "confirmation.stale_revision",
+                "confirmation token no longer matches the pack revision",
+            )
+            .with_detail("expected_revision", pack_revision)
+            .with_detail("actual_revision", current_snapshot.revision));
         }
         if current_snapshot.source_stamp != source_stamp {
-            return Err(
-                AppError::new(
-                    "confirmation.stale_source_stamp",
-                    "confirmation token no longer matches current disk state",
-                )
-                .with_detail("expected_source_stamp", source_stamp)
-                .with_detail("actual_source_stamp", current_snapshot.source_stamp),
-            );
+            return Err(AppError::new(
+                "confirmation.stale_source_stamp",
+                "confirmation token no longer matches current disk state",
+            )
+            .with_detail("expected_source_stamp", source_stamp)
+            .with_detail("actual_source_stamp", current_snapshot.source_stamp));
         }
 
         let card_service = crate::application::card::service::CardService::new(self.state);
-        let write_service = crate::application::pack::write_service::PackWriteService::new(self.state);
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
 
         let detail = match operation_kind {
             CardConfirmationOperationKind::CreateCard => {

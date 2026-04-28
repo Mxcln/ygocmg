@@ -6,13 +6,13 @@ use crate::application::dto::card::{
 };
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{
-    suggest_next_code, CodePolicy, CodeValidationContext, STANDARD_RESERVED_CODE_MAX,
+    CodePolicy, CodeValidationContext, STANDARD_RESERVED_CODE_MAX, suggest_next_code,
 };
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::ValidationIssue;
 use crate::domain::config::rules::default_global_config;
 use crate::domain::namespace::model::{
-    build_pack_strings_namespace_index, WorkspaceNamespaceIndex,
+    WorkspaceNamespaceIndex, build_pack_strings_namespace_index,
 };
 use crate::infrastructure::json_store;
 use crate::infrastructure::pack_locator;
@@ -27,8 +27,11 @@ impl<'a> CardService<'a> {
     }
 
     pub fn list_cards(&self, input: ListCardsInput) -> AppResult<CardListPageDto> {
-        let pack =
-            crate::application::pack::service::require_open_pack_snapshot(self.state, &input.workspace_id, &input.pack_id)?;
+        let pack = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            &input.workspace_id,
+            &input.pack_id,
+        )?;
 
         let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
         let mut rows = pack
@@ -79,8 +82,11 @@ impl<'a> CardService<'a> {
     }
 
     pub fn get_card(&self, input: GetCardInput) -> AppResult<CardDetailDto> {
-        let pack =
-            crate::application::pack::service::require_open_pack_snapshot(self.state, &input.workspace_id, &input.pack_id)?;
+        let pack = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            &input.workspace_id,
+            &input.pack_id,
+        )?;
         let card = pack
             .cards
             .iter()
@@ -103,7 +109,10 @@ impl<'a> CardService<'a> {
     }
 
     pub fn suggest_code(&self, input: SuggestCodeInput) -> AppResult<CodeSuggestionDto> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
         let context = self.build_code_context(&input.pack_id, None)?;
         let suggested_code = suggest_next_code(&context, input.preferred_start);
         let warnings = suggested_code
@@ -122,8 +131,9 @@ impl<'a> CardService<'a> {
     ) -> AppResult<CodeValidationContext> {
         let config = json_store::load_global_config(self.state.app_data_dir())
             .unwrap_or_else(|_| default_global_config());
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let workspace_meta = json_store::load_workspace_meta(&workspace_path)?;
         let inventory = crate::application::pack::service::load_pack_inventory(&workspace_path)?;
 
@@ -167,8 +177,9 @@ impl<'a> CardService<'a> {
         &self,
         exclude_pack_id: Option<&str>,
     ) -> AppResult<WorkspaceNamespaceIndex> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let workspace_meta = json_store::load_workspace_meta(&workspace_path)?;
         let inventory = crate::application::pack::service::load_pack_inventory(&workspace_path)?;
 
@@ -186,9 +197,10 @@ impl<'a> CardService<'a> {
                 current_pack_id.clone(),
                 cards.into_iter().map(|card| card.code).collect(),
             );
-            index
-                .strings_by_pack
-                .insert(current_pack_id, build_pack_strings_namespace_index(&strings));
+            index.strings_by_pack.insert(
+                current_pack_id,
+                build_pack_strings_namespace_index(&strings),
+            );
         }
 
         Ok(index)
@@ -201,7 +213,12 @@ impl<'a> CardService<'a> {
     ) -> Vec<ValidationIssue> {
         crate::domain::card::code::validate_card_code(suggested_code, context)
             .into_iter()
-            .filter(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Warning))
+            .filter(|issue| {
+                matches!(
+                    issue.level,
+                    crate::domain::common::issue::IssueLevel::Warning
+                )
+            })
             .collect()
     }
 }

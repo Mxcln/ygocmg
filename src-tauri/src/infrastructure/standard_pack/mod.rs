@@ -9,9 +9,7 @@ use crate::domain::card::derive::derive_card_list_row;
 use crate::domain::card::model::CardEntity;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::time::{AppTimestamp, now_utc};
-use crate::domain::namespace::model::{
-    StandardNamespaceBaseline, StandardStringNamespaceBaseline,
-};
+use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringNamespaceBaseline};
 use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::PackStringRecord;
 
@@ -96,12 +94,13 @@ pub fn load_index(app_data_dir: &Path) -> AppResult<StandardPackIndexFile> {
         .and_then(|value| value.as_u64())
         .unwrap_or(0) as u32;
     if schema_version != STANDARD_INDEX_SCHEMA_VERSION {
-        return Err(
-            AppError::new("standard_pack.index_schema_mismatch", "standard pack index schema mismatch")
-                .with_detail("path", path.display().to_string())
-                .with_detail("expected", STANDARD_INDEX_SCHEMA_VERSION)
-                .with_detail("actual", schema_version),
-        );
+        return Err(AppError::new(
+            "standard_pack.index_schema_mismatch",
+            "standard pack index schema mismatch",
+        )
+        .with_detail("path", path.display().to_string())
+        .with_detail("expected", STANDARD_INDEX_SCHEMA_VERSION)
+        .with_detail("actual", schema_version));
     }
     serde_json::from_value(value).map_err(|source| {
         AppError::new("standard_pack.index_deserialize_failed", source.to_string())
@@ -116,7 +115,9 @@ pub fn save_index(app_data_dir: &Path, index: &StandardPackIndexFile) -> AppResu
 pub fn status(app_data_dir: &Path, ygopro_path: Option<&Path>) -> StandardPackStatus {
     let configured = ygopro_path.is_some();
     let source_result = ygopro_path.map(discover_source);
-    let source = source_result.as_ref().and_then(|result| result.as_ref().ok());
+    let source = source_result
+        .as_ref()
+        .and_then(|result| result.as_ref().ok());
     let source_error = source_result
         .as_ref()
         .and_then(|result| result.as_ref().err())
@@ -153,16 +154,18 @@ pub fn status(app_data_dir: &Path, ygopro_path: Option<&Path>) -> StandardPackSt
 
 pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
     if !ygopro_path.exists() {
-        return Err(
-            AppError::new("standard_pack.ygopro_path_missing", "YGOPro path does not exist")
-                .with_detail("path", ygopro_path.display().to_string()),
-        );
+        return Err(AppError::new(
+            "standard_pack.ygopro_path_missing",
+            "YGOPro path does not exist",
+        )
+        .with_detail("path", ygopro_path.display().to_string()));
     }
     if !ygopro_path.is_dir() {
-        return Err(
-            AppError::new("standard_pack.ygopro_path_not_directory", "YGOPro path is not a directory")
-                .with_detail("path", ygopro_path.display().to_string()),
-        );
+        return Err(AppError::new(
+            "standard_pack.ygopro_path_not_directory",
+            "YGOPro path is not a directory",
+        )
+        .with_detail("path", ygopro_path.display().to_string()));
     }
 
     let mut cdb_paths = Vec::new();
@@ -188,10 +191,11 @@ pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
     }
 
     match cdb_paths.len() {
-        0 => Err(
-            AppError::new("standard_pack.cdb_missing", "no root .cdb file found in YGOPro path")
-                .with_detail("path", ygopro_path.display().to_string()),
-        ),
+        0 => Err(AppError::new(
+            "standard_pack.cdb_missing",
+            "no root .cdb file found in YGOPro path",
+        )
+        .with_detail("path", ygopro_path.display().to_string())),
         1 => {
             let cdb_path = cdb_paths.remove(0);
             let cdb_meta = metadata_stamp(&cdb_path)?;
@@ -210,17 +214,18 @@ pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
                 },
             })
         }
-        _ => Err(
-            AppError::new("standard_pack.multiple_cdb_files", "multiple root .cdb files found in YGOPro path")
-                .with_detail("path", ygopro_path.display().to_string())
-                .with_detail(
-                    "cdb_paths",
-                    cdb_paths
-                        .iter()
-                        .map(|path| path.display().to_string())
-                        .collect::<Vec<_>>(),
-                ),
-        ),
+        _ => Err(AppError::new(
+            "standard_pack.multiple_cdb_files",
+            "multiple root .cdb files found in YGOPro path",
+        )
+        .with_detail("path", ygopro_path.display().to_string())
+        .with_detail(
+            "cdb_paths",
+            cdb_paths
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>(),
+        )),
     }
 }
 
@@ -239,9 +244,13 @@ pub fn rebuild_index(ygopro_path: &Path) -> AppResult<StandardPackIndexFile> {
 }
 
 pub fn standard_codes(app_data_dir: &Path) -> Option<BTreeSet<u32>> {
-    load_index(app_data_dir)
-        .ok()
-        .map(|index| index.cards.into_iter().map(|record| record.card.code).collect())
+    load_index(app_data_dir).ok().map(|index| {
+        index
+            .cards
+            .into_iter()
+            .map(|record| record.card.code)
+            .collect()
+    })
 }
 
 pub fn standard_strings(app_data_dir: &Path) -> Option<StandardStringNamespaceBaseline> {
@@ -251,10 +260,16 @@ pub fn standard_strings(app_data_dir: &Path) -> Option<StandardStringNamespaceBa
 }
 
 pub fn standard_baseline_from_index(app_data_dir: &Path) -> Option<StandardNamespaceBaseline> {
-    load_index(app_data_dir).ok().map(|index| StandardNamespaceBaseline {
-        standard_codes: index.cards.into_iter().map(|record| record.card.code).collect(),
-        strings: index.strings.baseline,
-    })
+    load_index(app_data_dir)
+        .ok()
+        .map(|index| StandardNamespaceBaseline {
+            standard_codes: index
+                .cards
+                .into_iter()
+                .map(|record| record.card.code)
+                .collect(),
+            strings: index.strings.baseline,
+        })
 }
 
 fn load_cards_from_cdb(source: &StandardPackSource) -> AppResult<Vec<StandardCardIndexRecord>> {
@@ -341,10 +356,7 @@ fn load_standard_strings(path: &Path) -> StandardStringsIndex {
     records.sort_by(|left, right| left.kind.cmp(&right.kind).then(left.key.cmp(&right.key)));
     let baseline = crate::infrastructure::strings_conf::baseline_from_records(&records);
 
-    StandardStringsIndex {
-        baseline,
-        records,
-    }
+    StandardStringsIndex { baseline, records }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

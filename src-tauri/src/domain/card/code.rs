@@ -94,10 +94,7 @@ pub fn validate_card_code(code: u32, ctx: &CodeValidationContext) -> Vec<Validat
     issues
 }
 
-pub fn suggest_next_code(
-    ctx: &CodeValidationContext,
-    preferred_start: Option<u32>,
-) -> Option<u32> {
+pub fn suggest_next_code(ctx: &CodeValidationContext, preferred_start: Option<u32>) -> Option<u32> {
     let start = preferred_start
         .unwrap_or(ctx.policy.recommended_min)
         .max(ctx.policy.recommended_min);

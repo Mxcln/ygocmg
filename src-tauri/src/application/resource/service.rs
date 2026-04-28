@@ -23,7 +23,12 @@ impl<'a> ResourceService<'a> {
         input: ImportMainImageInput,
     ) -> AppResult<WriteResultDto<CardAssetStateDto>> {
         let state = crate::application::pack::write_service::PackWriteService::new(self.state)
-            .import_main_image(&input.workspace_id, &input.pack_id, &input.card_id, &input.source_path)?;
+            .import_main_image(
+                &input.workspace_id,
+                &input.pack_id,
+                &input.card_id,
+                &input.source_path,
+            )?;
         Ok(ok_state(state))
     }
 
@@ -41,7 +46,12 @@ impl<'a> ResourceService<'a> {
         input: ImportFieldImageInput,
     ) -> AppResult<WriteResultDto<CardAssetStateDto>> {
         let state = crate::application::pack::write_service::PackWriteService::new(self.state)
-            .import_field_image(&input.workspace_id, &input.pack_id, &input.card_id, &input.source_path)?;
+            .import_field_image(
+                &input.workspace_id,
+                &input.pack_id,
+                &input.card_id,
+                &input.source_path,
+            )?;
         Ok(ok_state(state))
     }
 
@@ -68,7 +78,12 @@ impl<'a> ResourceService<'a> {
         input: ImportScriptInput,
     ) -> AppResult<WriteResultDto<CardAssetStateDto>> {
         let state = crate::application::pack::write_service::PackWriteService::new(self.state)
-            .import_script(&input.workspace_id, &input.pack_id, &input.card_id, &input.source_path)?;
+            .import_script(
+                &input.workspace_id,
+                &input.pack_id,
+                &input.card_id,
+                &input.source_path,
+            )?;
         Ok(ok_state(state))
     }
 
@@ -82,7 +97,10 @@ impl<'a> ResourceService<'a> {
     }
 
     pub fn open_script_external(&self, input: OpenScriptExternalInput) -> AppResult<()> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
         let snapshot = crate::application::pack::service::require_open_pack_snapshot(
             self.state,
             &input.workspace_id,
@@ -102,16 +120,15 @@ impl<'a> ResourceService<'a> {
             )
         })?;
         if !editor_path.exists() {
-            return Err(
-                AppError::new(
-                    "resource.external_editor_missing",
-                    "external text editor executable does not exist",
-                )
-                .with_detail("path", editor_path.display().to_string()),
-            );
+            return Err(AppError::new(
+                "resource.external_editor_missing",
+                "external text editor executable does not exist",
+            )
+            .with_detail("path", editor_path.display().to_string()));
         }
 
-        let script_path = crate::domain::resource::path_rules::script_path(&snapshot.pack_path, card.code);
+        let script_path =
+            crate::domain::resource::path_rules::script_path(&snapshot.pack_path, card.code);
         if !script_path.exists() {
             return Err(
                 AppError::new("resource.script_missing", "script file does not exist")
@@ -131,7 +148,9 @@ impl<'a> ResourceService<'a> {
     }
 }
 
-fn ok_state(state: crate::domain::resource::model::CardAssetState) -> WriteResultDto<CardAssetStateDto> {
+fn ok_state(
+    state: crate::domain::resource::model::CardAssetState,
+) -> WriteResultDto<CardAssetStateDto> {
     WriteResultDto::Ok {
         data: state.into(),
         warnings: Vec::new(),

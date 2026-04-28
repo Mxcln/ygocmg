@@ -25,7 +25,9 @@ impl<'a> StandardPackService<'a> {
         let config = json_store::load_global_config(self.state.app_data_dir()).ok();
         let status = crate::infrastructure::standard_pack::status(
             self.state.app_data_dir(),
-            config.as_ref().and_then(|config| config.ygopro_path.as_deref()),
+            config
+                .as_ref()
+                .and_then(|config| config.ygopro_path.as_deref()),
         );
         StandardPackStatusDto::from(status)
     }
@@ -39,10 +41,11 @@ impl<'a> StandardPackService<'a> {
             )
         })?;
         let app_data_dir = self.state.app_data_dir().to_path_buf();
+        let index_cache = self.state.standard_pack_index_cache.clone();
 
-        self.state.jobs.submit(
-            JobKindDto::StandardPackIndexRebuild,
-            move |context| {
+        self.state
+            .jobs
+            .submit(JobKindDto::StandardPackIndexRebuild, move |context| {
                 context.progress(
                     "discover_source",
                     Some(5),
@@ -55,7 +58,8 @@ impl<'a> StandardPackService<'a> {
                     Some(20),
                     Some("Reading standard CDB".to_string()),
                 )?;
-                let index = crate::infrastructure::standard_pack::rebuild_index(&source.ygopro_path)?;
+                let index =
+                    crate::infrastructure::standard_pack::rebuild_index(&source.ygopro_path)?;
 
                 context.progress(
                     "write_index",
@@ -63,18 +67,27 @@ impl<'a> StandardPackService<'a> {
                     Some("Writing standard index cache".to_string()),
                 )?;
                 crate::infrastructure::standard_pack::save_index(&app_data_dir, &index)?;
+                context.progress(
+                    "refresh_cache",
+                    Some(95),
+                    Some("Refreshing standard index cache".to_string()),
+                )?;
+                let _ = index_cache.replace(&app_data_dir, index)?;
 
                 context.progress(
                     "index_ready",
                     Some(100),
                     Some("Standard index rebuilt".to_string()),
                 )
-            },
-        )
+            })
     }
 
     pub fn search_cards(&self, input: SearchStandardCardsInput) -> AppResult<StandardCardPageDto> {
-        let index = crate::infrastructure::standard_pack::load_index(self.state.app_data_dir())?;
+        let snapshot = self
+            .state
+            .standard_pack_index_cache
+            .get_or_load(self.state.app_data_dir())?;
+        let index = snapshot.index();
         let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
         let mut rows = index
             .cards
@@ -86,11 +99,7 @@ impl<'a> StandardPackService<'a> {
                 record.row.name.to_lowercase().contains(&keyword)
                     || record.row.desc.to_lowercase().contains(&keyword)
                     || record.row.code.to_string().contains(&keyword)
-                    || record
-                        .row
-                        .subtype_display
-                        .to_lowercase()
-                        .contains(&keyword)
+                    || record.row.subtype_display.to_lowercase().contains(&keyword)
                     || primary_type_label(&record.row.primary_type)
                         .to_lowercase()
                         .contains(&keyword)
@@ -99,8 +108,12 @@ impl<'a> StandardPackService<'a> {
             .collect::<Vec<_>>();
 
         match input.sort_by {
-            StandardCardSortFieldDto::Code => rows.sort_by(|left, right| left.code.cmp(&right.code)),
-            StandardCardSortFieldDto::Name => rows.sort_by(|left, right| left.name.cmp(&right.name)),
+            StandardCardSortFieldDto::Code => {
+                rows.sort_by(|left, right| left.code.cmp(&right.code))
+            }
+            StandardCardSortFieldDto::Name => {
+                rows.sort_by(|left, right| left.name.cmp(&right.name))
+            }
             StandardCardSortFieldDto::Type => rows.sort_by(|left, right| {
                 primary_type_label(&left.primary_type)
                     .cmp(primary_type_label(&right.primary_type))
@@ -131,7 +144,7 @@ impl<'a> StandardPackService<'a> {
             page,
             page_size,
             total,
-            ygopro_path: Some(index.source.ygopro_path),
+            ygopro_path: Some(index.source.ygopro_path.clone()),
             revision: index
                 .indexed_at
                 .timestamp_millis()
@@ -141,23 +154,35 @@ impl<'a> StandardPackService<'a> {
     }
 
     pub fn get_card(&self, input: GetStandardCardInput) -> AppResult<StandardCardDetailDto> {
-        let index = crate::infrastructure::standard_pack::load_index(self.state.app_data_dir())?;
-        let record = index
-            .cards
-            .into_iter()
-            .find(|record| record.card.code == input.code)
-            .ok_or_else(|| AppError::new("standard_pack.card_not_found", "standard card was not found"))?;
+        let snapshot = self
+            .state
+            .standard_pack_index_cache
+            .get_or_load(self.state.app_data_dir())?;
+        let index = snapshot.index();
+        let record = snapshot.card_by_code(input.code).ok_or_else(|| {
+            AppError::new(
+                "standard_pack.card_not_found",
+                "standard card was not found",
+            )
+        })?;
 
         Ok(StandardCardDetailDto {
-            card: record.card.into(),
-            asset_state: record.asset_state,
+            card: record.card.clone().into(),
+            asset_state: record.asset_state.clone(),
             available_languages: vec!["default".to_string()],
-            ygopro_path: index.source.ygopro_path,
+            ygopro_path: index.source.ygopro_path.clone(),
         })
     }
 
-    pub fn search_strings(&self, input: SearchStandardStringsInput) -> AppResult<StandardStringsPageDto> {
-        let index = crate::infrastructure::standard_pack::load_index(self.state.app_data_dir())?;
+    pub fn search_strings(
+        &self,
+        input: SearchStandardStringsInput,
+    ) -> AppResult<StandardStringsPageDto> {
+        let snapshot = self
+            .state
+            .standard_pack_index_cache
+            .get_or_load(self.state.app_data_dir())?;
+        let index = snapshot.index();
         let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
         let mut rows = index
             .strings
@@ -175,8 +200,12 @@ impl<'a> StandardPackService<'a> {
                 if keyword.is_empty()
                     || value.to_lowercase().contains(&keyword)
                     || record.key.to_string().contains(&keyword)
-                    || format_string_key_hex(record.key).to_lowercase().contains(&keyword)
-                    || format!("{:?}", record.kind).to_lowercase().contains(&keyword)
+                    || format_string_key_hex(record.key)
+                        .to_lowercase()
+                        .contains(&keyword)
+                    || format!("{:?}", record.kind)
+                        .to_lowercase()
+                        .contains(&keyword)
                 {
                     Some(PackStringEntry {
                         kind: record.kind.clone(),
@@ -278,7 +307,9 @@ impl From<crate::infrastructure::standard_pack::StandardPackStatus> for Standard
             ygopro_path: value
                 .ygopro_path
                 .map(|path| path.to_string_lossy().to_string()),
-            cdb_path: value.cdb_path.map(|path| path.to_string_lossy().to_string()),
+            cdb_path: value
+                .cdb_path
+                .map(|path| path.to_string_lossy().to_string()),
             index_exists: value.index_exists,
             schema_mismatch: value.schema_mismatch,
             stale: value.stale,

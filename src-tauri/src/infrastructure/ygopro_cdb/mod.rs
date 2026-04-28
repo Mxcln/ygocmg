@@ -4,8 +4,8 @@ use std::path::Path;
 use rusqlite::{Connection, OpenFlags, Row};
 
 use crate::domain::card::model::{
-    Attribute, CardEntity, CardTexts, LinkData, LinkMarker, MonsterFlag, Ot, Pendulum,
-    PrimaryType, Race, SpellSubtype, TrapSubtype,
+    Attribute, CardEntity, CardTexts, LinkData, LinkMarker, MonsterFlag, Ot, Pendulum, PrimaryType,
+    Race, SpellSubtype, TrapSubtype,
 };
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::time::now_utc;
@@ -75,9 +75,11 @@ pub fn load_cards_from_cdb(cdb_path: &Path) -> AppResult<Vec<YgoProCardRecord>> 
 
     let mut records = Vec::new();
     for item in mapped {
-        records.push(item.map_err(|source| {
-            AppError::new("ygopro_cdb.row_decode_failed", source.to_string())
-        })?);
+        records.push(
+            item.map_err(|source| {
+                AppError::new("ygopro_cdb.row_decode_failed", source.to_string())
+            })?,
+        );
     }
     Ok(records)
 }
@@ -104,8 +106,8 @@ fn validate_schema(connection: &Connection) -> AppResult<()> {
         connection,
         "texts",
         &[
-            "id", "name", "desc", "str1", "str2", "str3", "str4", "str5", "str6", "str7",
-            "str8", "str9", "str10", "str11", "str12", "str13", "str14", "str15", "str16",
+            "id", "name", "desc", "str1", "str2", "str3", "str4", "str5", "str6", "str7", "str8",
+            "str9", "str10", "str11", "str12", "str13", "str14", "str15", "str16",
         ],
     )
 }
@@ -124,11 +126,10 @@ fn ensure_columns(connection: &Connection, table: &str, required: &[&str]) -> Ap
         })?);
     }
     if actual.is_empty() {
-        return Err(AppError::new(
-            "ygopro_cdb.schema_missing_table",
-            "CDB table is missing",
-        )
-        .with_detail("table", table));
+        return Err(
+            AppError::new("ygopro_cdb.schema_missing_table", "CDB table is missing")
+                .with_detail("table", table),
+        );
     }
     let missing = required
         .iter()
@@ -157,7 +158,10 @@ fn decode_card_row(row: &Row<'_>) -> rusqlite::Result<YgoProCardRecord> {
         name: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
         desc: row.get::<_, Option<String>>(12)?.unwrap_or_default(),
         strings: (13..=28)
-            .map(|idx| row.get::<_, Option<String>>(idx).map(|value| value.unwrap_or_default()))
+            .map(|idx| {
+                row.get::<_, Option<String>>(idx)
+                    .map(|value| value.unwrap_or_default())
+            })
             .collect::<Result<Vec<_>, _>>()?,
     };
     let now = now_utc();

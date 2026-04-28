@@ -25,7 +25,10 @@ impl<'a> ExportService<'a> {
         &self,
         input: PreviewExportBundleInput,
     ) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
-        crate::application::pack::service::ensure_workspace_matches(self.state, &input.workspace_id)?;
+        crate::application::pack::service::ensure_workspace_matches(
+            self.state,
+            &input.workspace_id,
+        )?;
         if input.pack_ids.is_empty() {
             return Err(AppError::new(
                 "export.pack_ids_required",
@@ -35,11 +38,13 @@ impl<'a> ExportService<'a> {
 
         let mut packs = Vec::new();
         for pack_id in &input.pack_ids {
-            packs.push(crate::application::pack::service::require_open_pack_snapshot(
-                self.state,
-                &input.workspace_id,
-                pack_id,
-            )?);
+            packs.push(
+                crate::application::pack::service::require_open_pack_snapshot(
+                    self.state,
+                    &input.workspace_id,
+                    pack_id,
+                )?,
+            );
         }
 
         let issues = self.collect_export_issues(&packs, &input.export_language);
@@ -61,7 +66,12 @@ impl<'a> ExportService<'a> {
                 card_count: packs.iter().map(|pack| pack.cards.len()).sum(),
                 main_image_count: packs
                     .iter()
-                    .map(|pack| pack.asset_index.values().filter(|state| state.has_image).count())
+                    .map(|pack| {
+                        pack.asset_index
+                            .values()
+                            .filter(|state| state.has_image)
+                            .count()
+                    })
                     .sum(),
                 field_image_count: packs
                     .iter()
@@ -74,7 +84,12 @@ impl<'a> ExportService<'a> {
                     .sum(),
                 script_count: packs
                     .iter()
-                    .map(|pack| pack.asset_index.values().filter(|state| state.has_script).count())
+                    .map(|pack| {
+                        pack.asset_index
+                            .values()
+                            .filter(|state| state.has_script)
+                            .count()
+                    })
                     .sum(),
                 warning_count,
                 error_count,
@@ -276,9 +291,12 @@ fn push_duplicate_owner_issues<T>(
         let unique = pack_ids.iter().collect::<BTreeSet<_>>();
         if unique.len() > 1 {
             issues.push(
-                ValidationIssue::error(code, ValidationTarget::new("export").with_field(field_name))
-                    .with_param(field_name, value)
-                    .with_param("pack_ids", pack_ids),
+                ValidationIssue::error(
+                    code,
+                    ValidationTarget::new("export").with_field(field_name),
+                )
+                .with_param(field_name, value)
+                .with_param("pack_ids", pack_ids),
             );
         }
     }

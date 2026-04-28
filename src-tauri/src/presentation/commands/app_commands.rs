@@ -363,7 +363,8 @@ pub fn search_standard_strings(
     state: &AppState,
     input: crate::application::dto::standard_pack::SearchStandardStringsInput,
 ) -> AppResult<crate::application::dto::standard_pack::StandardStringsPageDto> {
-    crate::application::standard_pack::service::StandardPackService::new(state).search_strings(input)
+    crate::application::standard_pack::service::StandardPackService::new(state)
+        .search_strings(input)
 }
 
 pub fn get_standard_card(

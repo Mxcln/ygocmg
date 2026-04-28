@@ -114,10 +114,14 @@ impl PackStringsFile {
                     return UpsertPackStringTranslationOutcome::NoChange;
                 }
                 let previous_value = existing.clone();
-                record.values.insert(language.to_string(), entry.value.clone());
+                record
+                    .values
+                    .insert(language.to_string(), entry.value.clone());
                 return UpsertPackStringTranslationOutcome::Updated { previous_value };
             }
-            record.values.insert(language.to_string(), entry.value.clone());
+            record
+                .values
+                .insert(language.to_string(), entry.value.clone());
             return UpsertPackStringTranslationOutcome::Inserted;
         }
 
@@ -132,10 +136,7 @@ impl PackStringsFile {
         UpsertPackStringTranslationOutcome::Inserted
     }
 
-    pub fn upsert_record(
-        &mut self,
-        record: PackStringRecord,
-    ) -> UpsertPackStringRecordOutcome {
+    pub fn upsert_record(&mut self, record: PackStringRecord) -> UpsertPackStringRecordOutcome {
         if let Some(existing) = self.get_record_mut(&record.kind, record.key) {
             if existing == &record {
                 return UpsertPackStringRecordOutcome::NoChange;

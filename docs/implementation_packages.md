@@ -55,6 +55,7 @@
    - 标准包索引缓存 `<app_data>/standard_pack/index.json` 已升级为 schema v2，包含 CDB 卡片、asset state、`strings.conf` 完整只读记录与 namespace baseline
    - 新增 `rebuild_standard_pack_index` Job、标准包状态、Cards 搜索分页、Strings 搜索分页、只读详情 API
    - 前端 Standard Pack 入口支持状态/重建、Cards 搜索排序分页、只读详情、Strings 只读搜索/过滤/分页
+   - 后端新增标准索引运行时内存缓存，Cards / Strings 浏览和单卡详情复用同一索引快照；单卡详情通过 `code -> record` 映射查找，避免每次点击都重读完整 `index.json`
    - rebuild 时资源状态通过一次性扫描 `pics/`、`pics/field/`、`script/` 建索引，不再逐卡访问文件系统
    - 标准源文件变化只标记 stale，不做文件监听或自动 rebuild；旧索引仍可浏览，用户手动 rebuild 后更新
    - 自定义卡号与导出预检已优先使用 P7 标准索引；标准卡号完全重复为 hard error，标准保留范围未重复为 warning
@@ -405,6 +406,8 @@
 14. 标准 CDB 读取已抽到 `ygopro_cdb`，并增加必要表/列 schema 校验
 15. 标准资源状态已改为目录预扫描：一次扫描 `pics/`、`pics/field/`、`script/`，再按 card code 做内存查询
 16. 标准包更新策略已收敛为轻量 stale 检测：不监听运行中更新，不自动 rebuild，旧索引优先可用
+17. 标准包索引新增运行时内存缓存：`search_standard_cards`、`search_standard_strings`、`get_standard_card` 共享缓存快照，缓存按 `index.json` 文件 stamp 自动失效
+18. `get_standard_card` 已从“重读完整索引并线性查找”优化为缓存内 `code -> record` 映射查找；`rebuild_standard_pack_index` 写入磁盘缓存后会刷新运行时缓存
 
 本轮未做：
 1. 标准包加入 workspace session

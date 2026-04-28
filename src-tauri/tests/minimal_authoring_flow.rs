@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 
 use tempfile::tempdir;
-use ygocmg_core::bootstrap::wiring::build_app_state;
 use ygocmg_core::application::dto::card::{
     CardSortFieldDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, GetCardInput,
     ListCardsInput, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
@@ -17,6 +16,7 @@ use ygocmg_core::application::dto::strings::{
     ConfirmPackStringsWriteInput, DeletePackStringsInput, ListPackStringsInput, PackStringEntryDto,
     PackStringKeyDto, UpsertPackStringInput,
 };
+use ygocmg_core::bootstrap::wiring::build_app_state;
 use ygocmg_core::domain::card::model::{
     Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race, SpellSubtype,
 };
@@ -108,15 +108,13 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             warnings,
             ..
         } => {
-            assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
-            app_commands::confirm_card_write(
-                &state,
-                ConfirmCardWriteInput {
-                    confirmation_token,
-                },
-            )
-            .unwrap()
-            .card
+            assert!(
+                !warnings.is_empty(),
+                "code outside recommended range should produce warnings"
+            );
+            app_commands::confirm_card_write(&state, ConfirmCardWriteInput { confirmation_token })
+                .unwrap()
+                .card
         }
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -168,15 +166,13 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             warnings,
             ..
         } => {
-            assert!(!warnings.is_empty(), "code outside recommended range should produce warnings");
-            app_commands::confirm_card_write(
-                &state,
-                ConfirmCardWriteInput {
-                    confirmation_token,
-                },
-            )
-            .unwrap()
-            .card
+            assert!(
+                !warnings.is_empty(),
+                "code outside recommended range should produce warnings"
+            );
+            app_commands::confirm_card_write(&state, ConfirmCardWriteInput { confirmation_token })
+                .unwrap()
+                .card
         }
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -186,7 +182,8 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     assert!(script_path(&pack_path, updated.code).exists());
 
     let reopened_state = build_app_state(app_dir.path().to_path_buf()).unwrap();
-    let reopened_workspace = app_commands::open_workspace(&reopened_state, workspace_path.clone()).unwrap();
+    let reopened_workspace =
+        app_commands::open_workspace(&reopened_state, workspace_path.clone()).unwrap();
     app_commands::open_pack(&reopened_state, &pack.id).unwrap();
     let sessions = reopened_state.sessions.read().unwrap();
     let reopened_pack = sessions.open_packs.get(&pack.id).unwrap();
@@ -312,7 +309,9 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let _config = app_commands::initialize(&state).unwrap();
-    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
     app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -365,8 +364,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
     .unwrap()
     {
         WriteResultDto::NeedsConfirmation {
-            confirmation_token,
-            ..
+            confirmation_token, ..
         } => confirmation_token,
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -418,8 +416,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
     .unwrap()
     {
         WriteResultDto::NeedsConfirmation {
-            confirmation_token,
-            ..
+            confirmation_token, ..
         } => confirmation_token,
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -479,11 +476,15 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
 fn create_confirmation_reuses_staged_card_identity() {
     let app_dir = tempdir().unwrap();
     let workspace_root = tempdir().unwrap();
-    let workspace_path = workspace_root.path().join("workspace-confirmation-identity");
+    let workspace_path = workspace_root
+        .path()
+        .join("workspace-confirmation-identity");
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let _config = app_commands::initialize(&state).unwrap();
-    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
     app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -536,8 +537,7 @@ fn create_confirmation_reuses_staged_card_identity() {
     .unwrap()
     {
         WriteResultDto::NeedsConfirmation {
-            confirmation_token,
-            ..
+            confirmation_token, ..
         } => confirmation_token,
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -554,13 +554,9 @@ fn create_confirmation_reuses_staged_card_identity() {
         .create_card_seed
         .expect("staged create entry should carry card seed");
 
-    let confirmed = app_commands::confirm_card_write(
-        &state,
-        ConfirmCardWriteInput {
-            confirmation_token,
-        },
-    )
-    .unwrap();
+    let confirmed =
+        app_commands::confirm_card_write(&state, ConfirmCardWriteInput { confirmation_token })
+            .unwrap();
 
     assert_eq!(confirmed.card.id, staged_card.id);
     assert_eq!(confirmed.card.created_at, staged_card.created_at);
@@ -574,7 +570,9 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let _config = app_commands::initialize(&state).unwrap();
-    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
     app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -763,7 +761,9 @@ fn duplicate_pack_ids_fail_workspace_open() {
     .unwrap();
     let metadata = json_store::load_pack_metadata(&original_pack_path).unwrap();
 
-    let duplicate_dir = workspace_path.join("packs").join("duplicate-pack--cafebabe");
+    let duplicate_dir = workspace_path
+        .join("packs")
+        .join("duplicate-pack--cafebabe");
     json_store::ensure_pack_layout(&duplicate_dir).unwrap();
     json_store::save_pack_metadata(&duplicate_dir, &metadata).unwrap();
     json_store::save_cards(&duplicate_dir, &[]).unwrap();
@@ -835,7 +835,9 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let _config = app_commands::initialize(&state).unwrap();
-    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
     app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -1049,8 +1051,7 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
     .unwrap()
     {
         WriteResultDto::NeedsConfirmation {
-            confirmation_token,
-            ..
+            confirmation_token, ..
         } => confirmation_token,
         WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
     };
@@ -1109,12 +1110,10 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
         DeletePackStringsInput {
             workspace_id: workspace.id,
             pack_id: pack.id,
-            entries: vec![
-                PackStringKeyDto {
-                    kind: PackStringKind::Victory,
-                    key: 0x155,
-                },
-            ],
+            entries: vec![PackStringKeyDto {
+                kind: PackStringKind::Victory,
+                key: 0x155,
+            }],
         },
     )
     .unwrap();
@@ -1128,14 +1127,17 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
 }
 
 #[test]
-fn resource_management_supports_images_scripts_and_external_editor_validation() -> Result<(), Box<dyn std::error::Error>> {
+fn resource_management_supports_images_scripts_and_external_editor_validation()
+-> Result<(), Box<dyn std::error::Error>> {
     let app_dir = tempdir().unwrap();
     let workspace_root = tempdir().unwrap();
     let workspace_path = workspace_root.path().join("workspace-resources");
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let _config = app_commands::initialize(&state).unwrap();
-    let workspace = app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
     app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
     let pack = app_commands::create_pack(
         &state,
@@ -1200,7 +1202,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
     }
     let saved_main = card_image_path(&pack_path, 100_000_100);
     assert!(saved_main.exists());
-    let main_image = image::ImageReader::open(&saved_main).unwrap().decode().unwrap();
+    let main_image = image::ImageReader::open(&saved_main)
+        .unwrap()
+        .decode()
+        .unwrap();
     assert_eq!(main_image.width(), 400);
     assert_eq!(main_image.height(), 580);
 
@@ -1214,7 +1219,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
         },
     )
     .unwrap_err();
-    assert_eq!(not_field_error.code, "resource.field_image_requires_field_spell");
+    assert_eq!(
+        not_field_error.code,
+        "resource.field_image_requires_field_spell"
+    );
 
     let field_result = app_commands::import_field_image(
         &state,
@@ -1232,7 +1240,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
     }
     let saved_field = field_image_path(&pack_path, 100_000_110);
     assert!(saved_field.exists());
-    let field_image = image::ImageReader::open(&saved_field).unwrap().decode().unwrap();
+    let field_image = image::ImageReader::open(&saved_field)
+        .unwrap()
+        .decode()
+        .unwrap();
     assert_eq!(field_image.width(), 321);
     assert_eq!(field_image.height(), 100);
 
@@ -1276,7 +1287,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
         WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
     }
     let script_path_on_disk = script_path(&pack_path, 100_000_100);
-    assert_eq!(fs::read_to_string(&script_path_on_disk).unwrap(), "-- imported script");
+    assert_eq!(
+        fs::read_to_string(&script_path_on_disk).unwrap(),
+        "-- imported script"
+    );
 
     let no_editor_error = app_commands::open_script_external(
         &state,
@@ -1287,7 +1301,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
         },
     )
     .unwrap_err();
-    assert_eq!(no_editor_error.code, "resource.external_editor_not_configured");
+    assert_eq!(
+        no_editor_error.code,
+        "resource.external_editor_not_configured"
+    );
 
     let mut config = default_global_config();
     config.external_text_editor_path = Some(source_dir.path().join("missing-editor.exe"));
@@ -1301,7 +1318,10 @@ fn resource_management_supports_images_scripts_and_external_editor_validation() 
         },
     )
     .unwrap_err();
-    assert_eq!(missing_editor_error.code, "resource.external_editor_missing");
+    assert_eq!(
+        missing_editor_error.code,
+        "resource.external_editor_missing"
+    );
 
     let delete_script = app_commands::delete_script(
         &state,
@@ -1464,16 +1484,8 @@ fn create_card_direct(
                 } else {
                     None
                 },
-                atk: if is_monster {
-                    Some(1500)
-                } else {
-                    None
-                },
-                def: if is_monster {
-                    Some(1200)
-                } else {
-                    None
-                },
+                atk: if is_monster { Some(1500) } else { None },
+                def: if is_monster { Some(1200) } else { None },
                 race: if is_monster {
                     Some(Race::Warrior)
                 } else {
@@ -1484,11 +1496,7 @@ fn create_card_direct(
                 } else {
                     None
                 },
-                level: if is_monster {
-                    Some(4)
-                } else {
-                    None
-                },
+                level: if is_monster { Some(4) } else { None },
                 pendulum: None,
                 link: None,
                 spell_subtype,
@@ -1543,16 +1551,8 @@ fn update_card_direct(
                 } else {
                     None
                 },
-                atk: if is_monster {
-                    Some(1600)
-                } else {
-                    None
-                },
-                def: if is_monster {
-                    Some(1200)
-                } else {
-                    None
-                },
+                atk: if is_monster { Some(1600) } else { None },
+                def: if is_monster { Some(1200) } else { None },
                 race: if is_monster {
                     Some(Race::Warrior)
                 } else {
@@ -1563,11 +1563,7 @@ fn update_card_direct(
                 } else {
                     None
                 },
-                level: if is_monster {
-                    Some(4)
-                } else {
-                    None
-                },
+                level: if is_monster { Some(4) } else { None },
                 pendulum: None,
                 link: None,
                 spell_subtype,

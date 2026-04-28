@@ -48,18 +48,22 @@ pub fn load_workspace_pack_inventory(workspace_path: &Path) -> AppResult<Workspa
 
         let metadata = json_store::load_pack_metadata(&pack_path)?;
         if let Some(existing_path) = pack_paths.get(&metadata.id) {
-            return Err(
-                AppError::new("pack.duplicate_id", "duplicate pack id detected in workspace")
-                    .with_detail("pack_id", metadata.id.clone())
-                    .with_detail("path", pack_path.display().to_string())
-                    .with_detail("existing_path", existing_path.display().to_string()),
-            );
+            return Err(AppError::new(
+                "pack.duplicate_id",
+                "duplicate pack id detected in workspace",
+            )
+            .with_detail("pack_id", metadata.id.clone())
+            .with_detail("path", pack_path.display().to_string())
+            .with_detail("existing_path", existing_path.display().to_string()));
         }
 
         let card_count = json_store::load_cards(&pack_path)
             .map(|cards| cards.len())
             .unwrap_or_default();
-        pack_overviews.insert(metadata.id.clone(), derive_pack_overview(&metadata, card_count));
+        pack_overviews.insert(
+            metadata.id.clone(),
+            derive_pack_overview(&metadata, card_count),
+        );
         pack_paths.insert(metadata.id, pack_path);
     }
 
@@ -69,15 +73,13 @@ pub fn load_workspace_pack_inventory(workspace_path: &Path) -> AppResult<Workspa
     })
 }
 
-pub fn resolve_pack_path(
-    inventory: &WorkspacePackInventory,
-    pack_id: &str,
-) -> AppResult<PathBuf> {
-    inventory
-        .pack_paths
-        .get(pack_id)
-        .cloned()
-        .ok_or_else(|| AppError::new("pack.path_not_indexed", "pack path is not indexed in workspace"))
+pub fn resolve_pack_path(inventory: &WorkspacePackInventory, pack_id: &str) -> AppResult<PathBuf> {
+    inventory.pack_paths.get(pack_id).cloned().ok_or_else(|| {
+        AppError::new(
+            "pack.path_not_indexed",
+            "pack path is not indexed in workspace",
+        )
+    })
 }
 
 pub fn suggest_pack_storage_name(
@@ -97,14 +99,12 @@ pub fn suggest_pack_storage_name(
         }
     }
 
-    Err(
-        AppError::new(
-            "pack.storage_name_conflict",
-            "unable to allocate a unique pack storage name",
-        )
-        .with_detail("pack_id", pack_id)
-        .with_detail("display_name", display_name),
+    Err(AppError::new(
+        "pack.storage_name_conflict",
+        "unable to allocate a unique pack storage name",
     )
+    .with_detail("pack_id", pack_id)
+    .with_detail("display_name", display_name))
 }
 
 pub fn sanitize_pack_storage_label(display_name: &str) -> String {

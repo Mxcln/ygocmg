@@ -38,8 +38,9 @@ impl<'a> PackService<'a> {
         display_language_order: Vec<String>,
         default_export_language: Option<String>,
     ) -> AppResult<PackMetadata> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let now = now_utc();
         let metadata = PackMetadata {
             id: Uuid::now_v7().to_string(),
@@ -81,8 +82,9 @@ impl<'a> PackService<'a> {
     }
 
     pub fn open_pack(&self, pack_id: &str) -> AppResult<PackMetadata> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let workspace_id = self.current_workspace_id()?;
 
         {
@@ -125,8 +127,9 @@ impl<'a> PackService<'a> {
     }
 
     pub fn close_pack(&self, pack_id: &str) -> AppResult<()> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
 
         {
             let mut sessions = self.state.sessions.write().map_err(|_| {
@@ -151,8 +154,9 @@ impl<'a> PackService<'a> {
     }
 
     pub fn set_active_pack(&self, pack_id: &str) -> AppResult<()> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
 
         {
             let mut sessions = self.state.sessions.write().map_err(|_| {
@@ -162,7 +166,11 @@ impl<'a> PackService<'a> {
                 AppError::new("workspace.not_open", "no workspace is currently open")
             })?;
 
-            if !workspace.open_pack_ids.iter().any(|current| current == pack_id) {
+            if !workspace
+                .open_pack_ids
+                .iter()
+                .any(|current| current == pack_id)
+            {
                 return Err(AppError::new("pack.not_open", "pack is not currently open"));
             }
 
@@ -182,8 +190,9 @@ impl<'a> PackService<'a> {
         display_language_order: Vec<String>,
         default_export_language: Option<String>,
     ) -> AppResult<PackMetadata> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
 
         let mut metadata = json_store::load_pack_metadata(&pack_path)?;
@@ -237,8 +246,9 @@ impl<'a> PackService<'a> {
     }
 
     pub fn delete_pack(&self, pack_id: &str) -> AppResult<()> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let pack_path = self.resolve_pack_path(&workspace_path, pack_id)?;
         if pack_path.exists() {
             fs::remove_dir_all(&pack_path).map_err(|source| {
@@ -278,8 +288,9 @@ impl<'a> PackService<'a> {
     }
 
     pub fn refresh_current_workspace_summary(&self) -> AppResult<()> {
-        let workspace_path = crate::application::workspace::service::WorkspaceService::new(self.state)
-            .current_workspace_path()?;
+        let workspace_path =
+            crate::application::workspace::service::WorkspaceService::new(self.state)
+                .current_workspace_path()?;
         let meta = json_store::load_workspace_meta(&workspace_path)?;
         let inventory = load_pack_inventory(&workspace_path)?;
 
@@ -322,7 +333,11 @@ impl<'a> PackService<'a> {
         json_store::save_workspace_meta(workspace_path, &meta)
     }
 
-    fn resolve_pack_path(&self, workspace_path: &Path, pack_id: &str) -> AppResult<std::path::PathBuf> {
+    fn resolve_pack_path(
+        &self,
+        workspace_path: &Path,
+        pack_id: &str,
+    ) -> AppResult<std::path::PathBuf> {
         let sessions = self.state.sessions.read().map_err(|_| {
             AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
         })?;
@@ -350,9 +365,10 @@ pub fn load_pack_overviews(workspace_path: &Path) -> AppResult<BTreeMap<PackId, 
 }
 
 pub fn current_workspace_id(state: &AppState) -> AppResult<String> {
-    let sessions = state.sessions.read().map_err(|_| {
-        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-    })?;
+    let sessions = state
+        .sessions
+        .read()
+        .map_err(|_| AppError::new("pack.session_lock_poisoned", "pack session lock poisoned"))?;
     sessions
         .current_workspace_id()
         .cloned()
@@ -360,9 +376,10 @@ pub fn current_workspace_id(state: &AppState) -> AppResult<String> {
 }
 
 pub fn ensure_workspace_matches(state: &AppState, workspace_id: &str) -> AppResult<()> {
-    let sessions = state.sessions.read().map_err(|_| {
-        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-    })?;
+    let sessions = state
+        .sessions
+        .read()
+        .map_err(|_| AppError::new("pack.session_lock_poisoned", "pack session lock poisoned"))?;
     ensure_workspace_matches_locked(&sessions, workspace_id)
 }
 
@@ -371,9 +388,10 @@ pub fn require_open_pack_snapshot(
     workspace_id: &str,
     pack_id: &str,
 ) -> AppResult<PackSession> {
-    let sessions = state.sessions.read().map_err(|_| {
-        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-    })?;
+    let sessions = state
+        .sessions
+        .read()
+        .map_err(|_| AppError::new("pack.session_lock_poisoned", "pack session lock poisoned"))?;
     ensure_workspace_matches_locked(&sessions, workspace_id)?;
     sessions
         .open_packs
@@ -382,10 +400,14 @@ pub fn require_open_pack_snapshot(
         .ok_or_else(|| AppError::new("pack.not_open", "pack is not currently open"))
 }
 
-pub fn try_get_open_pack_snapshot(state: &AppState, pack_id: &str) -> AppResult<Option<PackSession>> {
-    let sessions = state.sessions.read().map_err(|_| {
-        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-    })?;
+pub fn try_get_open_pack_snapshot(
+    state: &AppState,
+    pack_id: &str,
+) -> AppResult<Option<PackSession>> {
+    let sessions = state
+        .sessions
+        .read()
+        .map_err(|_| AppError::new("pack.session_lock_poisoned", "pack session lock poisoned"))?;
     Ok(sessions.open_packs.get(pack_id).cloned())
 }
 
@@ -395,9 +417,10 @@ pub fn replace_open_pack_session(
     pack_id: &str,
     session: PackSession,
 ) -> AppResult<()> {
-    let mut sessions = state.sessions.write().map_err(|_| {
-        AppError::new("pack.session_lock_poisoned", "pack session lock poisoned")
-    })?;
+    let mut sessions = state
+        .sessions
+        .write()
+        .map_err(|_| AppError::new("pack.session_lock_poisoned", "pack session lock poisoned"))?;
     ensure_workspace_matches_locked(&sessions, workspace_id)?;
     if !sessions.open_packs.contains_key(pack_id) {
         return Err(AppError::new("pack.not_open", "pack is not currently open"));
@@ -423,7 +446,8 @@ pub fn build_pack_session(
     revision: u64,
 ) -> AppResult<PackSession> {
     let asset_index = build_asset_index(&pack_path, &cards);
-    let card_list_cache = build_card_list_cache(&cards, &asset_index, &metadata.display_language_order);
+    let card_list_cache =
+        build_card_list_cache(&cards, &asset_index, &metadata.display_language_order);
     let source_stamp = build_source_stamp(&pack_path, &metadata)?;
 
     Ok(PackSession {
@@ -500,15 +524,16 @@ fn ensure_workspace_matches_locked(
     sessions: &crate::runtime::sessions::SessionManager,
     workspace_id: &str,
 ) -> AppResult<()> {
-    let current = sessions.current_workspace_id().ok_or_else(|| {
-        AppError::new("workspace.not_open", "no workspace is currently open")
-    })?;
+    let current = sessions
+        .current_workspace_id()
+        .ok_or_else(|| AppError::new("workspace.not_open", "no workspace is currently open"))?;
     if current != workspace_id {
-        return Err(
-            AppError::new("workspace.mismatch", "workspace id does not match current session")
-                .with_detail("expected_workspace_id", current)
-                .with_detail("actual_workspace_id", workspace_id),
-        );
+        return Err(AppError::new(
+            "workspace.mismatch",
+            "workspace id does not match current session",
+        )
+        .with_detail("expected_workspace_id", current)
+        .with_detail("actual_workspace_id", workspace_id));
     }
     Ok(())
 }

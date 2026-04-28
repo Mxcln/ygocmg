@@ -105,7 +105,10 @@ pub fn load_workspace_registry(app_data_dir: &Path) -> AppResult<WorkspaceRegist
     Ok(file)
 }
 
-pub fn save_workspace_registry(app_data_dir: &Path, registry: &WorkspaceRegistryFile) -> AppResult<()> {
+pub fn save_workspace_registry(
+    app_data_dir: &Path,
+    registry: &WorkspaceRegistryFile,
+) -> AppResult<()> {
     write_json(&workspace_registry_path(app_data_dir), registry)
 }
 
@@ -201,10 +204,14 @@ pub fn save_pack_strings(pack_path: &Path, strings: &PackStringsFile) -> AppResu
 #[derive(serde::Deserialize)]
 struct LegacyPackStringsFile {
     schema_version: u32,
-    entries: std::collections::BTreeMap<crate::domain::common::ids::LanguageCode, Vec<PackStringEntry>>,
+    entries:
+        std::collections::BTreeMap<crate::domain::common::ids::LanguageCode, Vec<PackStringEntry>>,
 }
 
-fn migrate_legacy_pack_strings(value: serde_json::Value, path: &Path) -> AppResult<PackStringsFile> {
+fn migrate_legacy_pack_strings(
+    value: serde_json::Value,
+    path: &Path,
+) -> AppResult<PackStringsFile> {
     let legacy: LegacyPackStringsFile = serde_json::from_value(value).map_err(|source| {
         AppError::new("json_store.deserialize_failed", source.to_string())
             .with_detail("path", path.display().to_string())

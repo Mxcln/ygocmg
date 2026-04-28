@@ -3,9 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::domain::common::error::{AppError, AppResult};
-use crate::domain::namespace::model::{
-    PackStringNamespaceIndex, StandardStringNamespaceBaseline,
-};
+use crate::domain::namespace::model::{PackStringNamespaceIndex, StandardStringNamespaceBaseline};
 use crate::domain::strings::model::{PackStringKind, PackStringRecord};
 
 pub fn load_records(path: &Path) -> AppResult<Vec<PackStringRecord>> {

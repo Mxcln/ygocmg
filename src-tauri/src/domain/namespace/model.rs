@@ -61,7 +61,8 @@ impl PackStringNamespaceIndex {
         self.system_keys.extend(other.system_keys.iter().copied());
         self.victory_keys.extend(other.victory_keys.iter().copied());
         self.counter_keys.extend(other.counter_keys.iter().copied());
-        self.setname_bases.extend(other.setname_bases.iter().copied());
+        self.setname_bases
+            .extend(other.setname_bases.iter().copied());
     }
 }
 
