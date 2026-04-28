@@ -119,6 +119,13 @@ impl<'a> WorkspaceService<'a> {
                 )
             })?
             .clear();
+        self.state
+            .preview_token_cache
+            .write()
+            .map_err(|_| {
+                AppError::new("preview.cache_lock_poisoned", "preview cache lock poisoned")
+            })?
+            .clear();
 
         self.upsert_registry_entry(WorkspaceRegistryEntry {
             workspace_id: meta.id,
@@ -225,6 +232,13 @@ impl<'a> WorkspaceService<'a> {
                         "confirmation.cache_lock_poisoned",
                         "confirmation cache lock poisoned",
                     )
+                })?
+                .invalidate_workspace(workspace_id);
+            self.state
+                .preview_token_cache
+                .write()
+                .map_err(|_| {
+                    AppError::new("preview.cache_lock_poisoned", "preview cache lock poisoned")
                 })?
                 .invalidate_workspace(workspace_id);
         }

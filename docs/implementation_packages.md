@@ -1,7 +1,7 @@
 # YGOCMG 最小实现与功能包规划
 
 日期：2026-04-25
-最近更新：2026-04-28
+最近更新：2026-04-29
 
 ## 目标
 
@@ -10,7 +10,7 @@
 1. 一个现在就可以持续实现、测试和演进的最小实现
 2. 一组之后可以在 Plan 模式下顺序推进的功能包
 
-## 进度更新（2026-04-28）
+## 进度更新（2026-04-29）
 
 1. 作者态 Rust 后端最小闭环已继续保持可用
 2. `P0 工程启动包` 已完成，当前仓库已经具备可启动的 Tauri + React 最小应用壳
@@ -59,9 +59,17 @@
    - rebuild 时资源状态通过一次性扫描 `pics/`、`pics/field/`、`script/` 建索引，不再逐卡访问文件系统
    - 标准源文件变化只标记 stale，不做文件监听或自动 rebuild；旧索引仍可浏览，用户手动 rebuild 后更新
    - 自定义卡号与导出预检已优先使用 P7 标准索引；标准卡号完全重复为 hard error，标准保留范围未重复为 warning
-10. 下一步建议根据目标选择：
+10. `P8 导入` 已完成后端闭环：
+   - 新增 `preview_import_pack` / `execute_import_pack` Tauri commands 与前端 TS API 合同
+   - 新增内存态 import `preview_token` cache，执行阶段只接收 `preview_token` 并提交 `import_pack` Job
+   - 支持从 `.cdb`、可选 `strings.conf`、`pics/`、`pics/field/`、`script/` 导入为新的作者态 custom pack
+   - CDB 与 `strings.conf` 文本根据用户显式指定的 `source_language` 写入，不自动猜测语言，也不落盘 `"default"` key
+   - 资源缺失作为 warning 统计展示；CDB schema、重复 code、标准卡号冲突、结构错误等作为 blocking error
+   - 已根据审阅修复 workspace 切换时 preview token 清理、移除未使用 domain model、减少 execute 前冗余 I/O，并补充测试
+11. 下一步建议根据目标选择：
    - 如果优先补生产效率，推进 `P5 批量编辑`
-   - 如果优先打通导入导出链路，基于 P7 接 `P8 / P9`
+   - 如果优先打通导出链路，基于 P8 接 `P9`
+   - 如果优先补完整产品交互，接入 P8 Import Pack 前端向导
 
 ## 当前最小实现
 
@@ -96,7 +104,7 @@
 
 1. 设置、workspace、pack、card 等业务页面与完整交互 UI
 2. 批量编辑与批量移动
-3. 导入预检与导入执行
+3. 完整前端导入向导
 4. 多包导出执行
 5. 前端任务中心 UI / 任务结果展示
 6. 前端 i18n
@@ -420,6 +428,9 @@
 
 ### P8 导入
 
+状态：
+已完成后端闭环（2026-04-29）
+
 目标：
 把运行时资源导入成作者态 pack。
 
@@ -428,6 +439,24 @@
 2. 预检
 3. `preview_token`
 4. Job 执行
+
+当前完成情况：
+1. 后端新增 `application/dto/import.rs`、`application/import/service.rs` 与内存态 `runtime/preview_token_cache.rs`
+2. 新增 `preview_import_pack` 与 `execute_import_pack` command，并注册到 Tauri invoke surface
+3. `preview_import_pack` 同步读取 CDB、可选 `strings.conf` 和资源目录，返回 blocking errors、warnings、缺失资源统计、`preview_token`、`target_pack_id`
+4. `execute_import_pack` consume `preview_token` 并提交 `JobKindDto::ImportPack`，job 内复核 source snapshot、workspace 与目标 pack 状态后写入作者态 pack
+5. 导入文本语言由用户显式指定 `source_language`；CDB 与 `strings.conf` 读取器产出的 `"default"` 在导入层统一映射到该语言
+6. 运行态 `script/c<code>.lua` 导入到作者态 `scripts/c<code>.lua`；主图与场地图复用现有图片转换逻辑
+7. workspace 打开或删除当前 workspace 时会同步清理 import preview tokens，避免旧 token 跨 workspace 残留
+8. 前端新增 `src/shared/contracts/import.ts` 与 `src/shared/api/importApi.ts`，但完整 Import Pack UI 尚未接入
+9. 新增 `src-tauri/tests/import_pack_flow.rs`，覆盖完整导入、缺资源 warning、重复 code 阻断、workspace 切换清 token
+
+本轮未做：
+1. 完整 Import Pack 前端向导
+2. Job result payload
+3. `cancel_job`
+4. preview token 持久化
+5. 导入到已有 pack
 
 依赖：
 1. P4
@@ -479,11 +508,11 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P8 导入` 开始。
+下一次进入 Plan 模式时，建议从 `P5 批量编辑`、`P8 Import Pack 前端向导` 或 `P9 导出` 开始。
 
 原因：
 
 1. P0、P1、P2、P3、P4 已形成连续可用链路
 2. 单卡编辑、资源管理、strings 管理都已具备作者态闭环
-3. P6 已经把长任务基础设施落地，后续可以直接服务标准包索引、导入和导出执行
-4. 若优先提升编辑效率，推进 P5；若优先打通导入导出链路，基于已完成的 P7 继续推进 P8 / P9
+3. P6 已经把长任务基础设施落地，P7 和 P8 已分别接入标准索引与导入执行
+4. 若优先提升编辑效率，推进 P5；若优先完善导入体验，接入 P8 前端；若优先打通输出链路，推进 P9

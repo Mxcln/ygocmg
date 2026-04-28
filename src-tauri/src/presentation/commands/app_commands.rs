@@ -6,6 +6,9 @@ use crate::application::dto::card::{
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::{ExportPreviewDto, PreviewExportBundleInput};
+use crate::application::dto::import::{
+    ExecuteImportPackInput, ImportPreviewDto, PreviewImportPackInput,
+};
 use crate::application::dto::job::{GetJobStatusInput, JobSnapshotDto};
 use crate::application::dto::resource::{
     CardAssetStateDto, CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput,
@@ -340,6 +343,20 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
     crate::application::export::service::ExportService::new(state).preview_export_bundle(input)
+}
+
+pub fn preview_import_pack(
+    state: &AppState,
+    input: PreviewImportPackInput,
+) -> AppResult<PreviewResultDto<ImportPreviewDto>> {
+    crate::application::import::service::ImportService::new(state).preview_import_pack(input)
+}
+
+pub fn execute_import_pack(
+    state: &AppState,
+    input: ExecuteImportPackInput,
+) -> AppResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::application::import::service::ImportService::new(state).execute_import_pack(input)
 }
 
 pub fn get_standard_pack_status(state: &AppState) -> StandardPackStatusDto {

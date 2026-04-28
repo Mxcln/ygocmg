@@ -3,6 +3,7 @@ export type WorkspaceId = string;
 export type PackId = string;
 export type CardId = string;
 export type JobId = string;
+export type PreviewToken = string;
 
 export interface ValidationTarget {
   scope: string;

@@ -2,6 +2,7 @@ pub mod card;
 pub mod config;
 pub mod dto;
 pub mod export;
+pub mod import;
 pub mod jobs;
 pub mod pack;
 pub mod resource;

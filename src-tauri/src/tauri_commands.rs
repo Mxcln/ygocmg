@@ -9,6 +9,7 @@ use crate::application::dto::card::{
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::PreviewExportBundleInput;
+use crate::application::dto::import::{ExecuteImportPackInput, PreviewImportPackInput};
 use crate::application::dto::job::GetJobStatusInput;
 use crate::application::dto::resource::{
     CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput, DeleteScriptInput,
@@ -408,6 +409,22 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> CommandResult<PreviewResultDto<crate::application::dto::export::ExportPreviewDto>> {
     crate::presentation::commands::app_commands::preview_export_bundle(&state, input)
+}
+
+#[tauri::command]
+pub fn preview_import_pack(
+    state: State<'_, AppState>,
+    input: PreviewImportPackInput,
+) -> CommandResult<PreviewResultDto<crate::application::dto::import::ImportPreviewDto>> {
+    crate::presentation::commands::app_commands::preview_import_pack(&state, input)
+}
+
+#[tauri::command]
+pub fn execute_import_pack(
+    state: State<'_, AppState>,
+    input: ExecuteImportPackInput,
+) -> CommandResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::presentation::commands::app_commands::execute_import_pack(&state, input)
 }
 
 #[tauri::command]
