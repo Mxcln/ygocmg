@@ -1,0 +1,583 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { open } from "@tauri-apps/plugin-dialog";
+import { importApi } from "../../shared/api/importApi";
+import { packApi } from "../../shared/api/packApi";
+import { jobApi } from "../../shared/api/jobApi";
+import { formatError } from "../../shared/utils/format";
+import type { PackMetadata } from "../../shared/contracts/pack";
+import type { ImportPreviewResult } from "../../shared/contracts/import";
+import type { JobSnapshot } from "../../shared/contracts/job";
+
+type WizardStep = 1 | 2 | 3;
+
+interface SourceForm {
+  cdbPath: string;
+  sourceLanguage: string;
+  picsDir: string;
+  fieldPicsDir: string;
+  scriptDir: string;
+  stringsConfPath: string;
+}
+
+interface MetadataForm {
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  displayLanguageOrder: string;
+  defaultExportLanguage: string;
+}
+
+const EMPTY_SOURCE: SourceForm = {
+  cdbPath: "",
+  sourceLanguage: "zh-CN",
+  picsDir: "",
+  fieldPicsDir: "",
+  scriptDir: "",
+  stringsConfPath: "",
+};
+
+const EMPTY_METADATA: MetadataForm = {
+  name: "",
+  author: "",
+  version: "1.0.0",
+  description: "",
+  displayLanguageOrder: "",
+  defaultExportLanguage: "",
+};
+
+function inferResourcePaths(cdbPath: string) {
+  const sep = cdbPath.includes("\\") ? "\\" : "/";
+  const lastSep = cdbPath.lastIndexOf(sep);
+  const parentDir = lastSep >= 0 ? cdbPath.substring(0, lastSep) : "";
+  const fileName = cdbPath.substring(lastSep + 1);
+  const baseName = fileName.replace(/\.cdb$/i, "");
+  return {
+    suggestedName: baseName,
+    picsDir: parentDir + sep + "pics",
+    fieldPicsDir: parentDir + sep + "pics" + sep + "field",
+    scriptDir: parentDir + sep + "script",
+    stringsConfPath: parentDir + sep + "strings.conf",
+  };
+}
+
+function isTerminalJob(job: JobSnapshot): boolean {
+  return ["succeeded", "failed", "cancelled"].includes(job.status);
+}
+
+export interface ImportPackPanelProps {
+  workspaceId: string;
+  onPackOpened: (packId: string, metadata: PackMetadata) => void;
+  onNotice: (tone: "success" | "warning" | "error", title: string, detail: string) => void;
+  closeModal: () => void;
+}
+
+export function ImportPackPanel({
+  workspaceId,
+  onPackOpened,
+  onNotice,
+  closeModal,
+}: ImportPackPanelProps) {
+  const [step, setStep] = useState<WizardStep>(1);
+  const [sourceForm, setSourceForm] = useState<SourceForm>(EMPTY_SOURCE);
+  const [metadataForm, setMetadataForm] = useState<MetadataForm>(EMPTY_METADATA);
+  const [metadataInitialized, setMetadataInitialized] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [previewResult, setPreviewResult] = useState<ImportPreviewResult | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [lastJob, setLastJob] = useState<JobSnapshot | null>(null);
+  const [openingPack, setOpeningPack] = useState(false);
+
+  const jobQuery = useQuery({
+    queryKey: ["import-job", activeJobId],
+    queryFn: () => jobApi.getJobStatus({ jobId: activeJobId! }),
+    enabled: activeJobId !== null,
+    refetchInterval: activeJobId ? 700 : false,
+  });
+
+  const activeJob = jobQuery.data ?? null;
+
+  useEffect(() => {
+    if (!activeJobId || !activeJob || !isTerminalJob(activeJob)) return;
+    setLastJob(activeJob);
+    setActiveJobId(null);
+  }, [activeJobId, activeJob]);
+
+  const canGoNext = sourceForm.cdbPath !== "" && sourceForm.sourceLanguage.trim() !== "";
+
+  function handleGoToStep2() {
+    if (!metadataInitialized) {
+      const inferred = sourceForm.cdbPath ? inferResourcePaths(sourceForm.cdbPath) : null;
+      setMetadataForm((prev) => ({
+        ...prev,
+        name: prev.name || inferred?.suggestedName || "",
+        displayLanguageOrder: prev.displayLanguageOrder || sourceForm.sourceLanguage,
+      }));
+      setMetadataInitialized(true);
+    }
+    setStep(2);
+  }
+
+  async function handleSelectCdb() {
+    const selected = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "CDB", extensions: ["cdb"] }],
+    });
+    if (!selected) return;
+    const path = typeof selected === "string" ? selected : selected;
+    const inferred = inferResourcePaths(path);
+    setSourceForm({
+      ...sourceForm,
+      cdbPath: path,
+      picsDir: inferred.picsDir,
+      fieldPicsDir: inferred.fieldPicsDir,
+      scriptDir: inferred.scriptDir,
+      stringsConfPath: inferred.stringsConfPath,
+    });
+    setMetadataInitialized(false);
+  }
+
+  async function handleBrowseDir(field: "picsDir" | "fieldPicsDir" | "scriptDir") {
+    const selected = await open({ directory: true, multiple: false });
+    if (!selected) return;
+    const path = typeof selected === "string" ? selected : selected;
+    setSourceForm({ ...sourceForm, [field]: path });
+  }
+
+  async function handleBrowseFile(field: "stringsConfPath") {
+    const selected = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "Strings", extensions: ["conf"] }],
+    });
+    if (!selected) return;
+    const path = typeof selected === "string" ? selected : selected;
+    setSourceForm({ ...sourceForm, [field]: path });
+  }
+
+  async function handlePreview() {
+    const name = metadataForm.name.trim();
+    const author = metadataForm.author.trim();
+    const version = metadataForm.version.trim();
+    if (!name || !author || !version) {
+      onNotice("warning", "Missing fields", "Pack name, author, and version are required.");
+      return;
+    }
+
+    setBusy("preview");
+    setPreviewError(null);
+    setPreviewResult(null);
+    setLastJob(null);
+
+    try {
+      const langOrder = metadataForm.displayLanguageOrder
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const result = await importApi.previewImportPack({
+        workspaceId,
+        newPackName: name,
+        newPackAuthor: author,
+        newPackVersion: version,
+        newPackDescription: metadataForm.description.trim() || null,
+        displayLanguageOrder: langOrder,
+        defaultExportLanguage: metadataForm.defaultExportLanguage.trim() || null,
+        cdbPath: sourceForm.cdbPath,
+        picsDir: sourceForm.picsDir || null,
+        fieldPicsDir: sourceForm.fieldPicsDir || null,
+        scriptDir: sourceForm.scriptDir || null,
+        stringsConfPath: sourceForm.stringsConfPath || null,
+        sourceLanguage: sourceForm.sourceLanguage.trim(),
+      });
+
+      setPreviewResult(result);
+      setStep(3);
+    } catch (err) {
+      setPreviewError(formatError(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleExecute() {
+    if (!previewResult) return;
+    setBusy("execute");
+
+    try {
+      const job = await importApi.executeImportPack({
+        previewToken: previewResult.preview_token,
+      });
+      setActiveJobId(job.job_id);
+    } catch (err) {
+      onNotice("error", "Import failed", formatError(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleOpenImportedPack() {
+    if (!previewResult) return;
+    setOpeningPack(true);
+    try {
+      const metadata = await packApi.openPack({ packId: previewResult.data.target_pack_id });
+      onPackOpened(previewResult.data.target_pack_id, metadata);
+      onNotice("success", "Pack imported", `"${previewResult.data.target_pack_name}" has been imported and opened.`);
+      closeModal();
+    } catch (err) {
+      onNotice("error", "Failed to open pack", formatError(err));
+    } finally {
+      setOpeningPack(false);
+    }
+  }
+
+  function handleBackFromStep3() {
+    setPreviewResult(null);
+    setPreviewError(null);
+    setLastJob(null);
+    setActiveJobId(null);
+    setStep(2);
+  }
+
+  const importing = activeJobId !== null;
+  const jobDone = lastJob !== null && isTerminalJob(lastJob);
+  const jobSucceeded = lastJob?.status === "succeeded";
+  const jobFailed = lastJob?.status === "failed";
+  const displayJob = activeJob ?? lastJob;
+
+  return (
+    <section className="import-panel">
+      <div className="panel-header">
+        <div>
+          <p className="section-kicker">Import</p>
+          <h3>Import from YGOPro</h3>
+        </div>
+        <div className="import-wizard-steps">
+          <span className={`wizard-step ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. Source</span>
+          <span className="wizard-step-sep">&rsaquo;</span>
+          <span className={`wizard-step ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>2. Metadata</span>
+          <span className="wizard-step-sep">&rsaquo;</span>
+          <span className={`wizard-step ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>3. Confirm</span>
+        </div>
+      </div>
+
+      {step === 1 && (
+        <div className="form-stack">
+          <div className="field">
+            <span>CDB file (required)</span>
+            <div className="file-picker-row">
+              <input
+                readOnly
+                value={sourceForm.cdbPath}
+                placeholder="Select a .cdb file..."
+                title={sourceForm.cdbPath || undefined}
+              />
+              <button type="button" className="ghost-button" onClick={() => void handleSelectCdb()}>
+                Browse
+              </button>
+            </div>
+          </div>
+
+          <div className="field">
+            <span>Source language (required)</span>
+            <input
+              value={sourceForm.sourceLanguage}
+              onChange={(e) => setSourceForm({ ...sourceForm, sourceLanguage: e.target.value })}
+              placeholder="zh-CN"
+            />
+          </div>
+
+          <div className="import-source-divider">Optional resource paths</div>
+
+          <FilePickerField
+            label="pics/ directory"
+            value={sourceForm.picsDir}
+            onBrowse={() => void handleBrowseDir("picsDir")}
+            onClear={() => setSourceForm({ ...sourceForm, picsDir: "" })}
+            placeholder="Card images directory"
+          />
+          <FilePickerField
+            label="pics/field/ directory"
+            value={sourceForm.fieldPicsDir}
+            onBrowse={() => void handleBrowseDir("fieldPicsDir")}
+            onClear={() => setSourceForm({ ...sourceForm, fieldPicsDir: "" })}
+            placeholder="Field images directory"
+          />
+          <FilePickerField
+            label="script/ directory"
+            value={sourceForm.scriptDir}
+            onBrowse={() => void handleBrowseDir("scriptDir")}
+            onClear={() => setSourceForm({ ...sourceForm, scriptDir: "" })}
+            placeholder="Lua scripts directory"
+          />
+          <FilePickerField
+            label="strings.conf"
+            value={sourceForm.stringsConfPath}
+            onBrowse={() => void handleBrowseFile("stringsConfPath")}
+            onClear={() => setSourceForm({ ...sourceForm, stringsConfPath: "" })}
+            placeholder="strings.conf file"
+          />
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!canGoNext}
+              onClick={handleGoToStep2}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="form-stack">
+          <div className="field">
+            <span>Pack name (required)</span>
+            <input
+              value={metadataForm.name}
+              onChange={(e) => setMetadataForm({ ...metadataForm, name: e.target.value })}
+              placeholder="My Custom Pack"
+            />
+          </div>
+
+          <div className="pack-form-row">
+            <div className="field">
+              <span>Author (required)</span>
+              <input
+                value={metadataForm.author}
+                onChange={(e) => setMetadataForm({ ...metadataForm, author: e.target.value })}
+                placeholder="Author Name"
+              />
+            </div>
+            <div className="field">
+              <span>Version (required)</span>
+              <input
+                value={metadataForm.version}
+                onChange={(e) => setMetadataForm({ ...metadataForm, version: e.target.value })}
+                placeholder="1.0.0"
+              />
+            </div>
+          </div>
+
+          <div className="field">
+            <span>Description</span>
+            <textarea
+              rows={2}
+              value={metadataForm.description}
+              onChange={(e) => setMetadataForm({ ...metadataForm, description: e.target.value })}
+              placeholder="Optional description"
+            />
+          </div>
+
+          <div className="pack-form-row">
+            <div className="field">
+              <span>Display languages</span>
+              <input
+                value={metadataForm.displayLanguageOrder}
+                onChange={(e) => setMetadataForm({ ...metadataForm, displayLanguageOrder: e.target.value })}
+                placeholder="zh-CN, en-US"
+              />
+            </div>
+            <div className="field">
+              <span>Default export language</span>
+              <input
+                value={metadataForm.defaultExportLanguage}
+                onChange={(e) => setMetadataForm({ ...metadataForm, defaultExportLanguage: e.target.value })}
+                placeholder="zh-CN"
+              />
+            </div>
+          </div>
+
+          {previewError && (
+            <div className="import-error-banner">{previewError}</div>
+          )}
+
+          <div className="form-actions">
+            <button type="button" className="ghost-button" onClick={() => setStep(1)}>
+              Back
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={busy !== null}
+              onClick={() => void handlePreview()}
+            >
+              {busy === "preview" ? "Previewing..." : "Preview Import"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && previewResult && (
+        <div className="import-preview-step">
+          <div className="import-preview-summary">
+            <div className="import-stat">
+              <span className="import-stat-value">{previewResult.data.card_count}</span>
+              <span className="import-stat-label">Cards</span>
+            </div>
+            <div className="import-stat">
+              <span className={`import-stat-value ${previewResult.data.error_count > 0 ? "stat-error" : ""}`}>
+                {previewResult.data.error_count}
+              </span>
+              <span className="import-stat-label">Errors</span>
+            </div>
+            <div className="import-stat">
+              <span className={`import-stat-value ${previewResult.data.warning_count > 0 ? "stat-warning" : ""}`}>
+                {previewResult.data.warning_count}
+              </span>
+              <span className="import-stat-label">Warnings</span>
+            </div>
+            <div className="import-stat">
+              <span className="import-stat-value">
+                {previewResult.data.missing_main_image_count}
+              </span>
+              <span className="import-stat-label">Missing Images</span>
+            </div>
+            <div className="import-stat">
+              <span className="import-stat-value">
+                {previewResult.data.missing_script_count}
+              </span>
+              <span className="import-stat-label">Missing Scripts</span>
+            </div>
+            <div className="import-stat">
+              <span className="import-stat-value">
+                {previewResult.data.missing_field_image_count}
+              </span>
+              <span className="import-stat-label">Missing Field Imgs</span>
+            </div>
+          </div>
+
+          {previewResult.data.error_count > 0 && (
+            <div className="import-error-banner">
+              Import has {previewResult.data.error_count} blocking error{previewResult.data.error_count > 1 ? "s" : ""}. Fix the source and try again.
+            </div>
+          )}
+
+          {previewResult.data.issues.length > 0 && (
+            <div className="import-issues-list">
+              <strong className="import-issues-header">
+                Issues ({previewResult.data.issues.length})
+              </strong>
+              <ul>
+                {previewResult.data.issues.map((issue, idx) => (
+                  <li key={idx} className={`import-issue import-issue-${issue.level}`}>
+                    <span className="import-issue-badge">{issue.level}</span>
+                    <span className="import-issue-code">{issue.code}</span>
+                    {issue.target.entity_id && (
+                      <span className="import-issue-entity">#{issue.target.entity_id}</span>
+                    )}
+                    {issue.params && Object.keys(issue.params).length > 0 && (
+                      <span className="import-issue-params">
+                        {Object.entries(issue.params).map(([k, v]) => `${k}=${v}`).join(", ")}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {displayJob && (
+            <div className={`import-job-strip ${displayJob.status}`}>
+              <span className="import-job-status">{displayJob.status}</span>
+              <strong>{displayJob.stage}</strong>
+              {displayJob.progress_percent != null && (
+                <span>{displayJob.progress_percent}%</span>
+              )}
+              {displayJob.message && <span>{displayJob.message}</span>}
+              {displayJob.error && (
+                <span className="import-job-error">{displayJob.error.code}: {displayJob.error.message}</span>
+              )}
+            </div>
+          )}
+
+          {jobSucceeded && (
+            <div className="import-success-banner">
+              Import completed successfully.
+            </div>
+          )}
+
+          <div className="form-actions">
+            {!jobDone && !importing && (
+              <>
+                <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={previewResult.data.error_count > 0 || busy !== null}
+                  onClick={() => void handleExecute()}
+                >
+                  {busy === "execute" ? "Submitting..." : "Import"}
+                </button>
+              </>
+            )}
+
+            {importing && (
+              <button type="button" className="ghost-button" disabled>
+                Importing...
+              </button>
+            )}
+
+            {jobSucceeded && (
+              <button
+                type="button"
+                className="primary-button"
+                disabled={openingPack}
+                onClick={() => void handleOpenImportedPack()}
+              >
+                {openingPack ? "Opening..." : "Open Imported Pack"}
+              </button>
+            )}
+
+            {jobFailed && (
+              <>
+                <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                  Back
+                </button>
+                <span className="import-fail-hint">Import job failed. Check errors above and try again.</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FilePickerField({
+  label,
+  value,
+  onBrowse,
+  onClear,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onBrowse: () => void;
+  onClear: () => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <div className="file-picker-row">
+        <input readOnly value={value} placeholder={placeholder} title={value || undefined} />
+        <button type="button" className="ghost-button" onClick={onBrowse}>
+          Browse
+        </button>
+        {value && (
+          <button type="button" className="ghost-button" onClick={onClear}>
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

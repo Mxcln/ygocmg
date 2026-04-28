@@ -2316,3 +2316,258 @@ input.strings-cell-input[type="number"]::-webkit-inner-spin-button {
   object-fit: cover;
   display: block;
 }
+
+/* ── Import Pack Wizard ── */
+
+.import-panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.import-wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.wizard-step {
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.wizard-step.active {
+  color: var(--text-1);
+}
+
+.wizard-step.current {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.wizard-step-sep {
+  color: var(--text-2);
+  opacity: 0.5;
+}
+
+.import-source-divider {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.file-picker-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.file-picker-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--input);
+  color: var(--text-0);
+  font-size: 13px;
+  cursor: default;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-picker-row .ghost-button {
+  flex-shrink: 0;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.import-error-banner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(171, 67, 56, 0.08);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(171, 67, 56, 0.15);
+}
+
+.import-success-banner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(33, 107, 76, 0.08);
+  color: #174b35;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(33, 107, 76, 0.15);
+}
+
+.import-preview-step {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.import-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.import-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.import-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-0);
+  line-height: 1.2;
+}
+
+.import-stat-value.stat-error {
+  color: var(--danger);
+}
+
+.import-stat-value.stat-warning {
+  color: #996216;
+}
+
+.import-stat-label {
+  font-size: 11px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.import-issues-list {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.import-issues-header {
+  display: block;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.import-issues-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.import-issue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.import-issue:last-child {
+  border-bottom: none;
+}
+
+.import-issue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.import-issue-error .import-issue-badge {
+  background: rgba(171, 67, 56, 0.12);
+  color: var(--danger);
+}
+
+.import-issue-warning .import-issue-badge {
+  background: rgba(153, 98, 22, 0.12);
+  color: #996216;
+}
+
+.import-issue-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.import-issue-entity {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.import-issue-params {
+  color: var(--text-2);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-job-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-1);
+  background: rgba(17, 94, 95, 0.08);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.import-job-strip.succeeded {
+  background: rgba(33, 107, 76, 0.08);
+}
+
+.import-job-strip.failed {
+  background: rgba(171, 67, 56, 0.08);
+}
+
+.import-job-status {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.import-job-error {
+  color: var(--danger);
+}
+
+.import-fail-hint {
+  font-size: 12px;
+  color: var(--danger);
+}

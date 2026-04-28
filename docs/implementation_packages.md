@@ -59,17 +59,17 @@
    - rebuild 时资源状态通过一次性扫描 `pics/`、`pics/field/`、`script/` 建索引，不再逐卡访问文件系统
    - 标准源文件变化只标记 stale，不做文件监听或自动 rebuild；旧索引仍可浏览，用户手动 rebuild 后更新
    - 自定义卡号与导出预检已优先使用 P7 标准索引；标准卡号完全重复为 hard error，标准保留范围未重复为 warning
-10. `P8 导入` 已完成后端闭环：
-   - 新增 `preview_import_pack` / `execute_import_pack` Tauri commands 与前端 TS API 合同
+10. `P8 导入` 已完成前后端闭环：
+   - 后端新增 `preview_import_pack` / `execute_import_pack` Tauri commands 与前端 TS API 合同
    - 新增内存态 import `preview_token` cache，执行阶段只接收 `preview_token` 并提交 `import_pack` Job
    - 支持从 `.cdb`、可选 `strings.conf`、`pics/`、`pics/field/`、`script/` 导入为新的作者态 custom pack
    - CDB 与 `strings.conf` 文本根据用户显式指定的 `source_language` 写入，不自动猜测语言，也不落盘 `"default"` key
    - 资源缺失作为 warning 统计展示；CDB schema、重复 code、标准卡号冲突、结构错误等作为 blocking error
    - 已根据审阅修复 workspace 切换时 preview token 清理、移除未使用 domain model、减少 execute 前冗余 I/O，并补充测试
+   - 前端 Import Pack 三步向导已接入 AddPackModal：Step 1 源文件选择（CDB + 自动推断资源路径）→ Step 2 Pack 元数据 → Step 3 预检结果、Job 执行与打开导入的 Pack
 11. 下一步建议根据目标选择：
    - 如果优先补生产效率，推进 `P5 批量编辑`
-   - 如果优先打通导出链路，基于 P8 接 `P9`
-   - 如果优先补完整产品交互，接入 P8 Import Pack 前端向导
+   - 如果优先打通导出链路，推进 `P9 导出`
 
 ## 当前最小实现
 
@@ -104,10 +104,9 @@
 
 1. 设置、workspace、pack、card 等业务页面与完整交互 UI
 2. 批量编辑与批量移动
-3. 完整前端导入向导
-4. 多包导出执行
-5. 前端任务中心 UI / 任务结果展示
-6. 前端 i18n
+3. 多包导出执行
+4. 前端任务中心 UI / 任务结果展示
+5. 前端 i18n
 
 ## 推荐功能包
 
@@ -429,7 +428,7 @@
 ### P8 导入
 
 状态：
-已完成后端闭环（2026-04-29）
+前后端均已完成（2026-04-29）
 
 目标：
 把运行时资源导入成作者态 pack。
@@ -439,8 +438,9 @@
 2. 预检
 3. `preview_token`
 4. Job 执行
+5. Import Pack 前端向导
 
-当前完成情况：
+当前完成情况（后端）：
 1. 后端新增 `application/dto/import.rs`、`application/import/service.rs` 与内存态 `runtime/preview_token_cache.rs`
 2. 新增 `preview_import_pack` 与 `execute_import_pack` command，并注册到 Tauri invoke surface
 3. `preview_import_pack` 同步读取 CDB、可选 `strings.conf` 和资源目录，返回 blocking errors、warnings、缺失资源统计、`preview_token`、`target_pack_id`
@@ -448,15 +448,22 @@
 5. 导入文本语言由用户显式指定 `source_language`；CDB 与 `strings.conf` 读取器产出的 `"default"` 在导入层统一映射到该语言
 6. 运行态 `script/c<code>.lua` 导入到作者态 `scripts/c<code>.lua`；主图与场地图复用现有图片转换逻辑
 7. workspace 打开或删除当前 workspace 时会同步清理 import preview tokens，避免旧 token 跨 workspace 残留
-8. 前端新增 `src/shared/contracts/import.ts` 与 `src/shared/api/importApi.ts`，但完整 Import Pack UI 尚未接入
+8. 前端新增 `src/shared/contracts/import.ts` 与 `src/shared/api/importApi.ts`
 9. 新增 `src-tauri/tests/import_pack_flow.rs`，覆盖完整导入、缺资源 warning、重复 code 阻断、workspace 切换清 token
 
+当前完成情况（前端）：
+1. `ImportPackPanel` — 三步向导组件，嵌入 `AddPackModal` 的 Import Pack tab
+2. Step 1（Source Selection）：Tauri 文件对话框选择 CDB（必填）和源语言，选择 CDB 后自动推断 `pics/`、`pics/field/`、`script/`、`strings.conf` 路径，可 Browse 修改或 Clear 清空
+3. Step 2（Pack Metadata）：填写 name/author/version/description/languages，点击 "Preview Import" 调用 `previewImportPack` API，成功后进入 Step 3
+4. Step 3（Preview & Execute）：展示预检统计（card count/error count/warning count/missing resources）和 issues 列表（局部滚动），blocking errors 禁用 Import 按钮；点击 Import 后提交 Job 并通过 TanStack Query `refetchInterval` 轮询进度；Job 成功后 "Open Imported Pack" 调 `openPack → onPackOpened → closeModal`
+5. `AddPackModal` 启用 Import Pack tab，通过 `useShellStore` 读取 `workspaceId` 传入 `ImportPackPanel`
+6. 新增 CSS 样式：向导步骤指示器、文件选择器行、预检摘要网格、issues 列表、Job 进度条、错误/成功 banner
+
 本轮未做：
-1. 完整 Import Pack 前端向导
-2. Job result payload
-3. `cancel_job`
-4. preview token 持久化
-5. 导入到已有 pack
+1. Job result payload
+2. `cancel_job`
+3. preview token 持久化
+4. 导入到已有 pack
 
 依赖：
 1. P4
@@ -508,11 +515,10 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P5 批量编辑`、`P8 Import Pack 前端向导` 或 `P9 导出` 开始。
+下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P9 导出` 开始。
 
 原因：
 
-1. P0、P1、P2、P3、P4 已形成连续可用链路
-2. 单卡编辑、资源管理、strings 管理都已具备作者态闭环
-3. P6 已经把长任务基础设施落地，P7 和 P8 已分别接入标准索引与导入执行
-4. 若优先提升编辑效率，推进 P5；若优先完善导入体验，接入 P8 前端；若优先打通输出链路，推进 P9
+1. P0–P4 已形成连续可用链路，P6–P8 已全部完成
+2. 单卡编辑、资源管理、strings 管理、标准包只读接入、导入均已具备完整闭环
+3. 若优先提升编辑效率，推进 P5；若优先打通输出链路，推进 P9

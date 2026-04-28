@@ -3,6 +3,7 @@ import { useShellStore } from "../../shared/stores/shellStore";
 import { packApi } from "../../shared/api/packApi";
 import type { PackMetadata, PackOverview } from "../../shared/contracts/pack";
 import { formatTimestamp, formatError } from "../../shared/utils/format";
+import { ImportPackPanel } from "./ImportPackPanel";
 
 type AddPackTab = "openPack" | "createPack" | "importPack";
 
@@ -43,6 +44,7 @@ export function AddPackModal({
   const addPackTab = useShellStore((s) => s.modal?.addPackTab ?? "openPack");
   const setAddPackTab = useShellStore((s) => s.setAddPackTab);
   const openPackIds = useShellStore((s) => s.openPackIds);
+  const workspaceId = useShellStore((s) => s.workspaceId);
 
   const [overviews, setOverviews] = useState<PackOverview[]>([]);
   const [loadingOverviews, setLoadingOverviews] = useState(false);
@@ -154,8 +156,7 @@ export function AddPackModal({
           <button
             type="button"
             className={addPackTab === "importPack" ? "active" : ""}
-            disabled
-            title="Import will be available in a future update"
+            onClick={() => setAddPackTab("importPack")}
           >
             Import Pack
           </button>
@@ -181,11 +182,14 @@ export function AddPackModal({
               onReset={() => setCreateForm(EMPTY_CREATE_FORM)}
               onSubmit={handleCreatePack}
             />
-          ) : (
-            <p className="empty-state-text">
-              Import from YGOPro resources will be available in a future update.
-            </p>
-          )}
+          ) : workspaceId ? (
+            <ImportPackPanel
+              workspaceId={workspaceId}
+              onPackOpened={onPackOpened}
+              onNotice={onNotice}
+              closeModal={closeModal}
+            />
+          ) : null}
         </div>
       </div>
     </>
