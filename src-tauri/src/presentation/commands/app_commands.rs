@@ -5,7 +5,9 @@ use crate::application::dto::card::{
     DeleteCardResultDto, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
-use crate::application::dto::export::{ExportPreviewDto, PreviewExportBundleInput};
+use crate::application::dto::export::{
+    ExecuteExportBundleInput, ExportPreviewDto, PreviewExportBundleInput,
+};
 use crate::application::dto::import::{
     ExecuteImportPackInput, ImportPreviewDto, PreviewImportPackInput,
 };
@@ -343,6 +345,13 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> AppResult<PreviewResultDto<ExportPreviewDto>> {
     crate::application::export::service::ExportService::new(state).preview_export_bundle(input)
+}
+
+pub fn execute_export_bundle(
+    state: &AppState,
+    input: ExecuteExportBundleInput,
+) -> AppResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::application::export::service::ExportService::new(state).execute_export_bundle(input)
 }
 
 pub fn preview_import_pack(

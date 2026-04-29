@@ -8,7 +8,7 @@ use crate::application::dto::card::{
     ListCardsInput, SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
-use crate::application::dto::export::PreviewExportBundleInput;
+use crate::application::dto::export::{ExecuteExportBundleInput, PreviewExportBundleInput};
 use crate::application::dto::import::{ExecuteImportPackInput, PreviewImportPackInput};
 use crate::application::dto::job::GetJobStatusInput;
 use crate::application::dto::resource::{
@@ -409,6 +409,14 @@ pub fn preview_export_bundle(
     input: PreviewExportBundleInput,
 ) -> CommandResult<PreviewResultDto<crate::application::dto::export::ExportPreviewDto>> {
     crate::presentation::commands::app_commands::preview_export_bundle(&state, input)
+}
+
+#[tauri::command]
+pub fn execute_export_bundle(
+    state: State<'_, AppState>,
+    input: ExecuteExportBundleInput,
+) -> CommandResult<crate::application::dto::job::JobAcceptedDto> {
+    crate::presentation::commands::app_commands::execute_export_bundle(&state, input)
 }
 
 #[tauri::command]

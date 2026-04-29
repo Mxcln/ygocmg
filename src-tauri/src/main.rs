@@ -60,6 +60,7 @@ fn main() {
             tauri_commands::delete_script,
             tauri_commands::open_script_external,
             tauri_commands::preview_export_bundle,
+            tauri_commands::execute_export_bundle,
             tauri_commands::preview_import_pack,
             tauri_commands::execute_import_pack,
             tauri_commands::get_standard_pack_status,

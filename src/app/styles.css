@@ -2571,3 +2571,107 @@ input.strings-cell-input[type="number"]::-webkit-inner-spin-button {
   font-size: 12px;
   color: var(--danger);
 }
+
+/* ── Export modal ────────────────────────────────── */
+
+.export-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-modal-body {
+  padding: 16px 20px;
+}
+
+.export-form {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.export-pack-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.export-pack-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.export-pack-item:last-child {
+  border-bottom: none;
+}
+
+.export-pack-item:hover {
+  background: var(--bg-2);
+}
+
+.export-pack-item.selected {
+  background: var(--brand-soft);
+}
+
+.export-pack-item input[type="checkbox"] {
+  flex-shrink: 0;
+  width: auto;
+  padding: 0;
+  border: revert;
+  background: revert;
+  box-shadow: none;
+}
+
+.export-pack-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-pack-detail {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.export-empty-packs {
+  padding: 16px 10px;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+}
+
+.export-select-all-btn {
+  font-size: 11px;
+  margin-left: 8px;
+  padding: 1px 6px;
+}
+
+.export-output-preview {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.export-output-path {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+}

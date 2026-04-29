@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 
+use crate::application::dto::export::PreviewExportBundleInput;
 use crate::application::dto::import::PreviewImportPackInput;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::{PackId, PreviewToken, WorkspaceId};
@@ -16,9 +17,20 @@ pub struct ImportPreviewEntry {
     pub input_snapshot: PreviewImportPackInput,
 }
 
+#[derive(Debug, Clone)]
+pub struct ExportPreviewEntry {
+    pub preview_token: PreviewToken,
+    pub workspace_id: WorkspaceId,
+    pub pack_ids: Vec<PackId>,
+    pub snapshot_hash: String,
+    pub expires_at: AppTimestamp,
+    pub input_snapshot: PreviewExportBundleInput,
+}
+
 #[derive(Debug, Default)]
 pub struct PreviewTokenCache {
     import_entries: BTreeMap<PreviewToken, ImportPreviewEntry>,
+    export_entries: BTreeMap<PreviewToken, ExportPreviewEntry>,
 }
 
 impl PreviewTokenCache {
@@ -27,21 +39,37 @@ impl PreviewTokenCache {
             .insert(entry.preview_token.clone(), entry);
     }
 
+    pub fn insert_export_entry(&mut self, entry: ExportPreviewEntry) {
+        self.export_entries
+            .insert(entry.preview_token.clone(), entry);
+    }
+
     pub fn remove_import_entry(&mut self, token: &PreviewToken) -> Option<ImportPreviewEntry> {
         self.import_entries.remove(token)
+    }
+
+    pub fn remove_export_entry(&mut self, token: &PreviewToken) -> Option<ExportPreviewEntry> {
+        self.export_entries.remove(token)
     }
 
     pub fn invalidate_workspace(&mut self, workspace_id: &str) {
         self.import_entries
             .retain(|_, entry| entry.workspace_id != workspace_id);
+        self.export_entries
+            .retain(|_, entry| entry.workspace_id != workspace_id);
     }
 
     pub fn clear(&mut self) {
         self.import_entries.clear();
+        self.export_entries.clear();
     }
 
     pub fn debug_get_import_entry(&self, token: &PreviewToken) -> Option<&ImportPreviewEntry> {
         self.import_entries.get(token)
+    }
+
+    pub fn debug_get_export_entry(&self, token: &PreviewToken) -> Option<&ExportPreviewEntry> {
+        self.export_entries.get(token)
     }
 }
 

@@ -67,9 +67,16 @@
    - 资源缺失作为 warning 统计展示；CDB schema、重复 code、标准卡号冲突、结构错误等作为 blocking error
    - 已根据审阅修复 workspace 切换时 preview token 清理、移除未使用 domain model、减少 execute 前冗余 I/O，并补充测试
    - 前端 Import Pack 三步向导已接入 AddPackModal：Step 1 源文件选择（CDB + 自动推断资源路径）→ Step 2 Pack 元数据 → Step 3 预检结果、Job 执行与打开导入的 Pack
-11. 下一步建议根据目标选择：
+11. `P9 导出` 已完成前后端闭环：
+   - 后端新增 `execute_export_bundle(preview_token)`，导出执行进入 `ExportBundle` Job，并复用 preview token / snapshot stale 复核机制
+   - 导出预检覆盖已打开 custom packs 的多包 code、标准包 code、目标语言文本、pack strings、`setname` full key / base、输出目录非空等冲突
+   - 导出写出 YGOPro 风格运行态目录：`<name>.cdb`、`strings.conf`、`pics/`、`pics/field/`、`script/`
+   - CDB writer 与 `strings.conf` writer 已补齐，导出时只写目标语言文本
+   - 已根据审阅补充 `output_name` 安全校验、重复 `pack_ids` 阻断、输出目录 execute 前二次防御检查和回归测试
+   - 前端新增 Export modal：选择已打开 packs、导出语言、输出目录与输出名，展示预检统计/issue，提交 Job 并轮询结果
+12. 下一步建议根据目标选择：
    - 如果优先补生产效率，推进 `P5 批量编辑`
-   - 如果优先打通导出链路，推进 `P9 导出`
+   - 如果优先收束交付质量，推进 `P10 稳定性收尾`
 
 ## 当前最小实现
 
@@ -472,6 +479,9 @@
 
 ### P9 导出
 
+状态：
+前后端均已完成（2026-04-29）
+
 目标：
 把多个作者态 pack 导出成运行时资源目录。
 
@@ -480,6 +490,30 @@
 2. `cdb` / `strings.conf` 生成
 3. 资源写出
 4. Job 执行
+
+当前完成情况（后端）：
+1. `preview_export_bundle` 返回可执行 preview token、snapshot hash、统计与 issues
+2. `execute_export_bundle(preview_token)` 消费 token 并提交 `JobKindDto::ExportBundle`
+3. Job 内重新预检并比对 snapshot hash，preview 过期、已消费、workspace 切换、pack 修改和输出目录变化均会阻断
+4. 导出仅支持已打开 custom packs；非 custom、重复 pack id、unsafe output name、目标语言缺失、重复 code、标准 code 冲突等均会阻断
+5. `setname` 按 full key 冲突为 error，low12/base 重叠降级为 warning
+6. `.cdb` writer 支持作者态卡片反向编码，`strings.conf` writer 支持 system 十进制与其他 kind 十六进制写出
+7. 导出资源复制到 `pics/`、`pics/field/`、`script/`，缺失资源不阻断
+8. 新增 `export_bundle_flow` 集成测试，覆盖成功导出、语言缺失、setname 冲突/warning、token 清理、stale、unsafe output name、重复 pack、输出目录变化
+
+当前完成情况（前端）：
+1. 新增 Export modal，并启用侧边栏 Export Expansions 入口
+2. Step 1 配置已打开 packs、导出语言、输出目录与输出名
+3. Step 2 展示预检统计、blocking errors、warnings 与 issue 参数，error 时禁用执行
+4. Step 3 提交导出 Job，通过 `get_job_status` 轮询并展示成功/失败状态
+5. 新增 `exportApi` 与 `export` TS contract，并将通用 `PreviewResult<T>` 上移到 common contract
+
+本轮未做：
+1. 导出到未打开 pack
+2. 覆盖已有非空输出目录
+3. 导出资源缺失 warning
+4. 临时目录 + rename 的原子导出
+5. Job result payload / 打开输出目录按钮
 
 依赖：
 1. P8
@@ -515,10 +549,10 @@
 
 ## 下一步建议
 
-下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P9 导出` 开始。
+下一次进入 Plan 模式时，建议从 `P5 批量编辑` 或 `P10 稳定性收尾` 开始。
 
 原因：
 
-1. P0–P4 已形成连续可用链路，P6–P8 已全部完成
-2. 单卡编辑、资源管理、strings 管理、标准包只读接入、导入均已具备完整闭环
-3. 若优先提升编辑效率，推进 P5；若优先打通输出链路，推进 P9
+1. P0–P4 已形成连续可用链路，P6–P9 已全部完成
+2. 单卡编辑、资源管理、strings 管理、标准包只读接入、导入、导出均已具备完整闭环
+3. 若优先提升编辑效率，推进 P5；若优先交付稳定性，推进 P10

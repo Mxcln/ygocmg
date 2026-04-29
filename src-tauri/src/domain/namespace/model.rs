@@ -16,6 +16,8 @@ pub struct StandardStringNamespaceBaseline {
     pub system_keys: BTreeSet<u32>,
     pub victory_keys: BTreeSet<u32>,
     pub counter_keys: BTreeSet<u32>,
+    #[serde(default)]
+    pub setname_keys: BTreeSet<u32>,
     pub setname_bases: BTreeSet<u16>,
 }
 
@@ -30,6 +32,7 @@ pub struct PackStringNamespaceIndex {
     pub system_keys: BTreeSet<u32>,
     pub victory_keys: BTreeSet<u32>,
     pub counter_keys: BTreeSet<u32>,
+    pub setname_keys: BTreeSet<u32>,
     pub setname_bases: BTreeSet<u16>,
 }
 
@@ -52,6 +55,7 @@ impl PackStringNamespaceIndex {
                 self.counter_keys.insert(record.key);
             }
             PackStringKind::Setname => {
+                self.setname_keys.insert(record.key);
                 self.setname_bases.insert(setname_base(record.key));
             }
         }
@@ -61,6 +65,7 @@ impl PackStringNamespaceIndex {
         self.system_keys.extend(other.system_keys.iter().copied());
         self.victory_keys.extend(other.victory_keys.iter().copied());
         self.counter_keys.extend(other.counter_keys.iter().copied());
+        self.setname_keys.extend(other.setname_keys.iter().copied());
         self.setname_bases
             .extend(other.setname_bases.iter().copied());
     }

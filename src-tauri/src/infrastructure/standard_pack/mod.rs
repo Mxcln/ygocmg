@@ -102,10 +102,22 @@ pub fn load_index(app_data_dir: &Path) -> AppResult<StandardPackIndexFile> {
         .with_detail("expected", STANDARD_INDEX_SCHEMA_VERSION)
         .with_detail("actual", schema_version));
     }
-    serde_json::from_value(value).map_err(|source| {
+    let mut index: StandardPackIndexFile = serde_json::from_value(value).map_err(|source| {
         AppError::new("standard_pack.index_deserialize_failed", source.to_string())
             .with_detail("path", path.display().to_string())
-    })
+    })?;
+    if index.strings.baseline.setname_keys.is_empty()
+        && index.strings.records.iter().any(|record| {
+            matches!(
+                record.kind,
+                crate::domain::strings::model::PackStringKind::Setname
+            )
+        })
+    {
+        index.strings.baseline =
+            crate::infrastructure::strings_conf::baseline_from_records(&index.strings.records);
+    }
+    Ok(index)
 }
 
 pub fn save_index(app_data_dir: &Path, index: &StandardPackIndexFile) -> AppResult<()> {

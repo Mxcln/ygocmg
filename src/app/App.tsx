@@ -19,6 +19,7 @@ import { CardEditDrawer } from "../features/card/CardEditDrawer";
 import { AppDialog } from "../features/dialogs/AppDialog";
 import { StringsListPanel } from "../features/strings/StringsListPanel";
 import { StandardPackView } from "../features/standardPack/StandardPackView";
+import { ExportModal } from "../features/export/ExportModal";
 
 type NoticeTone = "success" | "warning" | "error";
 
@@ -589,7 +590,13 @@ export function App() {
                 <line x1="1" y1="6" x2="15" y2="6" />
               </svg>
             </button>
-            <button type="button" className="action-btn" title="Export Expansions" disabled>
+            <button
+              type="button"
+              className={`action-btn ${modal?.type === "export" ? "active" : ""}`}
+              title="Export Expansions"
+              disabled={!currentWorkspace}
+              onClick={() => openModal("export")}
+            >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <path d="M2 11v3h12v-3" />
                 <path d="M8 2v8" />
@@ -976,6 +983,9 @@ export function App() {
                 onOverviewsRefreshed={setPackOverviews}
                 onNotice={handleNotice}
               />
+            )}
+            {modal.type === "export" && (
+              <ExportModal onNotice={handleNotice} />
             )}
           </section>
         </div>

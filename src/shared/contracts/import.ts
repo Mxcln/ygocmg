@@ -1,4 +1,4 @@
-import type { LanguageCode, PackId, PreviewToken, ValidationIssue, WorkspaceId } from "./common";
+import type { LanguageCode, PackId, PreviewResult, PreviewToken, ValidationIssue, WorkspaceId } from "./common";
 import type { JobAccepted } from "./job";
 
 export interface PreviewImportPackInput {
@@ -27,13 +27,6 @@ export interface ImportPreview {
   missing_script_count: number;
   missing_field_image_count: number;
   issues: ValidationIssue[];
-}
-
-export interface PreviewResult<T> {
-  preview_token: PreviewToken;
-  snapshot_hash: string;
-  expires_at: string;
-  data: T;
 }
 
 export interface ExecuteImportPackInput {

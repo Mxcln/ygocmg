@@ -62,8 +62,49 @@ pub fn baseline_from_records(records: &[PackStringRecord]) -> StandardStringName
         system_keys: index.system_keys,
         victory_keys: index.victory_keys,
         counter_keys: index.counter_keys,
+        setname_keys: index.setname_keys,
         setname_bases: index.setname_bases,
     }
+}
+
+pub fn write_records(
+    path: &Path,
+    records: &[PackStringRecord],
+    export_language: &str,
+) -> AppResult<()> {
+    let mut contents = String::new();
+    for kind in [
+        PackStringKind::System,
+        PackStringKind::Victory,
+        PackStringKind::Counter,
+        PackStringKind::Setname,
+    ] {
+        let mut kind_records = records
+            .iter()
+            .filter(|record| record.kind == kind)
+            .collect::<Vec<_>>();
+        kind_records.sort_by_key(|record| record.key);
+        if kind_records.is_empty() {
+            continue;
+        }
+
+        contents.push('!');
+        contents.push_str(kind_label(&kind));
+        contents.push('\n');
+        for record in kind_records {
+            if let Some(value) = record.values.get(export_language) {
+                contents.push_str(&format_record_key(&kind, record.key));
+                contents.push(' ');
+                contents.push_str(value.trim());
+                contents.push('\n');
+            }
+        }
+    }
+
+    fs::write(path, contents).map_err(|source| {
+        AppError::from_io("strings_conf.write_failed", source)
+            .with_detail("path", path.display().to_string())
+    })
 }
 
 fn parse_record(kind: &str, payload: &str) -> Option<PackStringRecord> {
@@ -82,6 +123,23 @@ fn parse_kind(value: &str) -> Option<PackStringKind> {
         "counter" => Some(PackStringKind::Counter),
         "setname" => Some(PackStringKind::Setname),
         _ => None,
+    }
+}
+
+fn kind_label(kind: &PackStringKind) -> &'static str {
+    match kind {
+        PackStringKind::System => "system",
+        PackStringKind::Victory => "victory",
+        PackStringKind::Counter => "counter",
+        PackStringKind::Setname => "setname",
+    }
+}
+
+fn format_record_key(kind: &PackStringKind, key: u32) -> String {
+    if matches!(kind, PackStringKind::System) {
+        key.to_string()
+    } else {
+        format!("0x{key:x}")
     }
 }
 

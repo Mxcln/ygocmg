@@ -17,3 +17,10 @@ export interface ValidationIssue {
   target: ValidationTarget;
   params: Record<string, unknown>;
 }
+
+export interface PreviewResult<T> {
+  preview_token: PreviewToken;
+  snapshot_hash: string;
+  expires_at: string;
+  data: T;
+}
