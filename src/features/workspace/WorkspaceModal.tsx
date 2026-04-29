@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { workspaceApi } from "../../shared/api/workspaceApi";
 import type { GlobalConfig } from "../../shared/contracts/config";
@@ -169,23 +170,33 @@ function RecentPanel({
 }) {
   return (
     <section className={shared.workspaceRecentPanel}>
-      <div className={shared.inlineForm}>
-        <label className={shared.field}>
-          <span>Workspace path</span>
+      <div className={shared.field}>
+        <span>Workspace path</span>
+        <div className={shared.filePickerRow}>
           <input
             value={openPath}
             onChange={(e) => onOpenPathChange(e.target.value)}
             placeholder="D:\\YGOCMG\\workspace-demo"
           />
-        </label>
-        <button
-          className={shared.primaryButton}
-          type="button"
-          disabled={busyAction !== null}
-          onClick={() => void onOpen(openPath)}
-        >
-          {busyAction?.startsWith("open:") ? "Opening..." : "Open Workspace"}
-        </button>
+          <button
+            type="button"
+            className={shared.ghostButton}
+            onClick={async () => {
+              const selected = await open({ directory: true, title: "Select Workspace Directory" });
+              if (typeof selected === "string") onOpenPathChange(selected);
+            }}
+          >
+            Browse
+          </button>
+          <button
+            className={shared.primaryButton}
+            type="button"
+            disabled={busyAction !== null || !openPath.trim()}
+            onClick={() => void onOpen(openPath)}
+          >
+            {busyAction?.startsWith("open:") ? "Opening..." : "Open"}
+          </button>
+        </div>
       </div>
 
       {recentWorkspaces.length === 0 ? (
@@ -255,14 +266,26 @@ function CreatePanel({
           />
         </label>
 
-        <label className={shared.field}>
+        <div className={shared.field}>
           <span>Workspace path</span>
-          <input
-            value={createForm.path}
-            onChange={(e) => onFormChange((c) => ({ ...c, path: e.target.value }))}
-            placeholder="D:\\YGOCMG\\workspaces\\ocg-custom-lab"
-          />
-        </label>
+          <div className={shared.filePickerRow}>
+            <input
+              value={createForm.path}
+              onChange={(e) => onFormChange((c) => ({ ...c, path: e.target.value }))}
+              placeholder="D:\\YGOCMG\\workspaces\\ocg-custom-lab"
+            />
+            <button
+              type="button"
+              className={shared.ghostButton}
+              onClick={async () => {
+                const selected = await open({ directory: true, title: "Select Workspace Directory" });
+                if (typeof selected === "string") onFormChange((c) => ({ ...c, path: selected }));
+              }}
+            >
+              Browse
+            </button>
+          </div>
+        </div>
 
         <div className={shared.formActions}>
           <button className={shared.primaryButton} type="submit" disabled={busyAction !== null}>

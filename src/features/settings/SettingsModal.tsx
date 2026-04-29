@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { configApi } from "../../shared/api/configApi";
 import type { GlobalConfig, TextLanguageProfile } from "../../shared/contracts/config";
@@ -164,25 +165,71 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
               <section className={styles.settingsGroup}>
                 <h4 className={styles.groupTitle}>External Paths</h4>
 
-                <label className={shared.field}>
+                <div className={shared.field}>
                   <span>YGOPro path</span>
-                  <input
-                    value={draft.ygopro_path ?? ""}
-                    onChange={(e) => setDraft({ ...draft, ygopro_path: normalizeNullablePath(e.target.value) })}
-                    placeholder="D:\\Games\\YGOPro"
-                  />
-                </label>
+                  <div className={shared.filePickerRow}>
+                    <input
+                      value={draft.ygopro_path ?? ""}
+                      onChange={(e) => setDraft({ ...draft, ygopro_path: normalizeNullablePath(e.target.value) })}
+                      placeholder="D:\\Games\\YGOPro"
+                    />
+                    <button
+                      type="button"
+                      className={shared.ghostButton}
+                      onClick={async () => {
+                        const selected = await open({ directory: true, title: "Select YGOPro Directory" });
+                        if (typeof selected === "string") setDraft({ ...draft, ygopro_path: selected || null });
+                      }}
+                    >
+                      Browse
+                    </button>
+                    {draft.ygopro_path && (
+                      <button
+                        type="button"
+                        className={shared.ghostButton}
+                        onClick={() => setDraft({ ...draft, ygopro_path: null })}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-                <label className={shared.field}>
+                <div className={shared.field}>
                   <span>External text editor path</span>
-                  <input
-                    value={draft.external_text_editor_path ?? ""}
-                    onChange={(e) =>
-                      setDraft({ ...draft, external_text_editor_path: normalizeNullablePath(e.target.value) })
-                    }
-                    placeholder="C:\\Program Files\\VS Code\\Code.exe"
-                  />
-                </label>
+                  <div className={shared.filePickerRow}>
+                    <input
+                      value={draft.external_text_editor_path ?? ""}
+                      onChange={(e) =>
+                        setDraft({ ...draft, external_text_editor_path: normalizeNullablePath(e.target.value) })
+                      }
+                      placeholder="C:\\Program Files\\VS Code\\Code.exe"
+                    />
+                    <button
+                      type="button"
+                      className={shared.ghostButton}
+                      onClick={async () => {
+                        const selected = await open({
+                          title: "Select Text Editor",
+                          filters: [{ name: "Executable", extensions: ["exe"] }],
+                        });
+                        if (typeof selected === "string")
+                          setDraft({ ...draft, external_text_editor_path: selected || null });
+                      }}
+                    >
+                      Browse
+                    </button>
+                    {draft.external_text_editor_path && (
+                      <button
+                        type="button"
+                        className={shared.ghostButton}
+                        onClick={() => setDraft({ ...draft, external_text_editor_path: null })}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
               </section>
             </div>
           )}
