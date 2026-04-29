@@ -312,10 +312,11 @@ body.is-resizing-sidebar * {
 }
 
 .pack-standard {
-  background: var(--panel-muted);
-  color: var(--text-2);
-  font-weight: 500;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-weight: 600;
   font-size: 12px;
+  border-color: var(--line-strong);
 }
 
 .pack-standard.active {
@@ -1009,6 +1010,13 @@ textarea.meta-edit-input {
   font-weight: 600;
 }
 
+.group-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
 .text-language-picker {
   width: 100%;
   min-width: 0;
@@ -1391,6 +1399,36 @@ textarea.meta-edit-input {
 .card-list-pagination button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.page-num {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.page-num:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.page-num.active {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+.page-ellipsis {
+  color: var(--text-2);
+  font-size: 12px;
+  user-select: none;
 }
 
 .card-list-empty {

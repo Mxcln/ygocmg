@@ -904,7 +904,7 @@ export function App() {
                             </button>
                             <button
                               type="button"
-                              className="ghost-button danger-ghost"
+                              className="danger-button"
                               onClick={() => {
                                 const packId = activeCustomPackId!;
                                 openDialog({

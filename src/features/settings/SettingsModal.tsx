@@ -108,10 +108,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
   return (
     <>
       <header className="modal-header">
-        <div>
-          <p className="eyebrow">Settings</p>
-          <h2>Global Settings</h2>
-        </div>
+        <h2>Global Settings</h2>
         <div className="settings-header-right">
           <span className={`hint-chip ${dirty ? "dirty" : ""}`}>
             {dirty ? "Unsaved changes" : "Synced"}
@@ -150,10 +147,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "general" && (
             <div className="settings-tab-content">
               <section className="settings-group">
-                <div className="group-heading">
-                  <p className="section-kicker">Program</p>
-                  <h4>Language</h4>
-                </div>
+                <h4 className="group-title">Language</h4>
 
                 <label className="field">
                   <span>App language</span>
@@ -166,10 +160,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
               </section>
 
               <section className="settings-group">
-                <div className="group-heading">
-                  <p className="section-kicker">Tools</p>
-                  <h4>External paths</h4>
-                </div>
+                <h4 className="group-title">External Paths</h4>
 
                 <label className="field">
                   <span>YGOPro path</span>
@@ -197,10 +188,6 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "languages" && (
             <div className="settings-tab-content">
               <section className="settings-group">
-                <div className="group-heading">
-                  <p className="section-kicker">Text Languages</p>
-                  <h4>Catalog</h4>
-                </div>
 
                 <div className="language-catalog-list">
                   {draft.text_language_catalog.map((language) => (
@@ -253,10 +240,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "standardPack" && (
             <div className="settings-tab-content">
               <section className="settings-group">
-                <div className="group-heading">
-                  <p className="section-kicker">Standard Pack</p>
-                  <h4>Source Language</h4>
-                </div>
+                <h4 className="group-title">Source Language</h4>
 
                 <label className="field">
                   <span>Imported text language</span>
@@ -280,10 +264,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "codePolicy" && (
             <div className="settings-tab-content">
               <section className="settings-group">
-                <div className="group-heading">
-                  <p className="section-kicker">Code Policy</p>
-                  <h4>Custom card numbering</h4>
-                </div>
+                <h4 className="group-title">Custom Card Numbering</h4>
 
                 <label className="field">
                   <span>Recommended code minimum</span>

@@ -3,7 +3,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CardListRow, SortDirection } from "../../shared/contracts/card";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 6;
 
 export type BrowserSortField = "code" | "name" | "type";
 
@@ -70,6 +70,32 @@ function cardImageSrc(basePath: string, code: number, revision: number): string 
 
 function sortValue(field: BrowserSortField, direction: SortDirection): string {
   return `${field}:${direction}`;
+}
+
+function buildPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages: (number | "...")[] = [1];
+
+  let rangeStart = Math.max(2, current - 1);
+  let rangeEnd = Math.min(total - 1, current + 1);
+
+  if (current <= 3) {
+    rangeStart = 2;
+    rangeEnd = Math.min(5, total - 1);
+  } else if (current >= total - 2) {
+    rangeStart = Math.max(2, total - 4);
+    rangeEnd = total - 1;
+  }
+
+  if (rangeStart > 2) pages.push("...");
+  for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
+  if (rangeEnd < total - 1) pages.push("...");
+
+  pages.push(total);
+  return pages;
 }
 
 export function CardBrowserPanel({
@@ -242,9 +268,20 @@ export function CardBrowserPanel({
               >
                 Prev
               </button>
-              <span>
-                {page} / {totalPages}
-              </span>
+              {buildPageNumbers(page, totalPages).map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`page-num ${item === page ? "active" : ""}`}
+                    onClick={() => setPage(item as number)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
               <button
                 type="button"
                 disabled={page >= totalPages}

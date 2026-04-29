@@ -49,8 +49,6 @@ export function WorkspaceModal({
     path: "",
   });
 
-  const recentCount = recentWorkspaces.workspaces.length;
-
   async function refreshRecent() {
     const next = await workspaceApi.listRecentWorkspaces();
     onRecentRefreshed(next);
@@ -109,10 +107,7 @@ export function WorkspaceModal({
   return (
     <>
       <header className="modal-header">
-        <div>
-          <p className="eyebrow">Workspace</p>
-          <h2>Workspace</h2>
-        </div>
+        <h2>Workspace</h2>
         <button className="modal-close-button" type="button" onClick={closeModal}>
           Close
         </button>
@@ -135,7 +130,6 @@ export function WorkspaceModal({
               currentWorkspace={currentWorkspace}
               openPath={openPath}
               busyAction={busyAction}
-              recentCount={recentCount}
               onOpenPathChange={setOpenPath}
               onOpen={handleOpenWorkspace}
             />
@@ -161,7 +155,6 @@ function RecentPanel({
   currentWorkspace,
   openPath,
   busyAction,
-  recentCount,
   onOpenPathChange,
   onOpen,
 }: {
@@ -169,20 +162,11 @@ function RecentPanel({
   currentWorkspace: { meta: WorkspaceMeta; path: string } | null;
   openPath: string;
   busyAction: string | null;
-  recentCount: number;
   onOpenPathChange: (value: string) => void;
   onOpen: (path: string) => Promise<void>;
 }) {
   return (
     <section className="workspace-recent-panel">
-      <div className="panel-header">
-        <div>
-          <p className="section-kicker">Open</p>
-          <h3>Open Recent or By Path</h3>
-        </div>
-        <span className="hint-chip">{recentCount} tracked items</span>
-      </div>
-
       <div className="inline-form">
         <label className="field">
           <span>Workspace path</span>
@@ -246,13 +230,6 @@ function CreatePanel({
 }) {
   return (
     <section className="workspace-create-panel">
-      <div className="panel-header">
-        <div>
-          <p className="section-kicker">Create</p>
-          <h3>Create and Open a Workspace</h3>
-        </div>
-      </div>
-
       <form className="form-stack" onSubmit={onSubmit}>
         <label className="field">
           <span>Workspace name</span>

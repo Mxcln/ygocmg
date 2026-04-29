@@ -258,10 +258,6 @@ export function ImportPackPanel({
   return (
     <section className="import-panel">
       <div className="panel-header">
-        <div>
-          <p className="section-kicker">Import</p>
-          <h3>Import from YGOPro</h3>
-        </div>
         <div className="import-wizard-steps">
           <span className={`wizard-step ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. Source</span>
           <span className="wizard-step-sep">&rsaquo;</span>

@@ -134,10 +134,7 @@ export function AddPackModal({
   return (
     <>
       <header className="modal-header">
-        <div>
-          <p className="eyebrow">Pack</p>
-          <h2>Add Pack</h2>
-        </div>
+        <h2>Add Pack</h2>
         <button className="modal-close-button" type="button" onClick={closeModal}>
           Close
         </button>
@@ -217,14 +214,6 @@ function OpenPackPanel({
 }) {
   return (
     <section className="workspace-recent-panel">
-      <div className="panel-header">
-        <div>
-          <p className="section-kicker">Open</p>
-          <h3>Open an Existing Pack</h3>
-        </div>
-        <span className="hint-chip">{overviews.length} available</span>
-      </div>
-
       {loading ? (
         <p className="empty-state-text">Loading packs...</p>
       ) : overviews.length === 0 ? (
@@ -284,13 +273,6 @@ function CreatePackPanel({
 
   return (
     <section className="workspace-create-panel">
-      <div className="panel-header">
-        <div>
-          <p className="section-kicker">Create</p>
-          <h3>Create a New Pack</h3>
-        </div>
-      </div>
-
       <form className="form-stack" onSubmit={onSubmit}>
         <label className="field">
           <span>Pack name</span>

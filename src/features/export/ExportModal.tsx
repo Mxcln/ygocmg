@@ -160,10 +160,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
   return (
     <>
       <header className="modal-header">
-        <div>
-          <p className="eyebrow">Export</p>
-          <h2>Export Expansions</h2>
-        </div>
+        <h2>Export Expansions</h2>
         <div className="export-header-right">
           <div className="import-wizard-steps">
             <span className={`wizard-step ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>
