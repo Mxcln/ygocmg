@@ -12,6 +12,8 @@ import {
   formatError,
   normalizeOptionalText,
 } from "../../shared/utils/format";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./WorkspaceModal.module.css";
 
 type WorkspaceView = "recent" | "create";
 
@@ -106,15 +108,15 @@ export function WorkspaceModal({
 
   return (
     <>
-      <header className="modal-header">
+      <header className={shared.modalHeader}>
         <h2>Workspace</h2>
-        <button className="modal-close-button" type="button" onClick={closeModal}>
+        <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
           Close
         </button>
       </header>
 
-      <div className="modal-body workspace-modal-body">
-        <aside className="modal-tabs">
+      <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
+        <aside className={shared.modalTabs}>
           <button type="button" className={view === "recent" ? "active" : ""} onClick={() => setView("recent")}>
             Open Workspace
           </button>
@@ -123,7 +125,7 @@ export function WorkspaceModal({
           </button>
         </aside>
 
-        <div className="modal-panel">
+        <div className={shared.modalPanel}>
           {view === "recent" && (
             <RecentPanel
               recentWorkspaces={recentWorkspaces.workspaces}
@@ -166,9 +168,9 @@ function RecentPanel({
   onOpen: (path: string) => Promise<void>;
 }) {
   return (
-    <section className="workspace-recent-panel">
-      <div className="inline-form">
-        <label className="field">
+    <section className={shared.workspaceRecentPanel}>
+      <div className={shared.inlineForm}>
+        <label className={shared.field}>
           <span>Workspace path</span>
           <input
             value={openPath}
@@ -177,7 +179,7 @@ function RecentPanel({
           />
         </label>
         <button
-          className="primary-button"
+          className={shared.primaryButton}
           type="button"
           disabled={busyAction !== null}
           onClick={() => void onOpen(openPath)}
@@ -187,19 +189,22 @@ function RecentPanel({
       </div>
 
       {recentWorkspaces.length === 0 ? (
-        <p className="empty-state-text">No recent workspaces have been recorded yet.</p>
+        <p className={shared.emptyStateText}>No recent workspaces have been recorded yet.</p>
       ) : (
-        <ul className="workspace-list">
+        <ul className={styles.workspaceList}>
           {recentWorkspaces.map((ws) => {
             const isCurrent = currentWorkspace?.meta.id === ws.workspace_id;
             return (
-              <li key={ws.workspace_id} className={`workspace-list-item ${isCurrent ? "current-workspace" : ""}`}>
-                <strong className="ws-name">{ws.name_cache ?? "Unnamed Workspace"}</strong>
-                <code className="ws-path">{ws.path}</code>
-                <span className="ws-time">{formatTimestamp(ws.last_opened_at)}</span>
-                {isCurrent && <span className="live-pill">CURRENT</span>}
+              <li
+                key={ws.workspace_id}
+                className={`${styles.workspaceListItem} ${isCurrent ? "current-workspace" : ""}`}
+              >
+                <strong className={styles.wsName}>{ws.name_cache ?? "Unnamed Workspace"}</strong>
+                <code className={styles.wsPath}>{ws.path}</code>
+                <span className={styles.wsTime}>{formatTimestamp(ws.last_opened_at)}</span>
+                {isCurrent && <span className={shared.livePill}>CURRENT</span>}
                 <button
-                  className="ghost-button ws-open-btn"
+                  className={`${shared.ghostButton} ${styles.wsOpenBtn}`}
                   type="button"
                   disabled={busyAction !== null}
                   onClick={() => void onOpen(ws.path)}
@@ -229,9 +234,9 @@ function CreatePanel({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <section className="workspace-create-panel">
-      <form className="form-stack" onSubmit={onSubmit}>
-        <label className="field">
+    <section className={shared.workspaceCreatePanel}>
+      <form className={shared.formStack} onSubmit={onSubmit}>
+        <label className={shared.field}>
           <span>Workspace name</span>
           <input
             value={createForm.name}
@@ -240,7 +245,7 @@ function CreatePanel({
           />
         </label>
 
-        <label className="field">
+        <label className={shared.field}>
           <span>Description</span>
           <textarea
             rows={3}
@@ -250,7 +255,7 @@ function CreatePanel({
           />
         </label>
 
-        <label className="field">
+        <label className={shared.field}>
           <span>Workspace path</span>
           <input
             value={createForm.path}
@@ -259,11 +264,11 @@ function CreatePanel({
           />
         </label>
 
-        <div className="form-actions">
-          <button className="primary-button" type="submit" disabled={busyAction !== null}>
+        <div className={shared.formActions}>
+          <button className={shared.primaryButton} type="submit" disabled={busyAction !== null}>
             {busyAction === "create" ? "Creating..." : "Create and Open"}
           </button>
-          <button className="ghost-button" type="button" disabled={busyAction !== null} onClick={onReset}>
+          <button className={shared.ghostButton} type="button" disabled={busyAction !== null} onClick={onReset}>
             Reset
           </button>
         </div>

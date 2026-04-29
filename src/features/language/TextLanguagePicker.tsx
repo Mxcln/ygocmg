@@ -1,4 +1,5 @@
 import type { TextLanguageProfile } from "../../shared/contracts/config";
+import styles from "./TextLanguagePicker.module.css";
 import { languageLabel, normalizeLanguageId, visibleTextLanguages } from "../../shared/utils/language";
 
 interface TextLanguagePickerProps {
@@ -36,7 +37,7 @@ export function TextLanguagePicker({
 
   return (
     <select
-      className={className ?? "text-language-picker"}
+      className={className ?? styles.textLanguagePicker}
       value={normalized}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

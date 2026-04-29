@@ -1,0 +1,101 @@
+.exportHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.exportModalBody {
+  padding: 16px 20px;
+}
+
+.exportForm {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.exportPackList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.exportPackItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.exportPackItem:last-child {
+  border-bottom: none;
+}
+
+.exportPackItem:hover {
+  background: var(--bg-2);
+}
+
+.exportPackItem:global(.selected) {
+  background: var(--brand-soft);
+}
+
+.exportPackItem input[type="checkbox"] {
+  flex-shrink: 0;
+  width: auto;
+  padding: 0;
+  border: revert;
+  background: revert;
+  box-shadow: none;
+}
+
+.exportPackName {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exportPackDetail {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.exportEmptyPacks {
+  padding: 16px 10px;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+}
+
+.exportSelectAllBtn {
+  font-size: 11px;
+  margin-left: 8px;
+  padding: 1px 6px;
+}
+
+.exportOutputPreview {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.exportOutputPath {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+}

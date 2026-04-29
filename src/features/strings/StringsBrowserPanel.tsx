@@ -8,6 +8,8 @@ import type {
   PackStringsPage,
 } from "../../shared/contracts/strings";
 import { languageLabel } from "../../shared/utils/language";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./StringsBrowserPanel.module.css";
 
 const PAGE_SIZE = 50;
 
@@ -199,7 +201,7 @@ export function StringsBrowserPanel({
 
   if (!language && languages.length === 0) {
     return (
-      <div className="card-list-empty">
+      <div className={shared.cardListEmpty}>
         <p>No languages available.</p>
       </div>
     );
@@ -207,9 +209,9 @@ export function StringsBrowserPanel({
 
   return (
     <>
-      <div className="strings-toolbar">
+      <div className={styles.stringsToolbar}>
         <select
-          className="strings-lang-select"
+          className={styles.stringsLangSelect}
           value={language}
           disabled={languages.length <= 1}
           onChange={(e) => {
@@ -226,7 +228,7 @@ export function StringsBrowserPanel({
           ))}
         </select>
         <select
-          className="strings-kind-select"
+          className={styles.stringsKindSelect}
           value={kindFilter}
           onChange={(e) => {
             setKindFilter(e.target.value as PackStringKind | "");
@@ -240,7 +242,7 @@ export function StringsBrowserPanel({
           ))}
         </select>
         <input
-          className="strings-search-input"
+          className={styles.stringsSearchInput}
           type="text"
           placeholder="Search value..."
           value={keyword}
@@ -252,7 +254,7 @@ export function StringsBrowserPanel({
         {editable && (
           <button
             type="button"
-            className="primary-button"
+            className={shared.primaryButton}
             onClick={() => {
               setNewRow({ kind: "counter", key: "", value: "" });
               setEditingCell(null);
@@ -264,34 +266,34 @@ export function StringsBrowserPanel({
         )}
       </div>
 
-      {shownError && <div className="strings-error">{shownError}</div>}
+      {shownError && <div className={styles.stringsError}>{shownError}</div>}
 
       {isLoading && items.length === 0 ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>Loading strings...</p>
         </div>
       ) : queryError ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>Failed to load strings.</p>
         </div>
       ) : items.length === 0 && !newRow ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>{emptyTitle}</p>
           <p>{emptyHint}</p>
         </div>
       ) : (
         <>
-          <div className="strings-table-header">
+          <div className={styles.stringsTableHeader}>
             <span>Kind</span>
             <span>Key</span>
             <span>Value</span>
             <span />
           </div>
-          <div className="strings-table-body">
+          <div className={styles.stringsTableBody}>
             {newRow && (
-              <div className="strings-table-row strings-new-row">
+              <div className={`${styles.stringsTableRow} ${styles.stringsNewRow}`}>
                 <select
-                  className="strings-cell-input strings-cell-kind"
+                  className={`${styles.stringsCellInput} ${styles.stringsCellKind}`}
                   value={newRow.kind}
                   onChange={(e) =>
                     setNewRow({ ...newRow, kind: e.target.value as PackStringKind })
@@ -304,7 +306,7 @@ export function StringsBrowserPanel({
                 </select>
                 <input
                   ref={newKeyRef}
-                  className="strings-cell-input strings-cell-key"
+                  className={`${styles.stringsCellInput} ${styles.stringsCellKey}`}
                   type="text"
                   inputMode="text"
                   placeholder="Hex key"
@@ -315,17 +317,17 @@ export function StringsBrowserPanel({
                   onKeyDown={handleNewKeyDown}
                 />
                 <input
-                  className="strings-cell-input strings-cell-value"
+                  className={`${styles.stringsCellInput} ${styles.stringsCellValue}`}
                   type="text"
                   placeholder="Value"
                   value={newRow.value}
                   onChange={(e) => setNewRow({ ...newRow, value: e.target.value })}
                   onKeyDown={handleNewKeyDown}
                 />
-                <span className="strings-row-actions">
+                <span className={styles.stringsRowActions}>
                   <button
                     type="button"
-                    className="strings-action-btn strings-save-btn"
+                    className={`${styles.stringsActionBtn} ${styles.stringsSaveBtn}`}
                     onClick={() => void handleCommitNew()}
                     disabled={saving}
                     title="Save"
@@ -334,7 +336,7 @@ export function StringsBrowserPanel({
                   </button>
                   <button
                     type="button"
-                    className="strings-action-btn"
+                    className={styles.stringsActionBtn}
                     onClick={() => setNewRow(null)}
                     title="Cancel"
                   >
@@ -349,13 +351,16 @@ export function StringsBrowserPanel({
               const isEditing = editingCell?.kind === entry.kind && editingCell.key === entry.key;
 
               return (
-                <div key={rowKey} className={`strings-table-row ${isEditing ? "editing" : ""}`}>
-                  <span className="strings-cell-kind-display">{entry.kind}</span>
-                  <span className="strings-cell-key-display">{formatStringKeyHex(entry.key)}</span>
+                <div
+                  key={rowKey}
+                  className={`${styles.stringsTableRow}${isEditing ? " editing" : ""}`}
+                >
+                  <span className={styles.stringsCellKindDisplay}>{entry.kind}</span>
+                  <span className={styles.stringsCellKeyDisplay}>{formatStringKeyHex(entry.key)}</span>
                   {isEditing ? (
                     <input
                       ref={editInputRef}
-                      className="strings-cell-input strings-cell-value"
+                      className={`${styles.stringsCellInput} ${styles.stringsCellValue}`}
                       type="text"
                       value={editingCell.value}
                       onChange={(event) =>
@@ -367,21 +372,21 @@ export function StringsBrowserPanel({
                   ) : editable ? (
                     <button
                       type="button"
-                      className="strings-cell-value-display"
+                      className={styles.stringsCellValueDisplay}
                       onClick={() => handleStartEdit(entry)}
                     >
                       {entry.value || "\u00A0"}
                     </button>
                   ) : (
-                    <span className="strings-cell-value-display">
+                    <span className={styles.stringsCellValueDisplay}>
                       {entry.value || "\u00A0"}
                     </span>
                   )}
-                  <span className="strings-row-actions">
+                  <span className={styles.stringsRowActions}>
                     {editable && onDelete && (
                       <button
                         type="button"
-                        className="strings-action-btn strings-delete-btn"
+                        className={`${styles.stringsActionBtn} ${styles.stringsDeleteBtn}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onDelete(entry)}
                         title="Delete string"
@@ -396,7 +401,7 @@ export function StringsBrowserPanel({
           </div>
 
           {totalPages > 1 && (
-            <div className="card-list-pagination">
+            <div className={shared.cardListPagination}>
               <button
                 type="button"
                 disabled={page <= 1}

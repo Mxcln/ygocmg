@@ -1,0 +1,17 @@
+.textLanguagePicker {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.textLanguagePicker:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}

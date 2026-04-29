@@ -6,6 +6,10 @@ import { configApi } from "../../shared/api/configApi";
 import type { CardEntity } from "../../shared/contracts/card";
 import { CardInfoForm } from "../card/CardInfoForm";
 import { CardTextForm } from "../card/CardTextForm";
+import drawerStyles from "../card/CardEditDrawer.module.css";
+import assetStyles from "../card/CardAssetBar.module.css";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./StandardCardInspector.module.css";
 
 interface StandardCardInspectorProps {
   code: number;
@@ -39,37 +43,37 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
 
   return (
     <>
-      <div className="card-edit-backdrop" onClick={onClose} />
-      <div className="card-edit-drawer standard-inspector">
-        <div className="card-edit-header">
-          <div className="card-edit-header-left">
-            <button type="button" className="ghost-button" onClick={onClose}>
+      <div className={drawerStyles.cardEditBackdrop} onClick={onClose} />
+      <div className={drawerStyles.cardEditDrawer}>
+        <div className={drawerStyles.cardEditHeader}>
+          <div className={drawerStyles.cardEditHeaderLeft}>
+            <button type="button" className={shared.ghostButton} onClick={onClose}>
               Close
             </button>
-            <div className="standard-inspector-title">
+            <div className={styles.inspectorTitle}>
               <strong>{card?.texts[titleLanguage]?.name || `Card ${code}`}</strong>
               <span>{code}</span>
             </div>
           </div>
-          <div className="card-edit-header-spacer" />
-          <span className="readonly-chip">Read-only</span>
+          <div className={drawerStyles.cardEditHeaderSpacer} />
+          <span className={styles.readonlyChip}>Read-only</span>
         </div>
 
         {error && (
-          <div className="card-edit-error">Failed to load standard card.</div>
+          <div className={drawerStyles.cardEditError}>Failed to load standard card.</div>
         )}
 
         {isLoading && !card ? (
-          <div className="card-list-empty">
+          <div className={shared.cardListEmpty}>
             <p>Loading card...</p>
           </div>
         ) : card && detail ? (
-          <div className="card-edit-body">
-            <div className="card-asset-bar standard-asset-bar">
-              <div className="card-pic-preview">
+          <div className={drawerStyles.cardEditBody}>
+            <div className={assetStyles.cardAssetBar}>
+              <div className={assetStyles.cardPicPreview}>
                 {imageSrc ? <img src={imageSrc} alt="Card" /> : "No Image"}
               </div>
-              <div className="asset-readonly-grid">
+              <div className={styles.assetReadonlyGrid}>
                 <span>Image</span>
                 <strong>{detail.asset_state.has_image ? "Present" : "Missing"}</strong>
                 <span>Script</span>
@@ -79,25 +83,25 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
               </div>
             </div>
 
-            <div className="card-form-area">
-              <div className="card-form-tabs">
+            <div className={drawerStyles.cardFormArea}>
+              <div className={drawerStyles.cardFormTabs}>
                 <button
                   type="button"
-                  className={`card-form-tab ${activeTab === "text" ? "active" : ""}`}
+                  className={`${drawerStyles.cardFormTab} ${activeTab === "text" ? "active" : ""}`}
                   onClick={() => setActiveTab("text")}
                 >
                   Text
                 </button>
                 <button
                   type="button"
-                  className={`card-form-tab ${activeTab === "info" ? "active" : ""}`}
+                  className={`${drawerStyles.cardFormTab} ${activeTab === "info" ? "active" : ""}`}
                   onClick={() => setActiveTab("info")}
                 >
                   Info
                 </button>
               </div>
 
-              <div className="card-form-content">
+              <div className={drawerStyles.cardFormContent}>
                 {activeTab === "text" ? (
                   <CardTextForm
                     draft={card}

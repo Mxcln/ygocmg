@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { resourceApi } from "../../shared/api/resourceApi";
 import { formatError } from "../../shared/utils/format";
 import type { CardAssetState, PrimaryType, SpellSubtype } from "../../shared/contracts/card";
+import styles from "./CardAssetBar.module.css";
 
 interface CardAssetBarProps {
   workspaceId: string;
@@ -190,8 +191,8 @@ export function CardAssetBar({
   }
 
   return (
-    <div className="card-asset-bar">
-      <div className="card-pic-preview">
+    <div className={styles.cardAssetBar}>
+      <div className={styles.cardPicPreview}>
         {imageSrc ? (
           <img key={imgKey} src={imageSrc} alt="Card" />
         ) : (
@@ -199,11 +200,11 @@ export function CardAssetBar({
         )}
       </div>
 
-      <div className="asset-btn-group">
-        <span className="asset-btn-group-label">Image</span>
+      <div className={styles.assetBtnGroup}>
+        <span className={styles.assetBtnGroupLabel}>Image</span>
         <button
           type="button"
-          className="asset-seg-btn"
+          className={styles.assetSegBtn}
           disabled={isCreate || busy}
           onClick={() => void handleImportMainImage()}
         >
@@ -212,7 +213,7 @@ export function CardAssetBar({
         {assetState.has_image && (
           <button
             type="button"
-            className="asset-seg-btn danger"
+            className={`${styles.assetSegBtn} danger`}
             disabled={isCreate || busy}
             onClick={() => void handleDeleteMainImage()}
           >
@@ -221,13 +222,13 @@ export function CardAssetBar({
         )}
       </div>
 
-      <div className="asset-btn-group">
-        <span className="asset-btn-group-label">Script</span>
+      <div className={styles.assetBtnGroup}>
+        <span className={styles.assetBtnGroupLabel}>Script</span>
         {assetState.has_script ? (
           <>
             <button
               type="button"
-              className="asset-seg-btn"
+              className={styles.assetSegBtn}
               disabled={isCreate || busy}
               onClick={() => void handleImportScript()}
             >
@@ -235,7 +236,7 @@ export function CardAssetBar({
             </button>
             <button
               type="button"
-              className="asset-seg-btn"
+              className={styles.assetSegBtn}
               disabled={isCreate || busy}
               onClick={() => void handleEditScript()}
             >
@@ -243,7 +244,7 @@ export function CardAssetBar({
             </button>
             <button
               type="button"
-              className="asset-seg-btn danger"
+              className={`${styles.assetSegBtn} danger`}
               disabled={isCreate || busy}
               onClick={() => void handleDeleteScript()}
             >
@@ -254,7 +255,7 @@ export function CardAssetBar({
           <>
             <button
               type="button"
-              className="asset-seg-btn"
+              className={styles.assetSegBtn}
               disabled={isCreate || busy}
               onClick={() => void handleCreateScript()}
             >
@@ -262,7 +263,7 @@ export function CardAssetBar({
             </button>
             <button
               type="button"
-              className="asset-seg-btn"
+              className={styles.assetSegBtn}
               disabled={isCreate || busy}
               onClick={() => void handleImportScript()}
             >
@@ -273,11 +274,11 @@ export function CardAssetBar({
       </div>
 
       {isFieldSpell && (
-        <div className="asset-btn-group">
-          <span className="asset-btn-group-label">Field</span>
+        <div className={styles.assetBtnGroup}>
+          <span className={styles.assetBtnGroupLabel}>Field</span>
           <button
             type="button"
-            className="asset-seg-btn"
+            className={styles.assetSegBtn}
             disabled={isCreate || busy}
             onClick={() => void handleImportFieldImage()}
           >
@@ -286,7 +287,7 @@ export function CardAssetBar({
           {assetState.has_field_image && (
             <button
               type="button"
-              className="asset-seg-btn danger"
+              className={`${styles.assetSegBtn} danger`}
               disabled={isCreate || busy}
               onClick={() => void handleDeleteFieldImage()}
             >

@@ -1,0 +1,196 @@
+.cardTextLangBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cardTextLangBtn {
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 80ms,
+    border-color 80ms,
+    color 80ms;
+}
+
+.cardTextLangBtn:global(.missing) {
+  border-style: dashed;
+  color: var(--text-2);
+}
+
+.cardTextLangBtn:hover {
+  border-color: var(--line);
+  color: var(--text-1);
+}
+
+.cardTextLangBtn:global(.active) {
+  background: var(--bg-0);
+  border-color: var(--line);
+  color: var(--text-0);
+}
+
+.cardTextActiveRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.cardTextActiveRow .cardTextLangBar {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTextLangAdd,
+.cardTextLangDelete {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.cardTextLangAdd {
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.cardTextLangDelete {
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.cardTextLangAdd:hover:not(:disabled),
+.cardTextLangDelete:hover {
+  border-color: var(--line);
+  background: var(--bg-0);
+  color: var(--text-1);
+}
+
+.cardTextLangDelete:hover {
+  color: var(--danger);
+}
+
+.cardTextLangAdd:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cardTextAddSelect {
+  max-width: 150px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-1);
+  font-size: 11px;
+}
+
+.cardTextField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.cardTextLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.cardTextInput {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.cardTextInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+textarea.cardTextInput {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.stringsToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stringsToggle:hover {
+  color: var(--text-1);
+}
+
+.stringsToggle svg {
+  transition: transform 150ms;
+}
+
+.stringsList {
+  display: grid;
+  gap: 6px;
+}
+
+.stringRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stringRowLabel {
+  width: 28px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stringRowInput {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-0);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.stringRowInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}

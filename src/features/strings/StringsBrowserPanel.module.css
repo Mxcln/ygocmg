@@ -1,0 +1,212 @@
+.stringsToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.stringsLangSelect,
+.stringsKindSelect {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.stringsLangSelect:focus,
+.stringsKindSelect:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+.stringsSearchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+}
+
+.stringsSearchInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.stringsError {
+  background: var(--danger-soft);
+  color: var(--danger);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.stringsTableHeader {
+  display: grid;
+  grid-template-columns: 110px 96px minmax(0, 1fr) 112px;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line);
+}
+
+.stringsTableBody {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.stringsTableRow {
+  display: grid;
+  grid-template-columns: 110px 96px minmax(0, 1fr) 112px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  min-height: 34px;
+}
+
+.stringsTableRow:hover {
+  background: var(--bg-2);
+}
+
+.stringsTableRow:global(.editing) {
+  background: var(--brand-soft);
+}
+
+.stringsNewRow {
+  background: var(--accent-soft);
+}
+
+.stringsNewRow:hover {
+  background: var(--accent-soft);
+}
+
+.stringsCellKindDisplay,
+.stringsCellKeyDisplay {
+  color: var(--text-1);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stringsCellValueDisplay {
+  padding: 2px 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 20px;
+}
+
+button.stringsCellValueDisplay {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: text;
+}
+
+button.stringsCellValueDisplay:hover {
+  background: var(--panel-muted);
+}
+
+.stringsCellInput {
+  padding: 4px 6px;
+  border: 1px solid var(--brand);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.stringsCellInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.stringsCellInput.stringsCellKind {
+  font-size: 12px;
+  padding: 3px 4px;
+}
+
+.stringsCellInput.stringsCellKey {
+  width: 100%;
+  max-width: none;
+}
+
+.stringsCellInput.stringsCellValue {
+  width: 100%;
+}
+
+.stringsCellInput[type="number"]::-webkit-outer-spin-button,
+.stringsCellInput[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stringsRowActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 80ms;
+  min-width: 0;
+}
+
+.stringsTableRow:hover .stringsRowActions,
+.stringsTableRow:global(.editing) .stringsRowActions,
+.stringsNewRow .stringsRowActions {
+  opacity: 1;
+}
+
+.stringsActionBtn {
+  min-width: 40px;
+  height: 24px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.stringsActionBtn:hover {
+  background: var(--panel-muted);
+  color: var(--text-0);
+}
+
+.stringsSaveBtn {
+  color: var(--brand);
+}
+
+.stringsActionBtn.stringsSaveBtn:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.stringsActionBtn.stringsDeleteBtn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

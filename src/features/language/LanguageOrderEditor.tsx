@@ -7,6 +7,8 @@ import {
   uniqueLanguageOrder,
   visibleTextLanguages,
 } from "../../shared/utils/language";
+import styles from "./LanguageOrderEditor.module.css";
+import pickerStyles from "./TextLanguagePicker.module.css";
 
 interface LanguageOrderEditorProps {
   catalog: TextLanguageProfile[];
@@ -51,14 +53,17 @@ export function LanguageOrderEditor({
   }
 
   return (
-    <div className="language-order-editor">
-      <div className="language-order-list">
+    <div className={styles.languageOrderEditor}>
+      <div className={styles.languageOrderList}>
         {languages.map((language, index) => (
-          <span key={language} className={`language-order-chip ${existing.has(language) ? "legacy" : ""}`}>
+          <span
+            key={language}
+            className={`${styles.languageOrderChip}${existing.has(language) ? ` ${styles.languageOrderChipLegacy}` : ""}`}
+          >
             <span title={languageLabel(catalog, language)}>{compactLanguageLabel(catalog, language)}</span>
             <button
               type="button"
-              className="language-chip-button"
+              className={styles.languageChipButton}
               disabled={disabled || index === 0}
               onClick={() => move(index, index - 1)}
               title="Move earlier"
@@ -67,7 +72,7 @@ export function LanguageOrderEditor({
             </button>
             <button
               type="button"
-              className="language-chip-button"
+              className={styles.languageChipButton}
               disabled={disabled || index === languages.length - 1}
               onClick={() => move(index, index + 1)}
               title="Move later"
@@ -76,7 +81,7 @@ export function LanguageOrderEditor({
             </button>
             <button
               type="button"
-              className="language-chip-button"
+              className={styles.languageChipButton}
               disabled={disabled}
               onClick={() => remove(language)}
               title="Remove"
@@ -85,10 +90,10 @@ export function LanguageOrderEditor({
             </button>
           </span>
         ))}
-        {languages.length === 0 && <span className="language-order-empty">No languages selected</span>}
+        {languages.length === 0 && <span className={styles.languageOrderEmpty}>No languages selected</span>}
       </div>
       <select
-        className="text-language-picker"
+        className={pickerStyles.textLanguagePicker}
         value={pendingLanguage}
         disabled={disabled || addable.length === 0}
         onChange={(event) => add(event.target.value)}

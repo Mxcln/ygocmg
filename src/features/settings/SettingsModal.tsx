@@ -10,7 +10,9 @@ import {
   validateCustomLanguageId,
   visibleTextLanguages,
 } from "../../shared/utils/language";
+import shared from "../../shared/styles/shared.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
+import styles from "./SettingsModal.module.css";
 
 type SettingsTab = "general" | "languages" | "standardPack" | "codePolicy";
 
@@ -107,28 +109,28 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
 
   return (
     <>
-      <header className="modal-header">
+      <header className={shared.modalHeader}>
         <h2>Global Settings</h2>
-        <div className="settings-header-right">
-          <span className={`hint-chip ${dirty ? "dirty" : ""}`}>
+        <div className={styles.settingsHeaderRight}>
+          <span className={`${shared.hintChip} ${dirty ? "dirty" : ""}`}>
             {dirty ? "Unsaved changes" : "Synced"}
           </span>
           <button
-            className="primary-button"
+            className={shared.primaryButton}
             type="button"
             disabled={busyAction !== null || !dirty}
             onClick={() => void handleSave()}
           >
             {busyAction === "save" ? "Saving..." : "Save Settings"}
           </button>
-          <button className="modal-close-button" type="button" onClick={closeModal}>
+          <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
             Close
           </button>
         </div>
       </header>
 
-      <div className="modal-body settings-modal-body">
-        <aside className="modal-tabs">
+      <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
+        <aside className={shared.modalTabs}>
           <button type="button" className={activeTab === "general" ? "active" : ""} onClick={() => setActiveTab("general")}>
             General
           </button>
@@ -143,13 +145,13 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           </button>
         </aside>
 
-        <div className="modal-panel">
+        <div className={shared.modalPanel}>
           {activeTab === "general" && (
-            <div className="settings-tab-content">
-              <section className="settings-group">
-                <h4 className="group-title">Language</h4>
+            <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>Language</h4>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>App language</span>
                   <TextLanguagePicker
                     catalog={draft.text_language_catalog}
@@ -159,10 +161,10 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                 </label>
               </section>
 
-              <section className="settings-group">
-                <h4 className="group-title">External Paths</h4>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>External Paths</h4>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>YGOPro path</span>
                   <input
                     value={draft.ygopro_path ?? ""}
@@ -171,7 +173,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                   />
                 </label>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>External text editor path</span>
                   <input
                     value={draft.external_text_editor_path ?? ""}
@@ -186,13 +188,13 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           )}
 
           {activeTab === "languages" && (
-            <div className="settings-tab-content">
-              <section className="settings-group">
+            <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
 
-                <div className="language-catalog-list">
+                <div className={styles.languageCatalogList}>
                   {draft.text_language_catalog.map((language) => (
-                    <div key={language.id} className={`language-catalog-row ${language.hidden ? "hidden" : ""}`}>
-                      <span className="language-kind-badge">{language.kind}</span>
+                    <div key={language.id} className={`${styles.languageCatalogRow} ${language.hidden ? "hidden" : ""}`}>
+                      <span className={styles.languageKindBadge}>{language.kind}</span>
                       <code>{language.id}</code>
                       <input
                         value={language.label}
@@ -203,7 +205,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                       {language.kind === "custom" && (
                         <button
                           type="button"
-                          className="ghost-button"
+                          className={shared.ghostButton}
                           onClick={() => toggleCustomLanguageHidden(language.id)}
                         >
                           {language.hidden ? "Show" : "Hide"}
@@ -213,7 +215,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                   ))}
                 </div>
 
-                <div className="custom-language-add">
+                <div className={styles.customLanguageAdd}>
                   <input
                     value={customLanguage.id}
                     onChange={(event) =>
@@ -228,21 +230,21 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                     }
                     placeholder="Label"
                   />
-                  <button type="button" className="ghost-button" onClick={handleAddCustomLanguage}>
+                  <button type="button" className={shared.ghostButton} onClick={handleAddCustomLanguage}>
                     Add
                   </button>
                 </div>
-                {customLanguage.error && <div className="settings-inline-error">{customLanguage.error}</div>}
+                {customLanguage.error && <div className={styles.settingsInlineError}>{customLanguage.error}</div>}
               </section>
             </div>
           )}
 
           {activeTab === "standardPack" && (
-            <div className="settings-tab-content">
-              <section className="settings-group">
-                <h4 className="group-title">Source Language</h4>
+            <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>Source Language</h4>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>Imported text language</span>
                   <TextLanguagePicker
                     catalog={draft.text_language_catalog}
@@ -254,7 +256,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                     }
                   />
                 </label>
-                <span className="field-hint">
+                <span className={shared.fieldHint}>
                   {visibleLanguages.length} visible language{visibleLanguages.length === 1 ? "" : "s"}
                 </span>
               </section>
@@ -262,11 +264,11 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           )}
 
           {activeTab === "codePolicy" && (
-            <div className="settings-tab-content">
-              <section className="settings-group">
-                <h4 className="group-title">Custom Card Numbering</h4>
+            <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>Custom Card Numbering</h4>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>Recommended code minimum</span>
                   <input
                     type="number"
@@ -281,7 +283,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                   />
                 </label>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>Recommended code maximum</span>
                   <input
                     type="number"
@@ -296,7 +298,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                   />
                 </label>
 
-                <label className="field">
+                <label className={shared.field}>
                   <span>Minimum gap</span>
                   <input
                     type="number"

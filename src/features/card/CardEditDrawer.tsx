@@ -7,6 +7,8 @@ import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardEntity, CardAssetState } from "../../shared/contracts/card";
 import type { CardDetail } from "../../shared/contracts/card";
 import type { ValidationIssue } from "../../shared/contracts/common";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./CardEditDrawer.module.css";
 import { CardAssetBar } from "./CardAssetBar";
 import { CardInfoForm } from "./CardInfoForm";
 import { CardTextForm } from "./CardTextForm";
@@ -264,16 +266,16 @@ export function CardEditDrawer({
 
   return (
     <>
-      <div className="card-edit-backdrop" onClick={handleAnimatedClose} />
+      <div className={styles.cardEditBackdrop} onClick={handleAnimatedClose} />
       <div
         ref={drawerRef}
-        className={`card-edit-drawer ${closing ? "closing" : ""}`}
+        className={`${styles.cardEditDrawer} ${closing ? "closing" : ""}`}
       >
-        <div className="card-edit-header">
-          <div className="card-edit-header-left">
+        <div className={styles.cardEditHeader}>
+          <div className={styles.cardEditHeaderLeft}>
             <button
               type="button"
-              className="ghost-button"
+              className={shared.ghostButton}
               onClick={handleAnimatedClose}
             >
               Close
@@ -281,7 +283,7 @@ export function CardEditDrawer({
             {!isCreate && (
               <button
                 type="button"
-                className="danger-button"
+                className={shared.dangerButton}
                 onClick={() => void handleDelete()}
                 disabled={deleting}
               >
@@ -289,10 +291,10 @@ export function CardEditDrawer({
               </button>
             )}
           </div>
-          <div className="card-edit-header-spacer" />
+          <div className={styles.cardEditHeaderSpacer} />
           <button
             type="button"
-            className="primary-button"
+            className={shared.primaryButton}
             onClick={() => void handleSave()}
             disabled={saving || !draft}
           >
@@ -301,7 +303,7 @@ export function CardEditDrawer({
         </div>
 
         {warnings.length > 0 && (
-          <div className="card-edit-warnings">
+          <div className={styles.cardEditWarnings}>
             <ul>
               {warnings.map((w, i) => (
                 <li key={i}>{w.code}: {JSON.stringify(w.params)}</li>
@@ -311,15 +313,15 @@ export function CardEditDrawer({
         )}
 
         {errorMsg && (
-          <div className="card-edit-error">{errorMsg}</div>
+          <div className={styles.cardEditError}>{errorMsg}</div>
         )}
 
         {showLoading ? (
-          <div className="card-list-empty">
+          <div className={shared.cardListEmpty}>
             <p>Loading card...</p>
           </div>
         ) : draft ? (
-          <div className="card-edit-body">
+          <div className={styles.cardEditBody}>
             <CardAssetBar
               workspaceId={workspaceId}
               packId={packId}
@@ -332,24 +334,24 @@ export function CardEditDrawer({
               onAssetChanged={handleAssetChanged}
               onError={(msg) => setErrorMsg(msg)}
             />
-            <div className="card-form-area">
-              <div className="card-form-tabs">
+            <div className={styles.cardFormArea}>
+              <div className={styles.cardFormTabs}>
                 <button
                   type="button"
-                  className={`card-form-tab ${activeTab === "text" ? "active" : ""}`}
+                  className={`${styles.cardFormTab} ${activeTab === "text" ? "active" : ""}`}
                   onClick={() => setActiveTab("text")}
                 >
                   Text
                 </button>
                 <button
                   type="button"
-                  className={`card-form-tab ${activeTab === "info" ? "active" : ""}`}
+                  className={`${styles.cardFormTab} ${activeTab === "info" ? "active" : ""}`}
                   onClick={() => setActiveTab("info")}
                 >
                   Info
                 </button>
               </div>
-              <div className="card-form-content">
+              <div className={styles.cardFormContent}>
                 {activeTab === "text" ? (
                   <CardTextForm
                     draft={draft}

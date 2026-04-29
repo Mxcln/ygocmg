@@ -1,0 +1,60 @@
+.titlebar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.titlebarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.appIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.titlebarName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.titlebarSpacer {
+  flex: 1;
+  min-height: 100%;
+}
+
+.windowControls {
+  display: flex;
+  align-items: stretch;
+}
+
+.winBtn {
+  width: 46px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 80ms;
+}
+
+.winBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.winClose:hover {
+  background: var(--danger);
+  color: white;
+}

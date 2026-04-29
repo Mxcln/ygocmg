@@ -1,0 +1,15 @@
+.importPanel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.importSourceDivider {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}

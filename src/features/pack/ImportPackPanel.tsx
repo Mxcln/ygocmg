@@ -10,6 +10,8 @@ import type { PackMetadata } from "../../shared/contracts/pack";
 import type { ImportPreviewResult } from "../../shared/contracts/import";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import { preferredImportSourceLanguage } from "../../shared/utils/language";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./ImportPackPanel.module.css";
 import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
 
@@ -256,35 +258,35 @@ export function ImportPackPanel({
   const displayJob = activeJob ?? lastJob;
 
   return (
-    <section className="import-panel">
-      <div className="panel-header">
-        <div className="import-wizard-steps">
-          <span className={`wizard-step ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. Source</span>
-          <span className="wizard-step-sep">&rsaquo;</span>
-          <span className={`wizard-step ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>2. Metadata</span>
-          <span className="wizard-step-sep">&rsaquo;</span>
-          <span className={`wizard-step ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>3. Confirm</span>
+    <section className={styles.importPanel}>
+      <div className={shared.panelHeader}>
+        <div className={shared.importWizardSteps}>
+          <span className={`${shared.wizardStep} ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. Source</span>
+          <span className={shared.wizardStepSep}>&rsaquo;</span>
+          <span className={`${shared.wizardStep} ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>2. Metadata</span>
+          <span className={shared.wizardStepSep}>&rsaquo;</span>
+          <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>3. Confirm</span>
         </div>
       </div>
 
       {step === 1 && (
-        <div className="form-stack">
-          <div className="field">
+        <div className={shared.formStack}>
+          <div className={shared.field}>
             <span>CDB file (required)</span>
-            <div className="file-picker-row">
+            <div className={shared.filePickerRow}>
               <input
                 readOnly
                 value={sourceForm.cdbPath}
                 placeholder="Select a .cdb file..."
                 title={sourceForm.cdbPath || undefined}
               />
-              <button type="button" className="ghost-button" onClick={() => void handleSelectCdb()}>
+              <button type="button" className={shared.ghostButton} onClick={() => void handleSelectCdb()}>
                 Browse
               </button>
             </div>
           </div>
 
-          <div className="field">
+          <div className={shared.field}>
             <span>Source language (required)</span>
             <TextLanguagePicker
               catalog={config.text_language_catalog}
@@ -293,7 +295,7 @@ export function ImportPackPanel({
             />
           </div>
 
-          <div className="import-source-divider">Optional resource paths</div>
+          <div className={styles.importSourceDivider}>Optional resource paths</div>
 
           <FilePickerField
             label="pics/ directory"
@@ -324,10 +326,10 @@ export function ImportPackPanel({
             placeholder="strings.conf file"
           />
 
-          <div className="form-actions">
+          <div className={shared.formActions}>
             <button
               type="button"
-              className="primary-button"
+              className={shared.primaryButton}
               disabled={!canGoNext}
               onClick={handleGoToStep2}
             >
@@ -338,8 +340,8 @@ export function ImportPackPanel({
       )}
 
       {step === 2 && (
-        <div className="form-stack">
-          <div className="field">
+        <div className={shared.formStack}>
+          <div className={shared.field}>
             <span>Pack name (required)</span>
             <input
               value={metadataForm.name}
@@ -348,8 +350,8 @@ export function ImportPackPanel({
             />
           </div>
 
-          <div className="pack-form-row">
-            <div className="field">
+          <div className={shared.packFormRow}>
+            <div className={shared.field}>
               <span>Author (required)</span>
               <input
                 value={metadataForm.author}
@@ -357,7 +359,7 @@ export function ImportPackPanel({
                 placeholder="Author Name"
               />
             </div>
-            <div className="field">
+            <div className={shared.field}>
               <span>Version (required)</span>
               <input
                 value={metadataForm.version}
@@ -367,7 +369,7 @@ export function ImportPackPanel({
             </div>
           </div>
 
-          <div className="field">
+          <div className={shared.field}>
             <span>Description</span>
             <textarea
               rows={2}
@@ -377,8 +379,8 @@ export function ImportPackPanel({
             />
           </div>
 
-          <div className="pack-form-row pack-form-row-language">
-            <div className="field">
+          <div className={`${shared.packFormRow} ${shared.packFormRowLanguage}`}>
+            <div className={shared.field}>
               <span>Display languages</span>
               <LanguageOrderEditor
                 catalog={config.text_language_catalog}
@@ -391,7 +393,7 @@ export function ImportPackPanel({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={shared.field}>
               <span>Default export language</span>
               <TextLanguagePicker
                 catalog={config.text_language_catalog}
@@ -403,16 +405,16 @@ export function ImportPackPanel({
           </div>
 
           {previewError && (
-            <div className="import-error-banner">{previewError}</div>
+            <div className={shared.importErrorBanner}>{previewError}</div>
           )}
 
-          <div className="form-actions">
-            <button type="button" className="ghost-button" onClick={() => setStep(1)}>
+          <div className={shared.formActions}>
+            <button type="button" className={shared.ghostButton} onClick={() => setStep(1)}>
               Back
             </button>
             <button
               type="button"
-              className="primary-button"
+              className={shared.primaryButton}
               disabled={busy !== null}
               onClick={() => void handlePreview()}
             >
@@ -423,65 +425,71 @@ export function ImportPackPanel({
       )}
 
       {step === 3 && previewResult && (
-        <div className="import-preview-step">
-          <div className="import-preview-summary">
-            <div className="import-stat">
-              <span className="import-stat-value">{previewResult.data.card_count}</span>
-              <span className="import-stat-label">Cards</span>
+        <div className={shared.importPreviewStep}>
+          <div className={shared.importPreviewSummary}>
+            <div className={shared.importStat}>
+              <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
+              <span className={shared.importStatLabel}>Cards</span>
             </div>
-            <div className="import-stat">
-              <span className={`import-stat-value ${previewResult.data.error_count > 0 ? "stat-error" : ""}`}>
+            <div className={shared.importStat}>
+              <span
+                className={shared.importStatValue}
+                data-level={previewResult.data.error_count > 0 ? "error" : undefined}
+              >
                 {previewResult.data.error_count}
               </span>
-              <span className="import-stat-label">Errors</span>
+              <span className={shared.importStatLabel}>Errors</span>
             </div>
-            <div className="import-stat">
-              <span className={`import-stat-value ${previewResult.data.warning_count > 0 ? "stat-warning" : ""}`}>
+            <div className={shared.importStat}>
+              <span
+                className={shared.importStatValue}
+                data-level={previewResult.data.warning_count > 0 ? "warning" : undefined}
+              >
                 {previewResult.data.warning_count}
               </span>
-              <span className="import-stat-label">Warnings</span>
+              <span className={shared.importStatLabel}>Warnings</span>
             </div>
-            <div className="import-stat">
-              <span className="import-stat-value">
+            <div className={shared.importStat}>
+              <span className={shared.importStatValue}>
                 {previewResult.data.missing_main_image_count}
               </span>
-              <span className="import-stat-label">Missing Images</span>
+              <span className={shared.importStatLabel}>Missing Images</span>
             </div>
-            <div className="import-stat">
-              <span className="import-stat-value">
+            <div className={shared.importStat}>
+              <span className={shared.importStatValue}>
                 {previewResult.data.missing_script_count}
               </span>
-              <span className="import-stat-label">Missing Scripts</span>
+              <span className={shared.importStatLabel}>Missing Scripts</span>
             </div>
-            <div className="import-stat">
-              <span className="import-stat-value">
+            <div className={shared.importStat}>
+              <span className={shared.importStatValue}>
                 {previewResult.data.missing_field_image_count}
               </span>
-              <span className="import-stat-label">Missing Field Imgs</span>
+              <span className={shared.importStatLabel}>Missing Field Imgs</span>
             </div>
           </div>
 
           {previewResult.data.error_count > 0 && (
-            <div className="import-error-banner">
+            <div className={shared.importErrorBanner}>
               Import has {previewResult.data.error_count} blocking error{previewResult.data.error_count > 1 ? "s" : ""}. Fix the source and try again.
             </div>
           )}
 
           {previewResult.data.issues.length > 0 && (
-            <div className="import-issues-list">
-              <strong className="import-issues-header">
+            <div className={shared.importIssuesList}>
+              <strong className={shared.importIssuesHeader}>
                 Issues ({previewResult.data.issues.length})
               </strong>
               <ul>
                 {previewResult.data.issues.map((issue, idx) => (
-                  <li key={idx} className={`import-issue import-issue-${issue.level}`}>
-                    <span className="import-issue-badge">{issue.level}</span>
-                    <span className="import-issue-code">{issue.code}</span>
+                  <li key={idx} className={shared.importIssue} data-level={issue.level}>
+                    <span className={shared.importIssueBadge}>{issue.level}</span>
+                    <span className={shared.importIssueCode}>{issue.code}</span>
                     {issue.target.entity_id && (
-                      <span className="import-issue-entity">#{issue.target.entity_id}</span>
+                      <span className={shared.importIssueEntity}>#{issue.target.entity_id}</span>
                     )}
                     {issue.params && Object.keys(issue.params).length > 0 && (
-                      <span className="import-issue-params">
+                      <span className={shared.importIssueParams}>
                         {Object.entries(issue.params).map(([k, v]) => `${k}=${v}`).join(", ")}
                       </span>
                     )}
@@ -492,34 +500,34 @@ export function ImportPackPanel({
           )}
 
           {displayJob && (
-            <div className={`import-job-strip ${displayJob.status}`}>
-              <span className="import-job-status">{displayJob.status}</span>
+            <div className={shared.importJobStrip} data-status={displayJob.status}>
+              <span className={shared.importJobStatus}>{displayJob.status}</span>
               <strong>{displayJob.stage}</strong>
               {displayJob.progress_percent != null && (
                 <span>{displayJob.progress_percent}%</span>
               )}
               {displayJob.message && <span>{displayJob.message}</span>}
               {displayJob.error && (
-                <span className="import-job-error">{displayJob.error.code}: {displayJob.error.message}</span>
+                <span className={shared.importJobError}>{displayJob.error.code}: {displayJob.error.message}</span>
               )}
             </div>
           )}
 
           {jobSucceeded && (
-            <div className="import-success-banner">
+            <div className={shared.importSuccessBanner}>
               Import completed successfully.
             </div>
           )}
 
-          <div className="form-actions">
+          <div className={shared.formActions}>
             {!jobDone && !importing && (
               <>
-                <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
                   Back
                 </button>
                 <button
                   type="button"
-                  className="primary-button"
+                  className={shared.primaryButton}
                   disabled={previewResult.data.error_count > 0 || busy !== null}
                   onClick={() => void handleExecute()}
                 >
@@ -529,7 +537,7 @@ export function ImportPackPanel({
             )}
 
             {importing && (
-              <button type="button" className="ghost-button" disabled>
+              <button type="button" className={shared.ghostButton} disabled>
                 Importing...
               </button>
             )}
@@ -537,7 +545,7 @@ export function ImportPackPanel({
             {jobSucceeded && (
               <button
                 type="button"
-                className="primary-button"
+                className={shared.primaryButton}
                 disabled={openingPack}
                 onClick={() => void handleOpenImportedPack()}
               >
@@ -547,10 +555,10 @@ export function ImportPackPanel({
 
             {jobFailed && (
               <>
-                <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
                   Back
                 </button>
-                <span className="import-fail-hint">Import job failed. Check errors above and try again.</span>
+                <span className={shared.importFailHint}>Import job failed. Check errors above and try again.</span>
               </>
             )}
           </div>
@@ -574,15 +582,15 @@ function FilePickerField({
   placeholder: string;
 }) {
   return (
-    <div className="field">
+    <div className={shared.field}>
       <span>{label}</span>
-      <div className="file-picker-row">
+      <div className={shared.filePickerRow}>
         <input readOnly value={value} placeholder={placeholder} title={value || undefined} />
-        <button type="button" className="ghost-button" onClick={onBrowse}>
+        <button type="button" className={shared.ghostButton} onClick={onBrowse}>
           Browse
         </button>
         {value && (
-          <button type="button" className="ghost-button" onClick={onClear}>
+          <button type="button" className={shared.ghostButton} onClick={onClear}>
             Clear
           </button>
         )}

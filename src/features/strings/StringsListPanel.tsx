@@ -6,6 +6,7 @@ import { formatError, formatStringKeyHex } from "../../shared/utils/format";
 import type { TextLanguageProfile } from "../../shared/contracts/config";
 import type { PackStringEntry, PackStringsPage } from "../../shared/contracts/strings";
 import type { ValidationIssue } from "../../shared/contracts/common";
+import shared from "../../shared/styles/shared.module.css";
 import { StringsBrowserPanel } from "./StringsBrowserPanel";
 import type { StringsBrowserQuery } from "./StringsBrowserPanel";
 
@@ -137,7 +138,7 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
 
   if (languages.length === 0) {
     return (
-      <div className="card-list-empty">
+      <div className={shared.cardListEmpty}>
         <p>No languages configured for this pack.</p>
         <p>Edit pack metadata to add display languages.</p>
       </div>

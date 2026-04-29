@@ -1,0 +1,95 @@
+.settingsHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settingsTabContent {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.settingsGroup {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  display: grid;
+  gap: 12px;
+}
+
+.groupTitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.languageCatalogList {
+  display: grid;
+  gap: 6px;
+}
+
+.languageCatalogRow {
+  display: grid;
+  grid-template-columns: 70px 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.languageCatalogRow:global(.hidden) {
+  opacity: 0.58;
+}
+
+.languageCatalogRow code {
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.languageCatalogRow input,
+.customLanguageAdd input {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+}
+
+.languageCatalogRow input:disabled {
+  background: var(--input);
+  color: var(--text-2);
+}
+
+.languageKindBadge {
+  justify-self: start;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-0);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.customLanguageAdd {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.settingsInlineError {
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .settingsTabContent {
+    grid-template-columns: 1fr;
+  }
+}

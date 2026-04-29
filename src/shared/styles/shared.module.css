@@ -1,0 +1,637 @@
+/* ── Buttons ── */
+
+.primaryButton,
+.ghostButton {
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 80ms;
+}
+
+.primaryButton {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+
+.primaryButton:hover {
+  background: #0e5051;
+}
+
+.ghostButton {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text-0);
+}
+
+.ghostButton:hover {
+  background: var(--bg-2);
+  border-color: var(--line-strong);
+}
+
+.primaryButton:disabled,
+.ghostButton:disabled,
+.dangerButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dangerButton {
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--danger);
+  color: #fff;
+}
+
+.dangerButton:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* ── Form Elements ── */
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  transition: border-color 80ms, box-shadow 80ms;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.formStack {
+  display: grid;
+  gap: 12px;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.inlineForm .field {
+  flex: 1;
+}
+
+.formActions,
+.listActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Modal Chrome ── */
+
+.modalHeader {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.modalCloseButton {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.modalCloseButton:hover {
+  border-color: var(--line-strong);
+  background: var(--panel);
+}
+
+.modalBody {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+/* ── Modal Layout ── */
+
+.workspaceModalBody {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+
+.modalTabs {
+  padding: 8px;
+  border-right: 1px solid var(--line);
+  background: var(--bg-1);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.modalTabs button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 80ms;
+}
+
+.modalTabs button:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.modalTabs button:global(.active) {
+  background: var(--brand-soft);
+  border-color: rgba(17, 94, 95, 0.2);
+  color: var(--brand);
+}
+
+.modalPanel {
+  padding: 16px;
+  overflow: auto;
+  min-height: 360px;
+}
+
+/* ── Panel Headers ── */
+
+.workspaceRecentPanel,
+.workspaceCreatePanel {
+  display: grid;
+  gap: 14px;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* ── Tab Strip ── */
+
+.tabStrip {
+  display: flex;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  gap: 0;
+}
+
+.tabBtn {
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 80ms, border-color 80ms;
+}
+
+.tabBtn:hover {
+  color: var(--text-0);
+}
+
+.tabBtn:global(.active) {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+
+.tabContent {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+/* ── Pagination ── */
+
+.cardListPagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.cardListPagination button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text-0);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cardListPagination button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--bg-2);
+}
+
+.cardListPagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pageNum {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pageNum:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.pageNum:global(.active) {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+.pageEllipsis {
+  color: var(--text-2);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* ── Empty State ── */
+
+.cardListEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+/* ── Wizard Steps ── */
+
+.importWizardSteps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.wizardStep {
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.wizardStep:global(.active) {
+  color: var(--text-1);
+}
+
+.wizardStep:global(.current) {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.wizardStepSep {
+  color: var(--text-2);
+  opacity: 0.5;
+}
+
+/* ── Misc Shared ── */
+
+.hintChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  background: var(--panel);
+}
+
+.hintChip:global(.dirty) {
+  border-color: rgba(17, 94, 95, 0.2);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.livePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-color: rgba(17, 94, 95, 0.2);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.fieldHint {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.emptyStateText {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.packFormRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.packFormRowLanguage {
+  align-items: start;
+}
+
+.filePickerRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.filePickerRow input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--input);
+  color: var(--text-0);
+  font-size: 13px;
+  cursor: default;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filePickerRow button {
+  flex-shrink: 0;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.importPreviewStep {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.importPreviewSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.importStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.importStatValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-0);
+  line-height: 1.2;
+}
+
+.importStatValue[data-level="error"] {
+  color: var(--danger);
+}
+
+.importStatValue[data-level="warning"] {
+  color: #996216;
+}
+
+.importStatLabel {
+  font-size: 11px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.importIssuesList {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.importIssuesHeader {
+  display: block;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.importIssuesList ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.importIssue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.importIssue:last-child {
+  border-bottom: none;
+}
+
+.importIssueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.importIssue[data-level="error"] .importIssueBadge {
+  background: rgba(171, 67, 56, 0.12);
+  color: var(--danger);
+}
+
+.importIssue[data-level="warning"] .importIssueBadge {
+  background: rgba(153, 98, 22, 0.12);
+  color: #996216;
+}
+
+.importIssueCode {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.importIssueEntity {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.importIssueParams {
+  color: var(--text-2);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.importJobStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-1);
+  background: rgba(17, 94, 95, 0.08);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.importJobStrip[data-status="succeeded"] {
+  background: rgba(33, 107, 76, 0.08);
+}
+
+.importJobStrip[data-status="failed"] {
+  background: rgba(171, 67, 56, 0.08);
+}
+
+.importJobStatus {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.importJobError {
+  color: var(--danger);
+}
+
+.importErrorBanner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(171, 67, 56, 0.08);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(171, 67, 56, 0.15);
+}
+
+.importSuccessBanner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(33, 107, 76, 0.08);
+  color: #174b35;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(33, 107, 76, 0.15);
+}
+
+.importFailHint {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .workspaceModalBody {
+    grid-template-columns: 1fr;
+  }
+
+  .modalTabs {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}

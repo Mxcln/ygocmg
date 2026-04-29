@@ -1,0 +1,116 @@
+/* ── Launch / loading states ── */
+
+.launchShell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.launchText {
+  color: var(--text-2);
+}
+
+.launchError {
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  color: var(--danger);
+}
+
+/* ── App Shell ── */
+
+.appShell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.appShell[data-ready] {
+  opacity: 1;
+}
+
+/* ── Shell Body ── */
+
+.shellBody {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 150px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* ── Work Area ── */
+
+.workArea {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-2);
+}
+
+/* ── Empty State ── */
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+
+.emptyLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Modal Layer ── */
+
+.modalLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.modalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.modalBox {
+  position: relative;
+  z-index: 1;
+  width: min(900px, calc(100vw - 80px));
+  max-height: min(600px, calc(100vh - 80px));
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .shellBody {
+    grid-template-columns: minmax(120px, var(--sidebar-width, 150px)) minmax(0, 1fr);
+  }
+}

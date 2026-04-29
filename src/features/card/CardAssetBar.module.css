@@ -1,0 +1,89 @@
+.cardAssetBar {
+  box-sizing: content-box;
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.cardPicPreview {
+  width: 300px;
+  max-width: 100%;
+  aspect-ratio: 400 / 580;
+  border-radius: 4px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.cardPicPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.assetBtnGroup {
+  display: flex;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.assetBtnGroupLabel {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  background: var(--bg-1);
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.assetSegBtn {
+  flex: 1;
+  padding: 5px 0;
+  border: none;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: background 80ms;
+}
+
+.assetSegBtn:last-child {
+  border-right: none;
+}
+
+.assetSegBtn:hover:not(:disabled) {
+  background: var(--bg-2);
+}
+
+.assetSegBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.assetSegBtn:global(.danger) {
+  color: var(--danger);
+}
+
+.assetSegBtn:global(.danger):hover:not(:disabled) {
+  background: var(--danger-soft);
+}

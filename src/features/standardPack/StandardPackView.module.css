@@ -1,0 +1,132 @@
+.standardView {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.standardPackHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.standardPackSummary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.standardPackSummary strong {
+  font-size: 14px;
+  color: var(--text-0);
+}
+
+.standardPackSummary span {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.standardPackActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.standardStatusStrip,
+.standardJobStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--bg-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.standardJobStrip {
+  background: rgba(17, 94, 95, 0.08);
+}
+
+.standardStatusStrip span,
+.standardJobStrip span,
+.standardJobStrip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.standardStatusStrip[data-status="stale"],
+.standardStatusStrip[data-status="missing_index"] {
+  background: rgba(153, 98, 22, 0.08);
+}
+
+.standardStatusStrip[data-status="missing_source"],
+.standardStatusStrip[data-status="not_configured"],
+.standardJobStrip[data-status="failed"] {
+  background: rgba(171, 67, 56, 0.08);
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.statusMessage {
+  color: var(--danger);
+}
+
+.standardJobStrip[data-status="succeeded"] {
+  background: rgba(33, 107, 76, 0.08);
+}
+
+.standardStringsPlaceholder {
+  display: grid;
+  gap: 14px;
+  max-width: 680px;
+}
+
+.standardStringsGrid {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.standardStringsGrid span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.standardStringsGrid strong {
+  min-width: 0;
+  color: var(--text-0);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

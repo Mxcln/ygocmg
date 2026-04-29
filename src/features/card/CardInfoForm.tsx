@@ -10,6 +10,8 @@ import type {
   LinkMarker,
 } from "../../shared/contracts/card";
 
+import styles from "./CardInfoForm.module.css";
+
 interface CardInfoFormProps {
   draft: CardEntity;
   onChange?: (patch: Partial<CardEntity>) => void;
@@ -151,12 +153,12 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
   }
 
   return (
-    <div className="card-info-grid">
+    <div className={styles.cardInfoGrid}>
       {/* Basic fields */}
-      <div className="card-info-field">
-        <label className="card-info-label">Code</label>
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>Code</label>
         <input
-          className="card-info-input"
+          className={styles.cardInfoInput}
           type="text"
           inputMode="numeric"
           value={draft.code}
@@ -164,10 +166,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
           readOnly={readonly}
         />
       </div>
-      <div className="card-info-field">
-        <label className="card-info-label">Alias</label>
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>Alias</label>
         <input
-          className="card-info-input"
+          className={styles.cardInfoInput}
           type="text"
           inputMode="numeric"
           value={draft.alias}
@@ -176,10 +178,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
         />
       </div>
 
-      <div className="card-info-field">
-        <label className="card-info-label">Setcode</label>
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>Setcode</label>
         <input
-          className="card-info-input"
+          className={styles.cardInfoInput}
           type="text"
           value={`0x${draft.setcode.toString(16).toUpperCase()}`}
           onChange={(e) => {
@@ -191,10 +193,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
           readOnly={readonly}
         />
       </div>
-      <div className="card-info-field">
-        <label className="card-info-label">OT</label>
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>OT</label>
         <select
-          className="card-info-select"
+          className={styles.cardInfoSelect}
           value={draft.ot}
           onChange={(e) => emitChange({ ot: e.target.value as Ot })}
           disabled={readonly}
@@ -205,10 +207,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
         </select>
       </div>
 
-      <div className="card-info-field">
-        <label className="card-info-label">Category</label>
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>Category</label>
         <input
-          className="card-info-input"
+          className={styles.cardInfoInput}
           type="text"
           value={`0x${draft.category.toString(16).toUpperCase()}`}
           onChange={(e) => {
@@ -220,14 +222,14 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
           readOnly={readonly}
         />
       </div>
-      <div className="card-info-field">
-        <label className="card-info-label">Primary Type</label>
-        <div className="card-type-radio-group">
+      <div className={styles.cardInfoField}>
+        <label className={styles.cardInfoLabel}>Primary Type</label>
+        <div className={styles.cardTypeRadioGroup}>
           {(["monster", "spell", "trap"] as PrimaryType[]).map((pt) => (
             <button
               key={pt}
               type="button"
-              className={`card-type-radio ${draft.primary_type === pt ? "active" : ""}`}
+              className={`${styles.cardTypeRadio} ${draft.primary_type === pt ? "active" : ""}`}
               onClick={() => handlePrimaryTypeChange(pt)}
               disabled={readonly}
             >
@@ -239,17 +241,17 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
 
       {/* Monster-specific fields */}
       {isMonster && (
-        <div className="card-info-section">
-          <h4 className="card-info-section-title">Monster</h4>
-          <div className="card-info-grid">
-            <div className="card-info-field full-width">
-              <label className="card-info-label">Monster Flags</label>
-              <div className="monster-flags-group">
+        <div className={styles.cardInfoSection}>
+          <h4 className={styles.cardInfoSectionTitle}>Monster</h4>
+          <div className={styles.cardInfoGrid}>
+            <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
+              <label className={styles.cardInfoLabel}>Monster Flags</label>
+              <div className={styles.monsterFlagsGroup}>
                 {ALL_MONSTER_FLAGS.map((flag) => (
                   <button
                     key={flag}
                     type="button"
-                    className={`monster-flag-chip ${flags.includes(flag) ? "selected" : ""}`}
+                    className={`${styles.monsterFlagChip} ${flags.includes(flag) ? "selected" : ""}`}
                     onClick={() => toggleMonsterFlag(flag)}
                     disabled={readonly}
                   >
@@ -259,10 +261,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
               </div>
             </div>
 
-            <div className="card-info-field">
-              <label className="card-info-label">Attribute</label>
+            <div className={styles.cardInfoField}>
+              <label className={styles.cardInfoLabel}>Attribute</label>
               <select
-                className="card-info-select"
+                className={styles.cardInfoSelect}
                 value={draft.attribute ?? ""}
                 onChange={(e) =>
                   emitChange({ attribute: (e.target.value || null) as Attribute | null })
@@ -275,10 +277,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
                 ))}
               </select>
             </div>
-            <div className="card-info-field">
-              <label className="card-info-label">Race</label>
+            <div className={styles.cardInfoField}>
+              <label className={styles.cardInfoLabel}>Race</label>
               <select
-                className="card-info-select"
+                className={styles.cardInfoSelect}
                 value={draft.race ?? ""}
                 onChange={(e) =>
                   emitChange({ race: (e.target.value || null) as Race | null })
@@ -292,10 +294,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
               </select>
             </div>
 
-            <div className="card-info-field">
-              <label className="card-info-label">ATK</label>
+            <div className={styles.cardInfoField}>
+              <label className={styles.cardInfoLabel}>ATK</label>
               <input
-                className="card-info-input"
+                className={styles.cardInfoInput}
                 type="text"
                 value={formatStatValue(draft.atk)}
                 onChange={(e) => handleNumberInput("atk", e.target.value)}
@@ -304,10 +306,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
               />
             </div>
             {!isLink && (
-              <div className="card-info-field">
-                <label className="card-info-label">DEF</label>
+              <div className={styles.cardInfoField}>
+                <label className={styles.cardInfoLabel}>DEF</label>
                 <input
-                  className="card-info-input"
+                  className={styles.cardInfoInput}
                   type="text"
                   value={formatStatValue(draft.def)}
                   onChange={(e) => handleNumberInput("def", e.target.value)}
@@ -317,12 +319,12 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
               </div>
             )}
             {!isLink && (
-              <div className="card-info-field">
-                <label className="card-info-label">
+              <div className={styles.cardInfoField}>
+                <label className={styles.cardInfoLabel}>
                   {flags.includes("xyz") ? "Rank" : "Level"}
                 </label>
                 <input
-                  className="card-info-input"
+                  className={styles.cardInfoInput}
                   type="text"
                   inputMode="numeric"
                   value={draft.level ?? ""}
@@ -334,10 +336,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
 
             {isPendulum && (
               <>
-                <div className="card-info-field">
-                  <label className="card-info-label">Left Scale</label>
+                <div className={styles.cardInfoField}>
+                  <label className={styles.cardInfoLabel}>Left Scale</label>
                   <input
-                    className="card-info-input"
+                    className={styles.cardInfoInput}
                     type="text"
                     inputMode="numeric"
                     value={draft.pendulum?.left_scale ?? 0}
@@ -353,10 +355,10 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
                     readOnly={readonly}
                   />
                 </div>
-                <div className="card-info-field">
-                  <label className="card-info-label">Right Scale</label>
+                <div className={styles.cardInfoField}>
+                  <label className={styles.cardInfoLabel}>Right Scale</label>
                   <input
-                    className="card-info-input"
+                    className={styles.cardInfoInput}
                     type="text"
                     inputMode="numeric"
                     value={draft.pendulum?.right_scale ?? 0}
@@ -376,19 +378,19 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
             )}
 
             {isLink && (
-              <div className="card-info-field full-width">
-                <label className="card-info-label">Link Markers</label>
-                <div className="link-marker-grid">
+              <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
+                <label className={styles.cardInfoLabel}>Link Markers</label>
+                <div className={styles.linkMarkerGrid}>
                   {LINK_MARKER_POSITIONS.flat().map((marker, i) => {
                     if (marker === null) {
-                      return <div key={i} className="link-marker-cell center" />;
+                      return <div key={i} className={`${styles.linkMarkerCell} center`} />;
                     }
                     const selected = draft.link?.markers.includes(marker) ?? false;
                     return (
                       <button
                         key={marker}
                         type="button"
-                        className={`link-marker-cell ${selected ? "selected" : ""}`}
+                        className={`${styles.linkMarkerCell} ${selected ? "selected" : ""}`}
                         onClick={() => toggleLinkMarker(marker)}
                         title={displayLabel(marker)}
                         disabled={readonly}
@@ -406,13 +408,13 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
 
       {/* Spell-specific fields */}
       {isSpell && (
-        <div className="card-info-section">
-          <h4 className="card-info-section-title">Spell</h4>
-          <div className="card-info-grid">
-            <div className="card-info-field">
-              <label className="card-info-label">Spell Subtype</label>
+        <div className={styles.cardInfoSection}>
+          <h4 className={styles.cardInfoSectionTitle}>Spell</h4>
+          <div className={styles.cardInfoGrid}>
+            <div className={styles.cardInfoField}>
+              <label className={styles.cardInfoLabel}>Spell Subtype</label>
               <select
-                className="card-info-select"
+                className={styles.cardInfoSelect}
                 value={draft.spell_subtype ?? ""}
                 onChange={(e) =>
                   emitChange({ spell_subtype: (e.target.value || null) as SpellSubtype | null })
@@ -431,13 +433,13 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
 
       {/* Trap-specific fields */}
       {isTrap && (
-        <div className="card-info-section">
-          <h4 className="card-info-section-title">Trap</h4>
-          <div className="card-info-grid">
-            <div className="card-info-field">
-              <label className="card-info-label">Trap Subtype</label>
+        <div className={styles.cardInfoSection}>
+          <h4 className={styles.cardInfoSectionTitle}>Trap</h4>
+          <div className={styles.cardInfoGrid}>
+            <div className={styles.cardInfoField}>
+              <label className={styles.cardInfoLabel}>Trap Subtype</label>
               <select
-                className="card-info-select"
+                className={styles.cardInfoSelect}
                 value={draft.trap_subtype ?? ""}
                 onChange={(e) =>
                   emitChange({ trap_subtype: (e.target.value || null) as TrapSubtype | null })

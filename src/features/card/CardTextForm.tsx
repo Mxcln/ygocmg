@@ -9,6 +9,9 @@ import {
   visibleTextLanguages,
 } from "../../shared/utils/language";
 
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./CardTextForm.module.css";
+
 interface CardTextFormProps {
   draft: CardEntity;
   catalog: TextLanguageProfile[];
@@ -114,7 +117,7 @@ export function CardTextForm({
 
   if (allLangs.length === 0 && readonly) {
     return (
-      <div className="card-list-empty">
+      <div className={shared.cardListEmpty}>
         <p>No languages available.</p>
       </div>
     );
@@ -123,20 +126,20 @@ export function CardTextForm({
   return (
     <div>
       {!activeLang ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>No language selected.</p>
         </div>
       ) : (
         <>
-          <div className="card-text-active-row">
-            <div className="card-text-lang-bar">
+          <div className={styles.cardTextActiveRow}>
+            <div className={styles.cardTextLangBar}>
               {allLangs.map((lang) => {
                 const missing = !draft.texts[lang];
                 return (
                   <button
                     key={lang}
                     type="button"
-                    className={`card-text-lang-btn ${activeLang === lang ? "active" : ""} ${missing ? "missing" : ""}`}
+                    className={`${styles.cardTextLangBtn} ${activeLang === lang ? "active" : ""} ${missing ? "missing" : ""}`}
                     onClick={() => {
                       if (missing && !readonly) {
                         addLanguage(lang);
@@ -154,7 +157,7 @@ export function CardTextForm({
                 <>
                   {addingLanguage ? (
                     <select
-                      className="card-text-add-select"
+                      className={styles.cardTextAddSelect}
                       autoFocus
                       value=""
                       onBlur={() => setAddingLanguage(false)}
@@ -170,7 +173,7 @@ export function CardTextForm({
                   ) : (
                     <button
                       type="button"
-                      className="card-text-lang-add"
+                      className={styles.cardTextLangAdd}
                       disabled={addableLanguages.length === 0}
                       onClick={() => setAddingLanguage(true)}
                       title="Add language"
@@ -182,16 +185,16 @@ export function CardTextForm({
               )}
             </div>
             {!readonly && draft.texts[activeLang] && (
-              <button type="button" className="card-text-lang-delete" onClick={() => deleteLanguage(activeLang)}>
+              <button type="button" className={styles.cardTextLangDelete} onClick={() => deleteLanguage(activeLang)}>
                 Delete
               </button>
             )}
           </div>
 
-          <div className="card-text-field">
-            <label className="card-text-label">Name</label>
+          <div className={styles.cardTextField}>
+            <label className={styles.cardTextLabel}>Name</label>
             <input
-              className="card-text-input"
+              className={styles.cardTextInput}
               type="text"
               value={currentTexts.name}
               onChange={(e) => updateTexts({ name: e.target.value })}
@@ -199,10 +202,10 @@ export function CardTextForm({
             />
           </div>
 
-          <div className="card-text-field">
-            <label className="card-text-label">Effect</label>
+          <div className={styles.cardTextField}>
+            <label className={styles.cardTextLabel}>Effect</label>
             <textarea
-              className="card-text-input"
+              className={styles.cardTextInput}
               rows={6}
               value={currentTexts.desc}
               onChange={(e) => updateTexts({ desc: e.target.value })}
@@ -212,7 +215,7 @@ export function CardTextForm({
 
           <button
             type="button"
-            className="strings-toggle"
+            className={styles.stringsToggle}
             onClick={() => setStringsExpanded(!stringsExpanded)}
           >
             <svg
@@ -232,12 +235,12 @@ export function CardTextForm({
           </button>
 
           {stringsExpanded && (
-            <div className="strings-list">
+            <div className={styles.stringsList}>
               {currentTexts.strings.map((s, i) => (
-                <div key={i} className="string-row">
-                  <span className="string-row-label">{i}</span>
+                <div key={i} className={styles.stringRow}>
+                  <span className={styles.stringRowLabel}>{i}</span>
                   <input
-                    className="string-row-input"
+                    className={styles.stringRowInput}
                     type="text"
                     value={s}
                     onChange={(e) => updateString(i, e.target.value)}

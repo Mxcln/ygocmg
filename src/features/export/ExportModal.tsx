@@ -9,6 +9,8 @@ import type { GlobalConfig } from "../../shared/contracts/config";
 import type { ExportPreviewResult } from "../../shared/contracts/export";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import { languageExists } from "../../shared/utils/language";
+import shared from "../../shared/styles/shared.module.css";
+import exportStyles from "./ExportModal.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
 
 type WizardStep = 1 | 2 | 3;
@@ -63,10 +65,10 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
     const defaults = selectedPackIds
       .map((packId) => packMetadataMap[packId]?.default_export_language ?? "")
       .filter((language) => languageExists(config.text_language_catalog, language));
-    const shared = defaults.length === selectedPackIds.length && defaults.every((language) => language === defaults[0])
+    const commonDefault = defaults.length === selectedPackIds.length && defaults.every((language) => language === defaults[0])
       ? defaults[0]
       : "";
-    setExportLanguage(shared);
+    setExportLanguage(commonDefault);
   }, [selectedPackIds, packMetadataMap, config.text_language_catalog]);
 
   function handleTogglePack(packId: string) {
@@ -159,38 +161,38 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
 
   return (
     <>
-      <header className="modal-header">
+      <header className={shared.modalHeader}>
         <h2>Export Expansions</h2>
-        <div className="export-header-right">
-          <div className="import-wizard-steps">
-            <span className={`wizard-step ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>
+        <div className={exportStyles.exportHeaderRight}>
+          <div className={shared.importWizardSteps}>
+            <span className={`${shared.wizardStep} ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>
               1. Configure
             </span>
-            <span className="wizard-step-sep">&rsaquo;</span>
-            <span className={`wizard-step ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>
+            <span className={shared.wizardStepSep}>&rsaquo;</span>
+            <span className={`${shared.wizardStep} ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>
               2. Preview
             </span>
-            <span className="wizard-step-sep">&rsaquo;</span>
-            <span className={`wizard-step ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>
+            <span className={shared.wizardStepSep}>&rsaquo;</span>
+            <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>
               3. Export
             </span>
           </div>
-          <button className="modal-close-button" type="button" onClick={closeModal}>
+          <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
             Close
           </button>
         </div>
       </header>
 
-      <div className="modal-body export-modal-body">
+      <div className={`${shared.modalBody} ${exportStyles.exportModalBody}`}>
         {step === 1 && (
-          <div className="form-stack export-form">
-            <div className="field">
+          <div className={`${shared.formStack} ${exportStyles.exportForm}`}>
+            <div className={shared.field}>
               <span>
                 Select packs to export
                 {openPackIds.length > 0 && (
                   <button
                     type="button"
-                    className="ghost-button export-select-all-btn"
+                    className={`${shared.ghostButton} ${exportStyles.exportSelectAllBtn}`}
                     onClick={handleSelectAll}
                   >
                     {selectedPackIds.length === openPackIds.length ? "Deselect All" : "Select All"}
@@ -198,22 +200,22 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 )}
               </span>
               {openPackIds.length === 0 ? (
-                <div className="export-empty-packs">No packs are currently open.</div>
+                <div className={exportStyles.exportEmptyPacks}>No packs are currently open.</div>
               ) : (
-                <div className="export-pack-list">
+                <div className={exportStyles.exportPackList}>
                   {openPackIds.map((packId) => {
                     const meta = packMetadataMap[packId];
                     const checked = selectedPackIds.includes(packId);
                     return (
-                      <label key={packId} className={`export-pack-item ${checked ? "selected" : ""}`}>
+                      <label key={packId} className={`${exportStyles.exportPackItem} ${checked ? "selected" : ""}`}>
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => handleTogglePack(packId)}
                         />
-                        <span className="export-pack-name">{meta?.name ?? packId}</span>
+                        <span className={exportStyles.exportPackName}>{meta?.name ?? packId}</span>
                         {meta && (
-                          <span className="export-pack-detail">
+                          <span className={exportStyles.exportPackDetail}>
                             {meta.author} &middot; v{meta.version}
                           </span>
                         )}
@@ -224,7 +226,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               )}
             </div>
 
-            <div className="field">
+            <div className={shared.field}>
               <span>Export language (required)</span>
               <TextLanguagePicker
                 catalog={config.text_language_catalog}
@@ -235,9 +237,9 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               />
             </div>
 
-            <div className="field">
+            <div className={shared.field}>
               <span>Output directory (required)</span>
-              <div className="file-picker-row">
+              <div className={shared.filePickerRow}>
                 <input
                   readOnly
                   value={outputDir}
@@ -246,7 +248,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 />
                 <button
                   type="button"
-                  className="ghost-button"
+                  className={shared.ghostButton}
                   onClick={() => void handleBrowseOutputDir()}
                 >
                   Browse
@@ -254,7 +256,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 {outputDir && (
                   <button
                     type="button"
-                    className="ghost-button"
+                    className={shared.ghostButton}
                     onClick={() => setOutputDir("")}
                   >
                     Clear
@@ -263,7 +265,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               </div>
             </div>
 
-            <div className="field">
+            <div className={shared.field}>
               <span>Output name (required)</span>
               <input
                 value={outputName}
@@ -271,7 +273,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 placeholder="my-expansion"
               />
               {outputDir && outputName.trim() && (
-                <span className="export-output-preview">
+                <span className={exportStyles.exportOutputPreview}>
                   Output: {outputDir}
                   {outputDir.endsWith("\\") || outputDir.endsWith("/") ? "" : "\\"}
                   {outputName.trim()}
@@ -279,15 +281,15 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               )}
             </div>
 
-            {previewError && <div className="import-error-banner">{previewError}</div>}
+            {previewError && <div className={shared.importErrorBanner}>{previewError}</div>}
 
-            <div className="form-actions">
-              <button type="button" className="ghost-button" onClick={closeModal}>
+            <div className={shared.formActions}>
+              <button type="button" className={shared.ghostButton} onClick={closeModal}>
                 Cancel
               </button>
               <button
                 type="button"
-                className="primary-button"
+                className={shared.primaryButton}
                 disabled={!canPreview || busy !== null}
                 onClick={() => void handlePreview()}
               >
@@ -298,64 +300,70 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
         )}
 
         {step === 2 && previewResult && (
-          <div className="import-preview-step export-form">
-            <div className="import-preview-summary">
-              <div className="import-stat">
-                <span className="import-stat-value">{previewResult.data.pack_count}</span>
-                <span className="import-stat-label">Packs</span>
+          <div className={`${shared.importPreviewStep} ${exportStyles.exportForm}`}>
+            <div className={shared.importPreviewSummary}>
+              <div className={shared.importStat}>
+                <span className={shared.importStatValue}>{previewResult.data.pack_count}</span>
+                <span className={shared.importStatLabel}>Packs</span>
               </div>
-              <div className="import-stat">
-                <span className="import-stat-value">{previewResult.data.card_count}</span>
-                <span className="import-stat-label">Cards</span>
+              <div className={shared.importStat}>
+                <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
+                <span className={shared.importStatLabel}>Cards</span>
               </div>
-              <div className="import-stat">
-                <span className="import-stat-value">{previewResult.data.main_image_count}</span>
-                <span className="import-stat-label">Images</span>
+              <div className={shared.importStat}>
+                <span className={shared.importStatValue}>{previewResult.data.main_image_count}</span>
+                <span className={shared.importStatLabel}>Images</span>
               </div>
-              <div className="import-stat">
-                <span className="import-stat-value">{previewResult.data.field_image_count}</span>
-                <span className="import-stat-label">Field Imgs</span>
+              <div className={shared.importStat}>
+                <span className={shared.importStatValue}>{previewResult.data.field_image_count}</span>
+                <span className={shared.importStatLabel}>Field Imgs</span>
               </div>
-              <div className="import-stat">
-                <span className="import-stat-value">{previewResult.data.script_count}</span>
-                <span className="import-stat-label">Scripts</span>
+              <div className={shared.importStat}>
+                <span className={shared.importStatValue}>{previewResult.data.script_count}</span>
+                <span className={shared.importStatLabel}>Scripts</span>
               </div>
-              <div className="import-stat">
-                <span className={`import-stat-value ${previewResult.data.error_count > 0 ? "stat-error" : ""}`}>
+              <div className={shared.importStat}>
+                <span
+                  className={shared.importStatValue}
+                  data-level={previewResult.data.error_count > 0 ? "error" : undefined}
+                >
                   {previewResult.data.error_count}
                 </span>
-                <span className="import-stat-label">Errors</span>
+                <span className={shared.importStatLabel}>Errors</span>
               </div>
-              <div className="import-stat">
-                <span className={`import-stat-value ${previewResult.data.warning_count > 0 ? "stat-warning" : ""}`}>
+              <div className={shared.importStat}>
+                <span
+                  className={shared.importStatValue}
+                  data-level={previewResult.data.warning_count > 0 ? "warning" : undefined}
+                >
                   {previewResult.data.warning_count}
                 </span>
-                <span className="import-stat-label">Warnings</span>
+                <span className={shared.importStatLabel}>Warnings</span>
               </div>
             </div>
 
             {previewResult.data.error_count > 0 && (
-              <div className="import-error-banner">
+              <div className={shared.importErrorBanner}>
                 Export has {previewResult.data.error_count} blocking error
                 {previewResult.data.error_count > 1 ? "s" : ""}. Fix the issues and try again.
               </div>
             )}
 
             {previewResult.data.issues.length > 0 && (
-              <div className="import-issues-list">
-                <strong className="import-issues-header">
+              <div className={shared.importIssuesList}>
+                <strong className={shared.importIssuesHeader}>
                   Issues ({previewResult.data.issues.length})
                 </strong>
                 <ul>
                   {previewResult.data.issues.map((issue, idx) => (
-                    <li key={idx} className={`import-issue import-issue-${issue.level}`}>
-                      <span className="import-issue-badge">{issue.level}</span>
-                      <span className="import-issue-code">{issue.code}</span>
+                    <li key={idx} className={shared.importIssue} data-level={issue.level}>
+                      <span className={shared.importIssueBadge}>{issue.level}</span>
+                      <span className={shared.importIssueCode}>{issue.code}</span>
                       {issue.target.entity_id && (
-                        <span className="import-issue-entity">#{issue.target.entity_id}</span>
+                        <span className={shared.importIssueEntity}>#{issue.target.entity_id}</span>
                       )}
                       {issue.params && Object.keys(issue.params).length > 0 && (
-                        <span className="import-issue-params">
+                        <span className={shared.importIssueParams}>
                           {Object.entries(issue.params)
                             .map(([k, v]) => `${k}=${v}`)
                             .join(", ")}
@@ -367,13 +375,13 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               </div>
             )}
 
-            <div className="form-actions">
-              <button type="button" className="ghost-button" onClick={handleBackFromStep2}>
+            <div className={shared.formActions}>
+              <button type="button" className={shared.ghostButton} onClick={handleBackFromStep2}>
                 Back
               </button>
               <button
                 type="button"
-                className="primary-button"
+                className={shared.primaryButton}
                 disabled={previewResult.data.error_count > 0 || busy !== null}
                 onClick={() => void handleExecute()}
               >
@@ -384,42 +392,42 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
         )}
 
         {step === 3 && (
-          <div className="import-preview-step export-form">
+          <div className={`${shared.importPreviewStep} ${exportStyles.exportForm}`}>
             {previewResult && (
-              <div className="import-preview-summary">
-                <div className="import-stat">
-                  <span className="import-stat-value">{previewResult.data.pack_count}</span>
-                  <span className="import-stat-label">Packs</span>
+              <div className={shared.importPreviewSummary}>
+                <div className={shared.importStat}>
+                  <span className={shared.importStatValue}>{previewResult.data.pack_count}</span>
+                  <span className={shared.importStatLabel}>Packs</span>
                 </div>
-                <div className="import-stat">
-                  <span className="import-stat-value">{previewResult.data.card_count}</span>
-                  <span className="import-stat-label">Cards</span>
+                <div className={shared.importStat}>
+                  <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
+                  <span className={shared.importStatLabel}>Cards</span>
                 </div>
-                <div className="import-stat">
-                  <span className="import-stat-value">{previewResult.data.main_image_count}</span>
-                  <span className="import-stat-label">Images</span>
+                <div className={shared.importStat}>
+                  <span className={shared.importStatValue}>{previewResult.data.main_image_count}</span>
+                  <span className={shared.importStatLabel}>Images</span>
                 </div>
-                <div className="import-stat">
-                  <span className="import-stat-value">{previewResult.data.field_image_count}</span>
-                  <span className="import-stat-label">Field Imgs</span>
+                <div className={shared.importStat}>
+                  <span className={shared.importStatValue}>{previewResult.data.field_image_count}</span>
+                  <span className={shared.importStatLabel}>Field Imgs</span>
                 </div>
-                <div className="import-stat">
-                  <span className="import-stat-value">{previewResult.data.script_count}</span>
-                  <span className="import-stat-label">Scripts</span>
+                <div className={shared.importStat}>
+                  <span className={shared.importStatValue}>{previewResult.data.script_count}</span>
+                  <span className={shared.importStatLabel}>Scripts</span>
                 </div>
               </div>
             )}
 
             {displayJob && (
-              <div className={`import-job-strip ${displayJob.status}`}>
-                <span className="import-job-status">{displayJob.status}</span>
+              <div className={shared.importJobStrip} data-status={displayJob.status}>
+                <span className={shared.importJobStatus}>{displayJob.status}</span>
                 <strong>{displayJob.stage}</strong>
                 {displayJob.progress_percent != null && (
                   <span>{displayJob.progress_percent}%</span>
                 )}
                 {displayJob.message && <span>{displayJob.message}</span>}
                 {displayJob.error && (
-                  <span className="import-job-error">
+                  <span className={shared.importJobError}>
                     {displayJob.error.code}: {displayJob.error.message}
                   </span>
                 )}
@@ -427,10 +435,10 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
             )}
 
             {jobSucceeded && (
-              <div className="import-success-banner">
+              <div className={shared.importSuccessBanner}>
                 Export completed successfully.
                 {outputDir && outputName.trim() && (
-                  <span className="export-output-path">
+                  <span className={exportStyles.exportOutputPath}>
                     Output: {outputDir}
                     {outputDir.endsWith("\\") || outputDir.endsWith("/") ? "" : "\\"}
                     {outputName.trim()}
@@ -439,32 +447,32 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               </div>
             )}
 
-            <div className="form-actions">
+            <div className={shared.formActions}>
               {exporting && (
-                <button type="button" className="ghost-button" disabled>
+                <button type="button" className={shared.ghostButton} disabled>
                   Exporting...
                 </button>
               )}
 
               {jobSucceeded && (
-                <button type="button" className="primary-button" onClick={closeModal}>
+                <button type="button" className={shared.primaryButton} onClick={closeModal}>
                   Done
                 </button>
               )}
 
               {jobFailed && (
                 <>
-                  <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                  <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
                     Back
                   </button>
-                  <span className="import-fail-hint">
+                  <span className={shared.importFailHint}>
                     Export job failed. Check errors above and try again.
                   </span>
                 </>
               )}
 
               {!exporting && !jobDone && (
-                <button type="button" className="ghost-button" onClick={handleBackFromStep3}>
+                <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
                   Back
                 </button>
               )}

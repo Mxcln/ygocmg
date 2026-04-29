@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatValidationIssue } from "../../shared/utils/format";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./AppDialog.module.css";
 
 export function AppDialog() {
   const dialogState = useShellStore((s) => s.dialog);
@@ -56,22 +58,22 @@ export function AppDialog() {
   }, [canClose, closeDialog, dialog]);
 
   return (
-    <div className="dialog-layer">
+    <div className={styles.dialogLayer}>
       <div
-        className="modal-backdrop"
+        className={styles.dialogBackdrop}
         onClick={() => {
           if (canClose) closeDialog();
         }}
       />
-      <section className="dialog-box" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
-        <header className="modal-header">
+      <section className={styles.dialogBox} role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
+        <header className={shared.modalHeader}>
           <div>
             <h2 id="app-dialog-title">{dialog.title}</h2>
-            <p className="dialog-summary">{dialog.message}</p>
+            <p className={styles.summary}>{dialog.message}</p>
           </div>
         </header>
         {dialog.kind === "warning" && (
-          <div className="dialog-warning-list">
+          <div className={styles.warningList}>
             <ul>
               {dialog.warnings.map((warning, index) => (
                 <li key={`${warning.code}-${index}`}>
@@ -83,14 +85,14 @@ export function AppDialog() {
           </div>
         )}
         {dialog.errorMessage && (
-          <div className="dialog-error" role="alert">
+          <div className={styles.error} role="alert">
             {dialog.errorMessage}
           </div>
         )}
-        <div className="dialog-actions">
+        <div className={styles.actions}>
           <button
             type="button"
-            className="ghost-button"
+            className={shared.ghostButton}
             onClick={closeDialog}
             disabled={!canClose}
           >
@@ -98,7 +100,7 @@ export function AppDialog() {
           </button>
           <button
             type="button"
-            className={dialog.kind === "confirm" && dialog.danger ? "danger-button" : "primary-button"}
+            className={dialog.kind === "confirm" && dialog.danger ? shared.dangerButton : shared.primaryButton}
             onClick={() => void handleConfirm()}
             disabled={busy}
           >

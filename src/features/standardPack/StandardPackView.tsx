@@ -14,6 +14,9 @@ import type { CardBrowserQuery } from "../card/CardBrowserPanel";
 import { StringsBrowserPanel } from "../strings/StringsBrowserPanel";
 import type { StringsBrowserQuery } from "../strings/StringsBrowserPanel";
 import { StandardCardInspector } from "./StandardCardInspector";
+import drawerStyles from "../card/CardEditDrawer.module.css";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./StandardPackView.module.css";
 
 type StandardTab = "cards" | "strings";
 
@@ -131,9 +134,9 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   }
 
   return (
-    <div className="standard-view">
-      <div className="standard-pack-header">
-        <div className="standard-pack-summary">
+    <div className={styles.standardView}>
+      <div className={styles.standardPackHeader}>
+        <div className={styles.standardPackSummary}>
           <strong>Standard Pack</strong>
           <span>
             {status
@@ -141,20 +144,20 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               : "Loading status..."}
           </span>
         </div>
-        <div className="standard-pack-actions">
+        <div className={styles.standardPackActions}>
           {!status?.configured && (
-            <button type="button" className="ghost-button" onClick={() => openModal("settings")}>
+            <button type="button" className={shared.ghostButton} onClick={() => openModal("settings")}>
               Settings
             </button>
           )}
           {status?.state === "missing_language" && (
-            <button type="button" className="ghost-button" onClick={() => openModal("settings")}>
+            <button type="button" className={shared.ghostButton} onClick={() => openModal("settings")}>
               Settings
             </button>
           )}
           <button
             type="button"
-            className="primary-button"
+            className={shared.primaryButton}
             disabled={rebuilding || !canRebuild}
             onClick={() => void handleRebuild()}
           >
@@ -163,12 +166,15 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
         </div>
       </div>
 
-      <div className={`standard-status-strip ${status?.state ?? "loading"}`}>
+      <div
+        className={styles.standardStatusStrip}
+        data-status={status?.state ?? "loading"}
+      >
         {statusQuery.isLoading ? (
           <span>Checking standard pack status...</span>
         ) : status ? (
           <>
-            <span className="status-pill">{stateLabel(status.state)}</span>
+            <span className={styles.statusPill}>{stateLabel(status.state)}</span>
             <span title={status.ygopro_path ?? undefined}>{status.ygopro_path ?? "YGOPro path is not configured"}</span>
             <span>
               Source: {status.source_language
@@ -179,7 +185,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
             </span>
             {status.cdb_path && <span title={status.cdb_path}>CDB: {status.cdb_path}</span>}
             <span>Indexed: {formatTimestamp(status.indexed_at)}</span>
-            {status.message && <span className="status-message">{status.message}</span>}
+            {status.message && <span className={styles.statusMessage}>{status.message}</span>}
           </>
         ) : (
           <span>Standard pack status is unavailable.</span>
@@ -187,7 +193,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
       </div>
 
       {activeJob && (
-        <div className={`standard-job-strip ${activeJob.status}`}>
+        <div className={styles.standardJobStrip} data-status={activeJob.status}>
           <span>{activeJob.status}</span>
           <strong>{activeJob.stage}</strong>
           <span>{activeJob.progress_percent ?? 0}%</span>
@@ -197,27 +203,27 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
       )}
 
       {rebuildError && (
-        <div className="card-edit-error">{rebuildError}</div>
+        <div className={drawerStyles.cardEditError}>{rebuildError}</div>
       )}
 
-      <div className="tab-strip">
+      <div className={shared.tabStrip}>
         <button
           type="button"
-          className={`tab-btn ${activeTab === "cards" ? "active" : ""}`}
+          className={`${shared.tabBtn} ${activeTab === "cards" ? "active" : ""}`}
           onClick={() => setActiveTab("cards")}
         >
           Cards
         </button>
         <button
           type="button"
-          className={`tab-btn ${activeTab === "strings" ? "active" : ""}`}
+          className={`${shared.tabBtn} ${activeTab === "strings" ? "active" : ""}`}
           onClick={() => setActiveTab("strings")}
         >
           Strings
         </button>
       </div>
 
-      <div className="tab-content">
+      <div className={shared.tabContent}>
         {activeTab === "cards" ? (
           canBrowseCards ? (
             <CardBrowserPanel
@@ -230,7 +236,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               emptyHint="Try another search term."
             />
           ) : (
-            <div className="card-list-empty">
+            <div className={shared.cardListEmpty}>
               <p>No standard index yet.</p>
               <p>Configure YGOPro path and rebuild the index to browse standard cards.</p>
             </div>
@@ -247,7 +253,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               emptyHint="strings.conf is missing or no entries match the current filter."
             />
           ) : (
-            <div className="card-list-empty">
+            <div className={shared.cardListEmpty}>
               <p>No standard index yet.</p>
               <p>Configure YGOPro path and rebuild the index to browse standard strings.</p>
             </div>

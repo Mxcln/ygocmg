@@ -1,0 +1,64 @@
+.languageOrderEditor {
+  display: grid;
+  gap: 8px;
+}
+
+.languageOrderList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+  align-items: center;
+}
+
+.languageOrderChip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 4px;
+  padding: 3px 5px 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.languageOrderChipLegacy {
+  border-style: dashed;
+}
+
+.languageOrderChip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.languageChipButton {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--bg-0);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.languageChipButton:hover:not(:disabled) {
+  color: var(--text-0);
+  background: var(--line);
+}
+
+.languageChipButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.languageOrderEmpty {
+  color: var(--text-2);
+  font-size: 12px;
+}

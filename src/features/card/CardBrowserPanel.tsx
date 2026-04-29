@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CardListRow, SortDirection } from "../../shared/contracts/card";
+import shared from "../../shared/styles/shared.module.css";
+import styles from "./CardBrowserPanel.module.css";
 
 const PAGE_SIZE = 6;
 
@@ -57,11 +59,11 @@ function formatStat(val: number | null): string {
   return String(val);
 }
 
-function subtypeTagClass(tag: string, primaryType: string): string {
+function subtypeTagDataFlag(tag: string, primaryType: string): string {
   if (primaryType === "monster") {
-    return `subtype-tag flag-${tag.toLowerCase().replace(/[^a-z]/g, "")}`;
+    return tag.toLowerCase().replace(/[^a-z]/g, "");
   }
-  return `subtype-tag ${primaryType}`;
+  return primaryType;
 }
 
 function cardImageSrc(basePath: string, code: number, revision: number): string {
@@ -150,16 +152,16 @@ export function CardBrowserPanel({
 
   return (
     <>
-      <div className="card-list-toolbar">
+      <div className={styles.cardListToolbar}>
         <input
-          className="card-search-input"
+          className={styles.cardSearchInput}
           type="text"
           placeholder="Search cards..."
           value={keyword}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
         <select
-          className="card-sort-select"
+          className={styles.cardSortSelect}
           value={sortValue(sortBy, sortDirection)}
           onChange={(e) => handleSortChange(e.target.value)}
         >
@@ -173,28 +175,28 @@ export function CardBrowserPanel({
           ))}
         </select>
         {onNewCard && (
-          <button type="button" className="primary-button" onClick={onNewCard}>
+          <button type="button" className={shared.primaryButton} onClick={onNewCard}>
             {newCardLabel}
           </button>
         )}
       </div>
 
       {isLoading && items.length === 0 ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>{loadingText}</p>
         </div>
       ) : error ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>{errorText}</p>
         </div>
       ) : items.length === 0 ? (
-        <div className="card-list-empty">
+        <div className={shared.cardListEmpty}>
           <p>{emptyTitle}</p>
           {emptyHint && <p>{emptyHint}</p>}
         </div>
       ) : (
         <>
-          <div className="card-list-header">
+          <div className={styles.cardListHeader}>
             <span />
             <span>Code</span>
             <span>Name</span>
@@ -205,14 +207,14 @@ export function CardBrowserPanel({
             <span>Lv</span>
             <span />
           </div>
-          <div className="card-list-body">
+          <div className={styles.cardListBody}>
             {items.map((card) => (
               <div
                 key={card.id}
-                className="card-list-row"
+                className={styles.cardListRow}
                 onClick={() => onOpenCard(card)}
               >
-                <div className="card-list-thumb">
+                <div className={styles.cardListThumb}>
                   {card.has_image && imageBasePath ? (
                     <img
                       src={cardImageSrc(imageBasePath, card.code, revision)}
@@ -227,24 +229,28 @@ export function CardBrowserPanel({
                     </svg>
                   )}
                 </div>
-                <span className="card-list-code">{card.code}</span>
-                <span className="card-list-name" title={card.name}>
+                <span className={styles.cardListCode}>{card.code}</span>
+                <span className={styles.cardListName} title={card.name}>
                   {card.name || "(no name)"}
                 </span>
-                <span className={`card-type-badge ${card.primary_type}`}>
+                <span className={styles.cardTypeBadge} data-type={card.primary_type}>
                   {card.primary_type}
                 </span>
-                <span className="card-list-subtype">
+                <span className={styles.cardListSubtype}>
                   {card.subtype_display.split(" / ").map((tag) => (
-                    <span key={tag} className={subtypeTagClass(tag, card.primary_type)}>
+                    <span
+                      key={tag}
+                      className={styles.subtypeTag}
+                      data-flag={subtypeTagDataFlag(tag, card.primary_type)}
+                    >
                       {tag}
                     </span>
                   ))}
                 </span>
-                <span className="card-list-stat">{card.atk !== null ? formatStat(card.atk) : ""}</span>
-                <span className="card-list-stat">{card.def !== null ? formatStat(card.def) : ""}</span>
-                <span className="card-list-stat">{card.level !== null ? String(card.level) : ""}</span>
-                <span className="card-list-assets">
+                <span className={styles.cardListStat}>{card.atk !== null ? formatStat(card.atk) : ""}</span>
+                <span className={styles.cardListStat}>{card.def !== null ? formatStat(card.def) : ""}</span>
+                <span className={styles.cardListStat}>{card.level !== null ? String(card.level) : ""}</span>
+                <span className={styles.cardListAssets}>
                   <svg width="12" height="12" viewBox="0 0 12 12" className={card.has_image ? "active" : ""}>
                     <rect x="0.5" y="0.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1" />
                     <circle cx="4" cy="4.5" r="1.2" fill="currentColor" />
@@ -260,7 +266,7 @@ export function CardBrowserPanel({
           </div>
 
           {totalPages > 1 && (
-            <div className="card-list-pagination">
+            <div className={shared.cardListPagination}>
               <button
                 type="button"
                 disabled={page <= 1}
@@ -270,12 +276,12 @@ export function CardBrowserPanel({
               </button>
               {buildPageNumbers(page, totalPages).map((item, idx) =>
                 item === "..." ? (
-                  <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
+                  <span key={`ellipsis-${idx}`} className={shared.pageEllipsis}>...</span>
                 ) : (
                   <button
                     key={item}
                     type="button"
-                    className={`page-num ${item === page ? "active" : ""}`}
+                    className={`${shared.pageNum} ${item === page ? "active" : ""}`}
                     onClick={() => setPage(item as number)}
                   >
                     {item}

@@ -6,6 +6,8 @@ import type { PackMetadata, PackOverview } from "../../shared/contracts/pack";
 import { formatTimestamp, formatError } from "../../shared/utils/format";
 import { preferredAuthoringLanguage } from "../../shared/utils/language";
 import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
+import shared from "../../shared/styles/shared.module.css";
+import addPackStyles from "./AddPackModal.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import { ImportPackPanel } from "./ImportPackPanel";
 
@@ -133,15 +135,15 @@ export function AddPackModal({
 
   return (
     <>
-      <header className="modal-header">
+      <header className={shared.modalHeader}>
         <h2>Add Pack</h2>
-        <button className="modal-close-button" type="button" onClick={closeModal}>
+        <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
           Close
         </button>
       </header>
 
-      <div className="modal-body workspace-modal-body">
-        <aside className="modal-tabs">
+      <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
+        <aside className={shared.modalTabs}>
           <button
             type="button"
             className={addPackTab === "openPack" ? "active" : ""}
@@ -165,9 +167,9 @@ export function AddPackModal({
           </button>
         </aside>
 
-        <div className="modal-panel">
+        <div className={shared.modalPanel}>
           {!hasWorkspace ? (
-            <p className="empty-state-text">
+            <p className={shared.emptyStateText}>
               Open a workspace first before managing packs.
             </p>
           ) : addPackTab === "openPack" ? (
@@ -213,18 +215,18 @@ function OpenPackPanel({
   onOpen: (packId: string) => void;
 }) {
   return (
-    <section className="workspace-recent-panel">
+    <section className={shared.workspaceRecentPanel}>
       {loading ? (
-        <p className="empty-state-text">Loading packs...</p>
+        <p className={shared.emptyStateText}>Loading packs...</p>
       ) : overviews.length === 0 ? (
-        <p className="empty-state-text">
+        <p className={shared.emptyStateText}>
           All packs are already open, or no packs exist yet. Create one using the Create Pack tab.
         </p>
       ) : (
-        <ul className="workspace-list">
+        <ul className={addPackStyles.packList}>
           {overviews.map((pack) => (
             <li key={pack.id}>
-              <div className="workspace-row">
+              <div className={addPackStyles.workspaceRow}>
                 <div>
                   <strong>{pack.name}</strong>
                   <p>
@@ -232,9 +234,9 @@ function OpenPackPanel({
                     {pack.card_count} card{pack.card_count !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <div className="list-actions">
+                <div className={shared.listActions}>
                   <button
-                    className="ghost-button"
+                    className={shared.ghostButton}
                     type="button"
                     disabled={busyAction !== null}
                     onClick={() => onOpen(pack.id)}
@@ -272,9 +274,9 @@ function CreatePackPanel({
     : form.displayLanguageOrder[0] ?? "";
 
   return (
-    <section className="workspace-create-panel">
-      <form className="form-stack" onSubmit={onSubmit}>
-        <label className="field">
+    <section className={shared.workspaceCreatePanel}>
+      <form className={shared.formStack} onSubmit={onSubmit}>
+        <label className={shared.field}>
           <span>Pack name</span>
           <input
             value={form.name}
@@ -283,8 +285,8 @@ function CreatePackPanel({
           />
         </label>
 
-        <div className="pack-form-row">
-          <label className="field">
+        <div className={shared.packFormRow}>
+          <label className={shared.field}>
             <span>Author</span>
             <input
               value={form.author}
@@ -292,7 +294,7 @@ function CreatePackPanel({
               placeholder="Author Name"
             />
           </label>
-          <label className="field">
+          <label className={shared.field}>
             <span>Version</span>
             <input
               value={form.version}
@@ -302,7 +304,7 @@ function CreatePackPanel({
           </label>
         </div>
 
-        <label className="field">
+        <label className={shared.field}>
           <span>Description</span>
           <textarea
             rows={2}
@@ -312,8 +314,8 @@ function CreatePackPanel({
           />
         </label>
 
-        <div className="pack-form-row pack-form-row-language">
-          <div className="field">
+        <div className={`${shared.packFormRow} ${shared.packFormRowLanguage}`}>
+          <div className={shared.field}>
             <span>Display languages</span>
             <LanguageOrderEditor
               catalog={config.text_language_catalog}
@@ -326,7 +328,7 @@ function CreatePackPanel({
               }}
             />
           </div>
-          <label className="field">
+          <label className={shared.field}>
             <span>Default export language</span>
             <TextLanguagePicker
               catalog={config.text_language_catalog}
@@ -339,16 +341,16 @@ function CreatePackPanel({
           </label>
         </div>
 
-        <div className="form-actions">
+        <div className={shared.formActions}>
           <button
-            className="primary-button"
+            className={shared.primaryButton}
             type="submit"
             disabled={busyAction !== null}
           >
             {busyAction === "create" ? "Creating..." : "Create Pack"}
           </button>
           <button
-            className="ghost-button"
+            className={shared.ghostButton}
             type="button"
             disabled={busyAction !== null}
             onClick={onReset}
