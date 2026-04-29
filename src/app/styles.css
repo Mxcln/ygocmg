@@ -64,15 +64,8 @@ body.is-resizing-sidebar * {
 .app-icon {
   width: 22px;
   height: 22px;
-  border: 1px solid var(--line);
   border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel);
-  color: var(--brand);
-  font-weight: 800;
-  font-size: 11px;
+  object-fit: contain;
 }
 
 .titlebar-name {
@@ -765,6 +758,7 @@ textarea.meta-edit-input {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
   min-height: 0;
+  flex: 1;
 }
 
 .modal-tabs {
@@ -800,68 +794,18 @@ textarea.meta-edit-input {
   color: var(--brand);
 }
 
-.modal-panel,
-.settings-modal-body {
+.modal-panel {
   padding: 16px;
   overflow: auto;
+  min-height: 360px;
 }
 
 /* ── Workspace modal panels ── */
 
-.workspace-overview-panel,
 .workspace-recent-panel,
 .workspace-create-panel {
   display: grid;
   gap: 14px;
-}
-
-.overview-slab {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-}
-
-.overview-slab h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.overview-slab p:last-child {
-  margin: 6px 0 0;
-  color: var(--text-1);
-  font-size: 13px;
-}
-
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.overview-tile {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  display: grid;
-  gap: 4px;
-}
-
-.overview-tile span {
-  color: var(--text-2);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.overview-tile strong {
-  font-size: 14px;
-}
-
-.overview-actions {
-  display: flex;
-  gap: 8px;
 }
 
 /* Panel headers */
@@ -1031,27 +975,23 @@ textarea.meta-edit-input {
 
 /* ── Settings Modal ── */
 
-.settings-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.settings-toolbar h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.settings-grid {
+.settings-modal-body {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: 180px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
 }
 
-.settings-group-wide {
-  grid-column: span 2;
+.settings-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-tab-content {
+  display: grid;
+  gap: 14px;
+  align-content: start;
 }
 
 .settings-group {
@@ -1158,46 +1098,56 @@ textarea.meta-edit-input {
 
 .workspace-list {
   list-style: none;
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
   padding: 0;
 }
 
-.workspace-list li {
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
+.workspace-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
   border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--panel);
 }
 
-.workspace-list li.current-workspace {
+.workspace-list-item.current-workspace {
   border-color: rgba(17, 94, 95, 0.2);
   background: var(--brand-soft);
 }
 
-.workspace-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+.ws-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.workspace-row strong {
-  font-size: 14px;
-}
-
-.workspace-row p {
-  margin: 2px 0 0;
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-.workspace-list code {
+.ws-path {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-time {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ws-open-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .empty-state-text {
@@ -2238,8 +2188,7 @@ textarea.card-text-input {
     grid-template-columns: 1fr 1fr;
   }
 
-  .settings-grid,
-  .overview-grid {
+  .settings-tab-content {
     grid-template-columns: 1fr;
   }
 

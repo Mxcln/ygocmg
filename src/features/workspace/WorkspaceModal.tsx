@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { workspaceApi } from "../../shared/api/workspaceApi";
 import type { GlobalConfig } from "../../shared/contracts/config";
@@ -13,7 +13,7 @@ import {
   normalizeOptionalText,
 } from "../../shared/utils/format";
 
-type WorkspaceView = "overview" | "recent" | "create";
+type WorkspaceView = "recent" | "create";
 
 interface CreateWorkspaceForm {
   name: string;
@@ -50,7 +50,6 @@ export function WorkspaceModal({
   });
 
   const recentCount = recentWorkspaces.workspaces.length;
-  const hasYgoProPath = Boolean(config.ygopro_path);
 
   async function refreshRecent() {
     const next = await workspaceApi.listRecentWorkspaces();
@@ -121,11 +120,8 @@ export function WorkspaceModal({
 
       <div className="modal-body workspace-modal-body">
         <aside className="modal-tabs">
-          <button type="button" className={view === "overview" ? "active" : ""} onClick={() => setView("overview")}>
-            Overview
-          </button>
           <button type="button" className={view === "recent" ? "active" : ""} onClick={() => setView("recent")}>
-            Recent Workspaces
+            Open Workspace
           </button>
           <button type="button" className={view === "create" ? "active" : ""} onClick={() => setView("create")}>
             Create Workspace
@@ -133,15 +129,6 @@ export function WorkspaceModal({
         </aside>
 
         <div className="modal-panel">
-          {view === "overview" && (
-            <OverviewPanel
-              currentWorkspace={currentWorkspace}
-              recentCount={recentCount}
-              hasYgoProPath={hasYgoProPath}
-              onSwitchView={setView}
-            />
-          )}
-
           {view === "recent" && (
             <RecentPanel
               recentWorkspaces={recentWorkspaces.workspaces}
@@ -166,48 +153,6 @@ export function WorkspaceModal({
         </div>
       </div>
     </>
-  );
-}
-
-function OverviewPanel({
-  currentWorkspace,
-  recentCount,
-  hasYgoProPath,
-  onSwitchView,
-}: {
-  currentWorkspace: { meta: WorkspaceMeta; path: string } | null;
-  recentCount: number;
-  hasYgoProPath: boolean;
-  onSwitchView: (view: WorkspaceView) => void;
-}) {
-  return (
-    <section className="workspace-overview-panel">
-      <article className="overview-slab">
-        <p className="section-kicker">Current</p>
-        <h3>{currentWorkspace?.meta.name ?? "No Workspace Open"}</h3>
-        <p>{currentWorkspace?.path ?? "Nothing is open yet. Choose a recent item or create a fresh workspace."}</p>
-      </article>
-
-      <div className="overview-grid">
-        <article className="overview-tile">
-          <span>Recent entries</span>
-          <strong>{recentCount}</strong>
-        </article>
-        <article className="overview-tile">
-          <span>YGOPro path</span>
-          <strong>{hasYgoProPath ? "Ready" : "Missing"}</strong>
-        </article>
-      </div>
-
-      <div className="overview-actions">
-        <button className="primary-button" type="button" onClick={() => onSwitchView("recent")}>
-          Browse Recent Workspaces
-        </button>
-        <button className="ghost-button" type="button" onClick={() => onSwitchView("create")}>
-          Create New Workspace
-        </button>
-      </div>
-    </section>
   );
 }
 
@@ -264,25 +209,19 @@ function RecentPanel({
           {recentWorkspaces.map((ws) => {
             const isCurrent = currentWorkspace?.meta.id === ws.workspace_id;
             return (
-              <li key={ws.workspace_id} className={isCurrent ? "current-workspace" : ""}>
-                <div className="workspace-row">
-                  <div>
-                    <strong>{ws.name_cache ?? "Unnamed Workspace"}</strong>
-                    <p>{formatTimestamp(ws.last_opened_at)}</p>
-                  </div>
-                  {isCurrent && <span className="live-pill">CURRENT</span>}
-                </div>
-                <code>{ws.path}</code>
-                <div className="list-actions">
-                  <button
-                    className="ghost-button"
-                    type="button"
-                    disabled={busyAction !== null}
-                    onClick={() => void onOpen(ws.path)}
-                  >
-                    Open
-                  </button>
-                </div>
+              <li key={ws.workspace_id} className={`workspace-list-item ${isCurrent ? "current-workspace" : ""}`}>
+                <strong className="ws-name">{ws.name_cache ?? "Unnamed Workspace"}</strong>
+                <code className="ws-path">{ws.path}</code>
+                <span className="ws-time">{formatTimestamp(ws.last_opened_at)}</span>
+                {isCurrent && <span className="live-pill">CURRENT</span>}
+                <button
+                  className="ghost-button ws-open-btn"
+                  type="button"
+                  disabled={busyAction !== null}
+                  onClick={() => void onOpen(ws.path)}
+                >
+                  Open
+                </button>
               </li>
             );
           })}

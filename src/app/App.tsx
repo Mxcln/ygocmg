@@ -549,7 +549,7 @@ export function App() {
         onDoubleClick={() => void handleWindowAction("toggle-maximize")}
       >
         <div className="titlebar-left" data-tauri-drag-region>
-          <span className="app-icon">Y</span>
+          <img className="app-icon" src="/app-icon.png" alt="YGOCMG" draggable={false} />
           <span className="titlebar-name">{workspaceName}</span>
         </div>
         <div className="titlebar-spacer" data-tauri-drag-region />
