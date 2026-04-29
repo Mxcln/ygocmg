@@ -21,11 +21,22 @@ use ygocmg_core::domain::card::model::{
     Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race, SpellSubtype,
 };
 use ygocmg_core::domain::config::rules::default_global_config;
+use ygocmg_core::domain::language::model::{TextLanguageKind, TextLanguageProfile};
 use ygocmg_core::domain::resource::path_rules::{card_image_path, field_image_path, script_path};
 use ygocmg_core::domain::strings::model::PackStringKind;
 use ygocmg_core::infrastructure::json_store;
 use ygocmg_core::infrastructure::pack_locator;
 use ygocmg_core::presentation::commands::app_commands;
+
+fn custom_language(id: &str, label: &str) -> TextLanguageProfile {
+    TextLanguageProfile {
+        id: id.to_string(),
+        label: label.to_string(),
+        kind: TextLanguageKind::Custom,
+        hidden: false,
+        last_used_at: None,
+    }
+}
 
 #[test]
 fn minimal_authoring_flow_persists_and_renames_assets() {
@@ -845,7 +856,7 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
         "Max",
         "1.0.0",
         None,
-        vec!["zh-CN".to_string()],
+        vec!["zh-CN".to_string(), "en-US".to_string()],
         Some("zh-CN".to_string()),
     )
     .unwrap();
@@ -995,6 +1006,28 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
     .unwrap();
     assert_eq!(paged.total, 4);
     assert_eq!(paged.items.len(), 2);
+
+    let untranslated_language = app_commands::list_pack_strings(
+        &state,
+        ListPackStringsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            language: "en-US".to_string(),
+            kind_filter: None,
+            key_filter: None,
+            keyword: None,
+            page: 1,
+            page_size: 10,
+        },
+    )
+    .unwrap();
+    assert_eq!(untranslated_language.total, 4);
+    assert!(
+        untranslated_language
+            .items
+            .iter()
+            .all(|entry| entry.value.is_empty())
+    );
 
     let confirmation_token = match app_commands::upsert_pack_string(
         &state,
@@ -1446,6 +1479,226 @@ fn resource_management_supports_images_scripts_and_external_editor_validation()
     Ok(())
 }
 
+#[test]
+fn config_injects_and_validates_text_language_catalog() {
+    let app_dir = tempdir().unwrap();
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let initialized = app_commands::initialize(&state).unwrap();
+    assert!(
+        initialized
+            .text_language_catalog
+            .iter()
+            .any(|language| language.id == "zh-CN")
+    );
+    assert!(initialized.standard_pack_source_language.is_none());
+
+    let mut duplicate = initialized.clone();
+    duplicate
+        .text_language_catalog
+        .push(custom_language("zh-CN", "Duplicate"));
+    assert_eq!(
+        app_commands::save_config(&state, &duplicate)
+            .unwrap_err()
+            .code,
+        "config.validation_failed"
+    );
+
+    let mut invalid_id = initialized.clone();
+    invalid_id
+        .text_language_catalog
+        .push(custom_language("default", "Default"));
+    assert_eq!(
+        app_commands::save_config(&state, &invalid_id)
+            .unwrap_err()
+            .code,
+        "config.validation_failed"
+    );
+
+    let mut missing_label = initialized.clone();
+    missing_label
+        .text_language_catalog
+        .push(custom_language("x-test", ""));
+    assert_eq!(
+        app_commands::save_config(&state, &missing_label)
+            .unwrap_err()
+            .code,
+        "config.validation_failed"
+    );
+
+    let mut accepted = initialized;
+    accepted
+        .text_language_catalog
+        .push(custom_language("x-test", "Test Language"));
+    accepted.standard_pack_source_language = Some("x-test".to_string());
+    let saved = app_commands::save_config(&state, &accepted).unwrap();
+    assert!(
+        saved
+            .text_language_catalog
+            .iter()
+            .any(|language| language.id == "x-test")
+    );
+    assert_eq!(
+        saved.standard_pack_source_language.as_deref(),
+        Some("x-test")
+    );
+}
+
+#[test]
+fn language_catalog_is_enforced_on_pack_and_card_writes_but_preserves_legacy_unknowns() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-language");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "ws", None).unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+
+    let bad_pack = app_commands::create_pack(
+        &state,
+        "bad",
+        "me",
+        "1",
+        None,
+        vec!["fr-FR".to_string()],
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(bad_pack.code, "pack.validation_failed");
+
+    let default_pack = app_commands::create_pack(
+        &state,
+        "default",
+        "me",
+        "1",
+        None,
+        vec!["default".to_string()],
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(default_pack.code, "pack.validation_failed");
+
+    let mut config = app_commands::load_config(&state).unwrap();
+    config
+        .text_language_catalog
+        .push(custom_language("x-fan", "Fan Translation"));
+    app_commands::save_config(&state, &config).unwrap();
+
+    let pack = app_commands::create_pack(
+        &state,
+        "good",
+        "me",
+        "1",
+        None,
+        vec!["zh-CN".to_string(), "x-fan".to_string()],
+        Some("x-fan".to_string()),
+    )
+    .unwrap();
+    app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let unknown_card = app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: monster_input_with_texts(
+                150_000_001,
+                BTreeMap::from([(
+                    "fr-FR".to_string(),
+                    CardTexts {
+                        name: "Bonjour".to_string(),
+                        desc: "desc".to_string(),
+                        strings: vec![],
+                    },
+                )]),
+            ),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(unknown_card.code, "card.language_validation_failed");
+
+    let created = match app_commands::create_card(
+        &state,
+        CreateCardInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card: monster_input_with_texts(
+                150_000_002,
+                BTreeMap::from([(
+                    "x-fan".to_string(),
+                    CardTexts {
+                        name: "Fan".to_string(),
+                        desc: "desc".to_string(),
+                        strings: vec![],
+                    },
+                )]),
+            ),
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    };
+    assert!(created.card.texts.contains_key("x-fan"));
+
+    let pack_path = pack_locator::resolve_pack_path(
+        &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+        &pack.id,
+    )
+    .unwrap();
+    let mut cards = json_store::load_cards(&pack_path).unwrap();
+    cards[0].texts.insert(
+        "fr-FR".to_string(),
+        CardTexts {
+            name: "Legacy".to_string(),
+            desc: "legacy".to_string(),
+            strings: vec![],
+        },
+    );
+    json_store::save_cards(&pack_path, &cards).unwrap();
+    app_commands::close_pack(&state, &pack.id).unwrap();
+    app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let preserved = match app_commands::update_card(
+        &state,
+        UpdateCardInput {
+            workspace_id: workspace.id,
+            pack_id: pack.id.clone(),
+            card_id: created.card.id,
+            card: monster_input_with_texts(
+                150_000_002,
+                BTreeMap::from([
+                    (
+                        "x-fan".to_string(),
+                        CardTexts {
+                            name: "Fan 2".to_string(),
+                            desc: "desc".to_string(),
+                            strings: vec![],
+                        },
+                    ),
+                    (
+                        "fr-FR".to_string(),
+                        CardTexts {
+                            name: "Legacy".to_string(),
+                            desc: "legacy".to_string(),
+                            strings: vec![],
+                        },
+                    ),
+                ]),
+            ),
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    };
+    assert!(preserved.card.texts.contains_key("fr-FR"));
+}
+
 fn create_card_direct(
     state: &ygocmg_core::bootstrap::app_state::AppState,
     workspace_id: &str,
@@ -1575,6 +1828,28 @@ fn update_card_direct(
     {
         WriteResultDto::Ok { data, .. } => data.card,
         WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+fn monster_input_with_texts(code: u32, texts: BTreeMap<String, CardTexts>) -> CardUpdateInput {
+    CardUpdateInput {
+        code,
+        alias: 0,
+        setcode: 0,
+        ot: Ot::Custom,
+        category: 0,
+        primary_type: PrimaryType::Monster,
+        texts,
+        monster_flags: Some(vec![MonsterFlag::Effect]),
+        atk: Some(1500),
+        def: Some(1200),
+        race: Some(Race::Warrior),
+        attribute: Some(Attribute::Light),
+        level: Some(4),
+        pendulum: None,
+        link: None,
+        spell_subtype: None,
+        trap_subtype: None,
     }
 }
 

@@ -27,6 +27,7 @@ pub enum StandardStringSortFieldDto {
 pub enum StandardPackIndexStateDto {
     NotConfigured,
     MissingSource,
+    MissingLanguage,
     MissingIndex,
     Stale,
     Ready,
@@ -41,6 +42,7 @@ pub struct StandardPackStatusDto {
     pub index_exists: bool,
     pub schema_mismatch: bool,
     pub stale: bool,
+    pub source_language: Option<String>,
     pub indexed_at: Option<AppTimestamp>,
     pub card_count: usize,
     pub state: StandardPackIndexStateDto,

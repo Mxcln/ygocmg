@@ -15,6 +15,7 @@ use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::{CardId, PackId, WorkspaceId};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue};
 use crate::domain::common::time::now_utc;
+use crate::domain::language::rules::{normalize_language_id, validate_catalog_membership};
 use crate::domain::namespace::model::{
     PackStringsNamespaceContext, build_pack_strings_namespace_index,
 };
@@ -132,6 +133,8 @@ impl<'a> PackWriteService<'a> {
         )?;
         let now = now_utc();
         let normalized = normalize_card_input(input);
+        let empty_existing_languages = BTreeSet::new();
+        validate_card_languages_or_err(self.state, &normalized, &empty_existing_languages)?;
         let structure_issues = validate_card_update_input(&normalized);
         if structure_issues
             .iter()
@@ -207,6 +210,8 @@ impl<'a> PackWriteService<'a> {
             .find(|card| card.id == card_id)
             .cloned()
             .ok_or_else(|| AppError::new("card.not_found", "card was not found"))?;
+        let existing_languages = existing.texts.keys().cloned().collect::<BTreeSet<_>>();
+        validate_card_languages_or_err(self.state, &normalized, &existing_languages)?;
 
         let code_issues = validate_card_code(normalized.code, &code_context);
         if code_issues
@@ -401,16 +406,26 @@ impl<'a> PackWriteService<'a> {
             workspace_id,
             pack_id,
         )?;
+        let normalized_language = normalize_language_id(language);
+        let existing_languages = pack_existing_languages(&snapshot);
+        validate_language_or_err(
+            self.state,
+            &normalized_language,
+            &existing_languages,
+            "pack_strings",
+            "language",
+            "pack_strings.language",
+        )?;
         let mut next_strings = snapshot.strings.clone();
 
         let mut warnings = Vec::new();
-        match next_strings.upsert_translation(language, &entry) {
+        match next_strings.upsert_translation(&normalized_language, &entry) {
             UpsertPackStringTranslationOutcome::NoChange => {
                 return Ok(PreparedUpsertPackStringWrite {
                     workspace_id: workspace_id.to_string(),
                     pack_id: pack_id.to_string(),
                     snapshot,
-                    language: language.to_string(),
+                    language: normalized_language,
                     entry,
                     next_strings,
                     warnings,
@@ -419,7 +434,8 @@ impl<'a> PackWriteService<'a> {
             UpsertPackStringTranslationOutcome::Updated { .. } => {
                 warnings.push(
                     crate::application::strings::confirmation_service::overwrite_warning(
-                        language, &entry,
+                        &normalized_language,
+                        &entry,
                     ),
                 );
             }
@@ -435,7 +451,7 @@ impl<'a> PackWriteService<'a> {
             workspace_id: workspace_id.to_string(),
             pack_id: pack_id.to_string(),
             snapshot,
-            language: language.to_string(),
+            language: normalized_language,
             entry,
             next_strings,
             warnings,
@@ -454,6 +470,17 @@ impl<'a> PackWriteService<'a> {
             workspace_id,
             pack_id,
         )?;
+        let existing_languages = pack_existing_languages(&snapshot);
+        for language in record.values.keys() {
+            validate_language_or_err(
+                self.state,
+                language,
+                &existing_languages,
+                "pack_strings",
+                "values",
+                "pack_strings.language",
+            )?;
+        }
         let mut next_strings = snapshot.strings.clone();
         let previous = snapshot
             .strings
@@ -977,6 +1004,71 @@ fn validate_pack_strings_or_err(strings: &PackStringsFile) -> AppResult<()> {
         .with_detail("issues", &error_issues));
     }
     Ok(())
+}
+
+fn validate_card_languages_or_err(
+    state: &AppState,
+    input: &CardUpdateInput,
+    existing_languages: &BTreeSet<String>,
+) -> AppResult<()> {
+    for language in input.texts.keys() {
+        validate_language_or_err(
+            state,
+            language,
+            existing_languages,
+            "card",
+            "texts",
+            "card.text_language",
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_language_or_err(
+    state: &AppState,
+    language: &str,
+    existing_languages: &BTreeSet<String>,
+    scope: &str,
+    field: &str,
+    code: &str,
+) -> AppResult<()> {
+    let config = crate::application::config::service::ConfigService::new(state)
+        .load()
+        .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+    let issues = validate_catalog_membership(
+        language,
+        &config.text_language_catalog,
+        existing_languages,
+        scope,
+        field,
+        code,
+    );
+    if issues
+        .iter()
+        .any(|issue| matches!(issue.level, IssueLevel::Error))
+    {
+        return Err(AppError::new(
+            format!("{scope}.language_validation_failed"),
+            "language contains validation errors",
+        )
+        .with_detail("issues", &issues));
+    }
+    Ok(())
+}
+
+fn pack_existing_languages(snapshot: &PackSession) -> BTreeSet<String> {
+    let mut languages = BTreeSet::new();
+    languages.extend(snapshot.metadata.display_language_order.iter().cloned());
+    if let Some(language) = &snapshot.metadata.default_export_language {
+        languages.insert(language.clone());
+    }
+    for card in &snapshot.cards {
+        languages.extend(card.texts.keys().cloned());
+    }
+    for record in &snapshot.strings.entries {
+        languages.extend(record.values.keys().cloned());
+    }
+    languages
 }
 
 fn require_card<'a>(snapshot: &'a PackSession, card_id: &str) -> AppResult<&'a CardEntity> {

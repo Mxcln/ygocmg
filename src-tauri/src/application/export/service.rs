@@ -14,12 +14,13 @@ use crate::domain::card::code::STANDARD_RESERVED_CODE_MAX;
 use crate::domain::card::validate::validate_card_structure;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
-use crate::domain::common::time::{now_utc, AppTimestamp};
+use crate::domain::common::time::{AppTimestamp, now_utc};
+use crate::domain::language::rules::{normalize_language_id, validate_catalog_membership};
 use crate::domain::namespace::model::setname_base;
 use crate::domain::pack::model::PackKind;
 use crate::domain::resource::path_rules::{card_image_path, field_image_path, script_path};
 use crate::domain::strings::model::PackStringKind;
-use crate::runtime::preview_token_cache::{write_cache, ExportPreviewEntry};
+use crate::runtime::preview_token_cache::{ExportPreviewEntry, write_cache};
 use crate::runtime::sessions::PackSession;
 
 pub struct ExportService<'a> {
@@ -160,6 +161,7 @@ impl<'a> ExportService<'a> {
         }
         validate_output_name(&input.output_name)?;
 
+        let export_language = normalize_language_id(&input.export_language);
         let mut packs = Vec::new();
         for pack_id in &input.pack_ids {
             packs.push(
@@ -171,7 +173,7 @@ impl<'a> ExportService<'a> {
             );
         }
 
-        let issues = self.collect_export_issues(&packs, input);
+        let issues = self.collect_export_issues(&packs, input, &export_language);
         let warning_count = issues
             .iter()
             .filter(|issue| matches!(issue.level, IssueLevel::Warning))
@@ -233,8 +235,24 @@ impl<'a> ExportService<'a> {
         &self,
         packs: &[PackSession],
         input: &PreviewExportBundleInput,
+        export_language: &str,
     ) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
+        let config = crate::application::config::service::ConfigService::new(self.state)
+            .load()
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+        let existing_languages = packs
+            .iter()
+            .flat_map(pack_existing_languages)
+            .collect::<BTreeSet<_>>();
+        issues.extend(validate_catalog_membership(
+            export_language,
+            &config.text_language_catalog,
+            &existing_languages,
+            "export",
+            "export_language",
+            "export.language",
+        ));
 
         let mut code_owners = BTreeMap::<u32, Vec<String>>::new();
         let mut setname_key_owners = BTreeMap::<u32, Vec<String>>::new();
@@ -282,7 +300,7 @@ impl<'a> ExportService<'a> {
                             .with_param("code", card.code),
                     );
                 }
-                if !card.texts.contains_key(&input.export_language) {
+                if !card.texts.contains_key(export_language) {
                     issues.push(
                         ValidationIssue::error(
                             "export.card_text_missing_target_language",
@@ -293,12 +311,12 @@ impl<'a> ExportService<'a> {
                         .with_param("pack_id", &pack.pack_id)
                         .with_param("card_id", &card.id)
                         .with_param("code", card.code)
-                        .with_param("language", &input.export_language),
+                        .with_param("language", export_language),
                     );
                 }
             }
             for record in &pack.strings.entries {
-                if !record.values.contains_key(&input.export_language) {
+                if !record.values.contains_key(export_language) {
                     issues.push(
                         ValidationIssue::error(
                             "export.pack_string_missing_target_language",
@@ -309,7 +327,7 @@ impl<'a> ExportService<'a> {
                         .with_param("pack_id", &pack.pack_id)
                         .with_param("kind", &record.kind)
                         .with_param("key", record.key)
-                        .with_param("language", &input.export_language),
+                        .with_param("language", export_language),
                     );
                 }
 
@@ -616,17 +634,33 @@ fn write_export_bundle(input: &PreviewExportBundleInput, packs: &[PackSession]) 
         .flat_map(|pack| pack.strings.entries.iter().cloned())
         .collect::<Vec<_>>();
 
+    let export_language = normalize_language_id(&input.export_language);
     crate::infrastructure::ygopro_cdb::write_cards_to_cdb(
         &output_path.join(format!("{}.cdb", input.output_name.trim())),
         &cards,
-        &input.export_language,
+        &export_language,
     )?;
     crate::infrastructure::strings_conf::write_records(
         &output_path.join("strings.conf"),
         &strings,
-        &input.export_language,
+        &export_language,
     )?;
     copy_export_assets(&output_path, packs)
+}
+
+fn pack_existing_languages(pack: &PackSession) -> BTreeSet<String> {
+    let mut languages = BTreeSet::new();
+    languages.extend(pack.metadata.display_language_order.iter().cloned());
+    if let Some(language) = &pack.metadata.default_export_language {
+        languages.insert(language.clone());
+    }
+    for card in &pack.cards {
+        languages.extend(card.texts.keys().cloned());
+    }
+    for record in &pack.strings.entries {
+        languages.extend(record.values.keys().cloned());
+    }
+    languages
 }
 
 fn copy_export_assets(output_path: &Path, packs: &[PackSession]) -> AppResult<()> {

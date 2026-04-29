@@ -75,12 +75,13 @@ impl PackStringsFile {
         let mut items = self
             .entries
             .iter()
-            .filter_map(|record| {
-                record.values.get(language).map(|value| PackStringEntry {
+            .map(|record| {
+                let value = record.values.get(language).cloned().unwrap_or_default();
+                PackStringEntry {
                     kind: record.kind.clone(),
                     key: record.key,
-                    value: value.clone(),
-                })
+                    value,
+                }
             })
             .collect::<Vec<_>>();
         items.sort_by(|left, right| left.kind.cmp(&right.kind).then(left.key.cmp(&right.key)));

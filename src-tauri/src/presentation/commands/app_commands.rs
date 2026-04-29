@@ -22,9 +22,10 @@ use crate::application::dto::standard_pack::{
     StandardPackStatusDto,
 };
 use crate::application::dto::strings::{
-    ConfirmPackStringsWriteInput, DeletePackStringsInput, DeletePackStringsResultDto,
-    GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto,
-    RemovePackStringTranslationInput, UpsertPackStringInput, UpsertPackStringRecordInput,
+    ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
+    DeletePackStringsResultDto, GetPackStringInput, ListPackStringsInput,
+    PackStringRecordDetailDto, PackStringsPageDto, RemovePackStringTranslationInput,
+    UpsertPackStringInput, UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppResult;
@@ -41,8 +42,9 @@ pub fn load_config(state: &AppState) -> AppResult<GlobalConfig> {
 }
 
 pub fn save_config(state: &AppState, config: &GlobalConfig) -> AppResult<GlobalConfig> {
-    crate::application::config::service::ConfigService::new(state).save(config)?;
-    Ok(config.clone())
+    crate::application::config::service::ConfigService::new(state)
+        .save(config)
+        .map(|(config, _warnings)| config)
 }
 
 pub fn list_recent_workspaces(state: &AppState) -> AppResult<WorkspaceRegistryFile> {
@@ -285,6 +287,14 @@ pub fn confirm_pack_strings_write(
 ) -> AppResult<PackStringsPageDto> {
     crate::application::strings::confirmation_service::PackStringsConfirmationService::new(state)
         .confirm_pack_strings_write(input)
+}
+
+pub fn confirm_pack_string_record_write(
+    state: &AppState,
+    input: ConfirmPackStringRecordWriteInput,
+) -> AppResult<PackStringRecordDetailDto> {
+    crate::application::strings::confirmation_service::PackStringsConfirmationService::new(state)
+        .confirm_pack_string_record_write(input)
 }
 
 pub fn import_main_image(

@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use crate::application::dto::common::WriteResultDto;
 use crate::application::dto::strings::{
-    ConfirmPackStringsWriteInput, GetPackStringInput, ListPackStringsInput,
-    PackStringRecordDetailDto, PackStringsPageDto, UpsertPackStringInput,
+    ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, GetPackStringInput,
+    ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto, UpsertPackStringInput,
     UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
@@ -222,6 +222,68 @@ impl<'a> PackStringsConfirmationService<'a> {
             warnings: prepared.warnings,
             preview: None,
         })
+    }
+
+    pub fn confirm_pack_string_record_write(
+        &self,
+        input: ConfirmPackStringRecordWriteInput,
+    ) -> AppResult<PackStringRecordDetailDto> {
+        let entry = {
+            let mut cache = self.state.confirmation_cache.write().map_err(|_| {
+                AppError::new(
+                    "confirmation.cache_lock_poisoned",
+                    "confirmation cache lock poisoned",
+                )
+            })?;
+            cache
+                .remove_pack_string_record_entry(&input.confirmation_token)
+                .ok_or_else(|| {
+                    AppError::new(
+                        "confirmation.invalid_token",
+                        "confirmation token is missing or already consumed",
+                    )
+                    .with_detail("confirmation_token", input.confirmation_token.clone())
+                })?
+        };
+
+        let current_snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            &entry.workspace_id,
+            &entry.pack_id,
+        )?;
+        if current_snapshot.revision != entry.pack_revision {
+            return Err(AppError::new(
+                "confirmation.stale_revision",
+                "confirmation token no longer matches the pack revision",
+            )
+            .with_detail("expected_revision", entry.pack_revision)
+            .with_detail("actual_revision", current_snapshot.revision));
+        }
+        if current_snapshot.source_stamp != entry.source_stamp {
+            return Err(AppError::new(
+                "confirmation.stale_source_stamp",
+                "confirmation token no longer matches current disk state",
+            )
+            .with_detail("expected_source_stamp", entry.source_stamp)
+            .with_detail("actual_source_stamp", current_snapshot.source_stamp));
+        }
+
+        let write_service =
+            crate::application::pack::write_service::PackWriteService::new(self.state);
+        let prepared = write_service.prepare_upsert_pack_string_record(
+            &entry.workspace_id,
+            &entry.pack_id,
+            entry.input_snapshot.record,
+        )?;
+        write_service.commit_prepared_upsert_pack_string_record(&prepared)?;
+        crate::application::strings::service::PackStringsService::new(self.state).get_pack_string(
+            GetPackStringInput {
+                workspace_id: entry.workspace_id,
+                pack_id: entry.pack_id,
+                kind: prepared.record.kind,
+                key: prepared.record.key,
+            },
+        )
     }
 }
 

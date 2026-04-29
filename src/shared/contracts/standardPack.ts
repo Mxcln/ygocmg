@@ -12,6 +12,7 @@ export type StandardStringSortField = "kind" | "key" | "value";
 
 export type StandardPackIndexState =
   | "not_configured"
+  | "missing_language"
   | "missing_source"
   | "missing_index"
   | "stale"
@@ -25,6 +26,7 @@ export interface StandardPackStatus {
   index_exists: boolean;
   schema_mismatch: boolean;
   stale: boolean;
+  source_language: string | null;
   indexed_at: string | null;
   card_count: number;
   state: StandardPackIndexState;

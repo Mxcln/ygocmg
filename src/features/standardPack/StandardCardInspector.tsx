@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { standardPackApi } from "../../shared/api/standardPackApi";
+import { configApi } from "../../shared/api/configApi";
 import type { CardEntity } from "../../shared/contracts/card";
 import { CardInfoForm } from "../card/CardInfoForm";
 import { CardTextForm } from "../card/CardTextForm";
@@ -23,6 +24,10 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
   const { data: detail, isLoading, error } = useQuery({
     queryKey: ["standard-card", code],
     queryFn: () => standardPackApi.getCard({ code }),
+  });
+  const { data: config } = useQuery({
+    queryKey: ["config-for-standard-card"],
+    queryFn: () => configApi.loadConfig(),
   });
 
   const card = detail?.card ?? null;
@@ -96,7 +101,7 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
                 {activeTab === "text" ? (
                   <CardTextForm
                     draft={card}
-                    availableLanguages={languages}
+                    catalog={config?.text_language_catalog ?? []}
                     displayLanguageOrder={languages}
                     readonly
                   />

@@ -5,8 +5,11 @@ import { useShellStore } from "../../shared/stores/shellStore";
 import { exportApi } from "../../shared/api/exportApi";
 import { jobApi } from "../../shared/api/jobApi";
 import { formatError } from "../../shared/utils/format";
+import type { GlobalConfig } from "../../shared/contracts/config";
 import type { ExportPreviewResult } from "../../shared/contracts/export";
 import type { JobSnapshot } from "../../shared/contracts/job";
+import { languageExists } from "../../shared/utils/language";
+import { TextLanguagePicker } from "../language/TextLanguagePicker";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -15,10 +18,11 @@ function isTerminalJob(job: JobSnapshot): boolean {
 }
 
 export interface ExportModalProps {
+  config: GlobalConfig;
   onNotice: (tone: "success" | "warning" | "error", title: string, detail: string) => void;
 }
 
-export function ExportModal({ onNotice }: ExportModalProps) {
+export function ExportModal({ config, onNotice }: ExportModalProps) {
   const closeModal = useShellStore((s) => s.closeModal);
   const workspaceId = useShellStore((s) => s.workspaceId);
   const openPackIds = useShellStore((s) => s.openPackIds);
@@ -52,12 +56,18 @@ export function ExportModal({ onNotice }: ExportModalProps) {
   }, [activeJobId, activeJob]);
 
   useEffect(() => {
-    if (selectedPackIds.length === 0) return;
-    const firstSelected = packMetadataMap[selectedPackIds[0]];
-    if (firstSelected?.default_export_language && !exportLanguage) {
-      setExportLanguage(firstSelected.default_export_language);
+    if (selectedPackIds.length === 0) {
+      setExportLanguage("");
+      return;
     }
-  }, [selectedPackIds, packMetadataMap, exportLanguage]);
+    const defaults = selectedPackIds
+      .map((packId) => packMetadataMap[packId]?.default_export_language ?? "")
+      .filter((language) => languageExists(config.text_language_catalog, language));
+    const shared = defaults.length === selectedPackIds.length && defaults.every((language) => language === defaults[0])
+      ? defaults[0]
+      : "";
+    setExportLanguage(shared);
+  }, [selectedPackIds, packMetadataMap, config.text_language_catalog]);
 
   function handleTogglePack(packId: string) {
     setSelectedPackIds((prev) =>
@@ -219,10 +229,12 @@ export function ExportModal({ onNotice }: ExportModalProps) {
 
             <div className="field">
               <span>Export language (required)</span>
-              <input
+              <TextLanguagePicker
+                catalog={config.text_language_catalog}
                 value={exportLanguage}
-                onChange={(e) => setExportLanguage(e.target.value)}
-                placeholder="zh-CN"
+                onChange={setExportLanguage}
+                allowEmpty
+                placeholder="Select export language"
               />
             </div>
 

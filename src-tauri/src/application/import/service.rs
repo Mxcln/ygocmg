@@ -19,6 +19,7 @@ use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::LanguageCode;
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
 use crate::domain::common::time::{AppTimestamp, now_utc};
+use crate::domain::language::rules::{normalize_language_id, validate_catalog_membership};
 use crate::domain::pack::model::{PackKind, PackMetadata};
 use crate::domain::pack::summary::{touch_pack_metadata, validate_pack_metadata};
 use crate::domain::resource::path_rules::{
@@ -200,20 +201,54 @@ impl<'a> ImportService<'a> {
         let workspace_path =
             crate::application::workspace::service::WorkspaceService::new(self.state)
                 .current_workspace_path()?;
+        let config = crate::application::config::service::ConfigService::new(self.state)
+            .load()
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+        let source_language = normalize_language_id(&input.source_language);
         let display_language_order =
-            normalize_display_language_order(&input.display_language_order, &input.source_language);
+            normalize_display_language_order(&input.display_language_order, &source_language);
+        let empty_existing_languages = BTreeSet::new();
         let mut issues = Vec::new();
+        issues.extend(validate_catalog_membership(
+            &source_language,
+            &config.text_language_catalog,
+            &empty_existing_languages,
+            "import",
+            "source_language",
+            "import.source_language",
+        ));
+        for language in &display_language_order {
+            issues.extend(validate_catalog_membership(
+                language,
+                &config.text_language_catalog,
+                &empty_existing_languages,
+                "import",
+                "display_language_order",
+                "import.display_language",
+            ));
+        }
+        if let Some(language) = &input.default_export_language {
+            let normalized = normalize_language_id(language);
+            issues.extend(validate_catalog_membership(
+                &normalized,
+                &config.text_language_catalog,
+                &empty_existing_languages,
+                "import",
+                "default_export_language",
+                "import.default_export_language",
+            ));
+        }
         if !input
             .display_language_order
             .iter()
-            .any(|language| language == &input.source_language)
+            .any(|language| normalize_language_id(language) == source_language)
         {
             issues.push(
                 ValidationIssue::warning(
                     "import.source_language_not_in_display_order",
                     ValidationTarget::new("import").with_field("display_language_order"),
                 )
-                .with_param("source_language", &input.source_language),
+                .with_param("source_language", &source_language),
             );
         }
 
@@ -228,7 +263,11 @@ impl<'a> ImportService<'a> {
             created_at: now,
             updated_at: now,
             display_language_order,
-            default_export_language: input.default_export_language.clone(),
+            default_export_language: input
+                .default_export_language
+                .as_deref()
+                .map(normalize_language_id)
+                .filter(|value| !value.is_empty()),
         };
 
         issues.extend(
@@ -256,7 +295,7 @@ impl<'a> ImportService<'a> {
         for record in raw_records {
             let mut card = record.card;
             card.id = Uuid::now_v7().to_string();
-            remap_card_language(&mut card, &input.source_language);
+            remap_card_language(&mut card, &source_language);
             cards.push(card);
         }
 
@@ -303,7 +342,7 @@ impl<'a> ImportService<'a> {
         }
 
         let strings = if let Some(path) = &input.strings_conf_path {
-            import_strings_file(path, &input.source_language)?
+            import_strings_file(path, &source_language)?
         } else {
             PackStringsFile::default()
         };

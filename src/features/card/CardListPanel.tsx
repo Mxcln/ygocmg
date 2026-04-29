@@ -16,7 +16,11 @@ function toCustomSortField(field: BrowserSortField): CardSortField {
 export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
+  const activeMeta = useShellStore((s) =>
+    s.activePackId ? s.packMetadataMap[s.activePackId] : null,
+  );
   const enabled = !!workspaceId && !!activePackId;
+  const languageOrderKey = activeMeta?.display_language_order.join("|") ?? "";
 
   async function loadPage(query: CardBrowserQuery) {
     const page = await cardApi.listCards({
@@ -46,7 +50,7 @@ export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
   return (
     <CardBrowserPanel
       enabled={enabled}
-      queryKeyBase={["cards", activePackId]}
+      queryKeyBase={["cards", activePackId, languageOrderKey]}
       loadPage={loadPage}
       onOpenCard={handleRowClick}
       onNewCard={onNewCard}

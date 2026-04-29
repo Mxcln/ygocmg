@@ -3,12 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { stringsApi } from "../../shared/api/stringsApi";
 import { formatError, formatStringKeyHex } from "../../shared/utils/format";
+import type { TextLanguageProfile } from "../../shared/contracts/config";
 import type { PackStringEntry, PackStringsPage } from "../../shared/contracts/strings";
 import type { ValidationIssue } from "../../shared/contracts/common";
 import { StringsBrowserPanel } from "./StringsBrowserPanel";
 import type { StringsBrowserQuery } from "./StringsBrowserPanel";
 
-export function StringsListPanel() {
+export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }) {
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeMeta = useShellStore((s) =>
@@ -89,6 +90,26 @@ export function StringsListPanel() {
     }
   }
 
+  async function clearTranslation(entry: PackStringEntry, language: string) {
+    if (!workspaceId || !activePackId || saving) return;
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      await stringsApi.removePackStringTranslation({
+        workspaceId,
+        packId: activePackId,
+        kind: entry.kind,
+        key: entry.key,
+        language,
+      });
+      invalidateStrings();
+    } catch (err) {
+      setErrorMsg(formatError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function handleDeleteEntry(entry: PackStringEntry) {
     if (!workspaceId || !activePackId) return;
     openDialog({
@@ -128,12 +149,14 @@ export function StringsListPanel() {
       enabled={enabled}
       queryKeyBase={["strings", activePackId]}
       languages={languages}
+      catalog={catalog}
       loadPage={loadPage}
       editable
       saving={saving}
       errorMessage={errorMsg}
       onCreate={commitEntry}
       onUpdate={commitEntry}
+      onClearTranslation={clearTranslation}
       onDelete={handleDeleteEntry}
       emptyTitle="No string entries yet."
       emptyHint={'Click "+ New String" to create one.'}

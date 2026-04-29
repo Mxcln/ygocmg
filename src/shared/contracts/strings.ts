@@ -16,6 +16,21 @@ export interface PackStringsPage {
   total: number;
 }
 
+export interface PackStringValue {
+  language: LanguageCode;
+  value: string;
+}
+
+export interface PackStringRecord {
+  kind: PackStringKind;
+  key: number;
+  values: PackStringValue[];
+}
+
+export interface PackStringRecordDetail {
+  record: PackStringRecord;
+}
+
 export interface ListPackStringsInput {
   workspaceId: string;
   packId: string;
@@ -27,11 +42,32 @@ export interface ListPackStringsInput {
   pageSize: number;
 }
 
+export interface GetPackStringInput {
+  workspaceId: string;
+  packId: string;
+  kind: PackStringKind;
+  key: number;
+}
+
 export interface UpsertPackStringInput {
   workspaceId: string;
   packId: string;
   language: string;
   entry: PackStringEntry;
+}
+
+export interface UpsertPackStringRecordInput {
+  workspaceId: string;
+  packId: string;
+  record: PackStringRecord;
+}
+
+export interface RemovePackStringTranslationInput {
+  workspaceId: string;
+  packId: string;
+  kind: PackStringKind;
+  key: number;
+  language: LanguageCode;
 }
 
 export interface DeletePackStringsInput {
@@ -50,5 +86,9 @@ export interface DeletePackStringsResult {
 }
 
 export interface ConfirmPackStringsWriteInput {
+  confirmationToken: string;
+}
+
+export interface ConfirmPackStringRecordWriteInput {
   confirmationToken: string;
 }

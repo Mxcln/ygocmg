@@ -2,7 +2,9 @@ use crate::bootstrap::AppState;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::issue::ValidationIssue;
 use crate::domain::config::model::GlobalConfig;
-use crate::domain::config::rules::{default_global_config, validate_global_config};
+use crate::domain::config::rules::{
+    default_global_config, normalize_global_config, validate_global_config,
+};
 use crate::infrastructure::json_store;
 
 pub struct ConfigService<'a> {
@@ -16,10 +18,12 @@ impl<'a> ConfigService<'a> {
 
     pub fn load(&self) -> AppResult<GlobalConfig> {
         json_store::load_global_config(self.state.app_data_dir())
+            .map(|config| normalize_global_config(&config))
     }
 
-    pub fn save(&self, config: &GlobalConfig) -> AppResult<Vec<ValidationIssue>> {
-        let issues = validate_global_config(config);
+    pub fn save(&self, config: &GlobalConfig) -> AppResult<(GlobalConfig, Vec<ValidationIssue>)> {
+        let normalized = normalize_global_config(config);
+        let issues = validate_global_config(&normalized);
         if issues
             .iter()
             .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
@@ -30,8 +34,8 @@ impl<'a> ConfigService<'a> {
             ));
         }
 
-        json_store::save_global_config(self.state.app_data_dir(), config)?;
-        Ok(issues)
+        json_store::save_global_config(self.state.app_data_dir(), &normalized)?;
+        Ok((normalized, issues))
     }
 
     pub fn ensure_initialized(&self) -> AppResult<GlobalConfig> {

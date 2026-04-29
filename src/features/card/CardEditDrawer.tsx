@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardApi } from "../../shared/api/cardApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError } from "../../shared/utils/format";
+import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardEntity, CardAssetState } from "../../shared/contracts/card";
+import type { CardDetail } from "../../shared/contracts/card";
 import type { ValidationIssue } from "../../shared/contracts/common";
 import { CardAssetBar } from "./CardAssetBar";
 import { CardInfoForm } from "./CardInfoForm";
@@ -13,6 +15,7 @@ interface CardEditDrawerProps {
   packId: string;
   workspaceId: string;
   cardId: string | null;
+  config: GlobalConfig;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -58,13 +61,13 @@ export function CardEditDrawer({
   packId,
   workspaceId,
   cardId,
+  config,
   onClose,
   onSaved,
 }: CardEditDrawerProps) {
   const isCreate = cardId === null;
   const [draft, setDraft] = useState<CardEntity | null>(null);
   const [assetState, setAssetState] = useState<CardAssetState>(EMPTY_ASSET_STATE);
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [packPath, setPackPath] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DrawerTab>("text");
   const [saving, setSaving] = useState(false);
@@ -80,6 +83,7 @@ export function CardEditDrawer({
   );
   const openDialog = useShellStore((s) => s.openDialog);
   const closeDialog = useShellStore((s) => s.closeDialog);
+  const updatePackMetadataInStore = useShellStore((s) => s.updatePackMetadata);
   const displayLanguageOrder = activeMeta?.display_language_order ?? [];
 
   const { data: cardDetail, isLoading: loadingDetail } = useQuery({
@@ -110,7 +114,6 @@ export function CardEditDrawer({
     if (cardDetail) {
       setDraft(cardDetail.card);
       setAssetState(cardDetail.asset_state);
-      setAvailableLanguages(cardDetail.available_languages);
       setPackPath(cardDetail.pack_path);
     }
   }, [cardDetail]);
@@ -135,6 +138,18 @@ export function CardEditDrawer({
     setTimeout(() => {
       onClose();
     }, 180);
+  }
+
+  function applySavedDetail(detail: CardDetail) {
+    setDraft(detail.card);
+    setAssetState(detail.asset_state);
+    setPackPath(detail.pack_path);
+    queryClient.setQueryData(["card", packId, detail.card.id], detail);
+    void queryClient.invalidateQueries({ queryKey: ["card", packId, detail.card.id] });
+    void queryClient.invalidateQueries({ queryKey: ["cards"] });
+    if (activeMeta) {
+      updatePackMetadataInStore(packId, { ...activeMeta, updated_at: detail.card.updated_at });
+    }
   }
 
   async function handleSave() {
@@ -177,6 +192,7 @@ export function CardEditDrawer({
         if (result.warnings.length > 0) {
           setWarnings(result.warnings);
         }
+        applySavedDetail(result.data);
         onSaved();
         handleAnimatedClose();
       } else {
@@ -194,10 +210,7 @@ export function CardEditDrawer({
                 confirmationToken: result.confirmation_token,
               });
               setWarnings([]);
-              setDraft(detail.card);
-              setAssetState(detail.asset_state);
-              setAvailableLanguages(detail.available_languages);
-              setPackPath(detail.pack_path);
+              applySavedDetail(detail);
               closeDialog();
               onSaved();
               handleAnimatedClose();
@@ -340,9 +353,23 @@ export function CardEditDrawer({
                 {activeTab === "text" ? (
                   <CardTextForm
                     draft={draft}
-                    availableLanguages={availableLanguages}
+                    catalog={config.text_language_catalog}
                     displayLanguageOrder={displayLanguageOrder}
                     onChange={handleChange}
+                    onConfirmDeleteLanguage={(language, onConfirm) => {
+                      openDialog({
+                        kind: "confirm",
+                        title: "Delete language text",
+                        message: `Delete card text for ${language}? This cannot be undone.`,
+                        confirmLabel: "Delete",
+                        cancelLabel: "Cancel",
+                        danger: true,
+                        onConfirm: () => {
+                          onConfirm();
+                          closeDialog();
+                        },
+                      });
+                    }}
                   />
                 ) : (
                   <CardInfoForm draft={draft} onChange={handleChange} />

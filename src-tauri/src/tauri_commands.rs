@@ -19,9 +19,9 @@ use crate::application::dto::standard_pack::{
     GetStandardCardInput, SearchStandardCardsInput, SearchStandardStringsInput,
 };
 use crate::application::dto::strings::{
-    ConfirmPackStringsWriteInput, DeletePackStringsInput, DeletePackStringsResultDto,
-    GetPackStringInput, ListPackStringsInput, RemovePackStringTranslationInput,
-    UpsertPackStringInput, UpsertPackStringRecordInput,
+    ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
+    DeletePackStringsResultDto, GetPackStringInput, ListPackStringsInput,
+    RemovePackStringTranslationInput, UpsertPackStringInput, UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppError;
@@ -337,6 +337,14 @@ pub fn confirm_pack_strings_write(
     input: ConfirmPackStringsWriteInput,
 ) -> CommandResult<crate::application::dto::strings::PackStringsPageDto> {
     crate::presentation::commands::app_commands::confirm_pack_strings_write(&state, input)
+}
+
+#[tauri::command]
+pub fn confirm_pack_string_record_write(
+    state: State<'_, AppState>,
+    input: ConfirmPackStringRecordWriteInput,
+) -> CommandResult<crate::application::dto::strings::PackStringRecordDetailDto> {
+    crate::presentation::commands::app_commands::confirm_pack_string_record_write(&state, input)
 }
 
 #[tauri::command]

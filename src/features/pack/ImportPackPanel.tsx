@@ -5,9 +5,13 @@ import { importApi } from "../../shared/api/importApi";
 import { packApi } from "../../shared/api/packApi";
 import { jobApi } from "../../shared/api/jobApi";
 import { formatError } from "../../shared/utils/format";
+import type { GlobalConfig } from "../../shared/contracts/config";
 import type { PackMetadata } from "../../shared/contracts/pack";
 import type { ImportPreviewResult } from "../../shared/contracts/import";
 import type { JobSnapshot } from "../../shared/contracts/job";
+import { preferredImportSourceLanguage } from "../../shared/utils/language";
+import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
+import { TextLanguagePicker } from "../language/TextLanguagePicker";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -25,25 +29,27 @@ interface MetadataForm {
   author: string;
   version: string;
   description: string;
-  displayLanguageOrder: string;
+  displayLanguageOrder: string[];
   defaultExportLanguage: string;
 }
 
-const EMPTY_SOURCE: SourceForm = {
-  cdbPath: "",
-  sourceLanguage: "zh-CN",
-  picsDir: "",
-  fieldPicsDir: "",
-  scriptDir: "",
-  stringsConfPath: "",
-};
+function emptySource(config: GlobalConfig): SourceForm {
+  return {
+    cdbPath: "",
+    sourceLanguage: preferredImportSourceLanguage(config),
+    picsDir: "",
+    fieldPicsDir: "",
+    scriptDir: "",
+    stringsConfPath: "",
+  };
+}
 
 const EMPTY_METADATA: MetadataForm = {
   name: "",
   author: "",
   version: "1.0.0",
   description: "",
-  displayLanguageOrder: "",
+  displayLanguageOrder: [],
   defaultExportLanguage: "",
 };
 
@@ -68,6 +74,7 @@ function isTerminalJob(job: JobSnapshot): boolean {
 
 export interface ImportPackPanelProps {
   workspaceId: string;
+  config: GlobalConfig;
   onPackOpened: (packId: string, metadata: PackMetadata) => void;
   onNotice: (tone: "success" | "warning" | "error", title: string, detail: string) => void;
   closeModal: () => void;
@@ -75,12 +82,13 @@ export interface ImportPackPanelProps {
 
 export function ImportPackPanel({
   workspaceId,
+  config,
   onPackOpened,
   onNotice,
   closeModal,
 }: ImportPackPanelProps) {
   const [step, setStep] = useState<WizardStep>(1);
-  const [sourceForm, setSourceForm] = useState<SourceForm>(EMPTY_SOURCE);
+  const [sourceForm, setSourceForm] = useState<SourceForm>(() => emptySource(config));
   const [metadataForm, setMetadataForm] = useState<MetadataForm>(EMPTY_METADATA);
   const [metadataInitialized, setMetadataInitialized] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -113,7 +121,9 @@ export function ImportPackPanel({
       setMetadataForm((prev) => ({
         ...prev,
         name: prev.name || inferred?.suggestedName || "",
-        displayLanguageOrder: prev.displayLanguageOrder || sourceForm.sourceLanguage,
+        displayLanguageOrder:
+          prev.displayLanguageOrder.length > 0 ? prev.displayLanguageOrder : [sourceForm.sourceLanguage],
+        defaultExportLanguage: prev.defaultExportLanguage || sourceForm.sourceLanguage,
       }));
       setMetadataInitialized(true);
     }
@@ -173,10 +183,7 @@ export function ImportPackPanel({
     setLastJob(null);
 
     try {
-      const langOrder = metadataForm.displayLanguageOrder
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const langOrder = metadataForm.displayLanguageOrder;
 
       const result = await importApi.previewImportPack({
         workspaceId,
@@ -283,10 +290,10 @@ export function ImportPackPanel({
 
           <div className="field">
             <span>Source language (required)</span>
-            <input
+            <TextLanguagePicker
+              catalog={config.text_language_catalog}
               value={sourceForm.sourceLanguage}
-              onChange={(e) => setSourceForm({ ...sourceForm, sourceLanguage: e.target.value })}
-              placeholder="zh-CN"
+              onChange={(sourceLanguage) => setSourceForm({ ...sourceForm, sourceLanguage })}
             />
           </div>
 
@@ -374,21 +381,27 @@ export function ImportPackPanel({
             />
           </div>
 
-          <div className="pack-form-row">
+          <div className="pack-form-row pack-form-row-language">
             <div className="field">
               <span>Display languages</span>
-              <input
+              <LanguageOrderEditor
+                catalog={config.text_language_catalog}
                 value={metadataForm.displayLanguageOrder}
-                onChange={(e) => setMetadataForm({ ...metadataForm, displayLanguageOrder: e.target.value })}
-                placeholder="zh-CN, en-US"
+                onChange={(displayLanguageOrder) => {
+                  const defaultExportLanguage = displayLanguageOrder.includes(metadataForm.defaultExportLanguage)
+                    ? metadataForm.defaultExportLanguage
+                    : displayLanguageOrder[0] ?? "";
+                  setMetadataForm({ ...metadataForm, displayLanguageOrder, defaultExportLanguage });
+                }}
               />
             </div>
             <div className="field">
               <span>Default export language</span>
-              <input
+              <TextLanguagePicker
+                catalog={config.text_language_catalog}
                 value={metadataForm.defaultExportLanguage}
-                onChange={(e) => setMetadataForm({ ...metadataForm, defaultExportLanguage: e.target.value })}
-                placeholder="zh-CN"
+                existingLanguages={metadataForm.displayLanguageOrder}
+                onChange={(defaultExportLanguage) => setMetadataForm({ ...metadataForm, defaultExportLanguage })}
               />
             </div>
           </div>

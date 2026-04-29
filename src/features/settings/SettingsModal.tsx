@@ -1,8 +1,22 @@
 import { useState } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { configApi } from "../../shared/api/configApi";
-import type { GlobalConfig } from "../../shared/contracts/config";
+import type { GlobalConfig, TextLanguageProfile } from "../../shared/contracts/config";
 import { normalizeNullablePath, parseNumberInput, formatError } from "../../shared/utils/format";
+import {
+  languageExists,
+  languageLabel,
+  normalizeLanguageId,
+  validateCustomLanguageId,
+  visibleTextLanguages,
+} from "../../shared/utils/language";
+import { TextLanguagePicker } from "../language/TextLanguagePicker";
+
+interface CustomLanguageDraft {
+  id: string;
+  label: string;
+  error: string | null;
+}
 
 export interface SettingsModalProps {
   config: GlobalConfig;
@@ -15,8 +29,14 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
 
   const [draft, setDraft] = useState<GlobalConfig>(config);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [customLanguage, setCustomLanguage] = useState<CustomLanguageDraft>({
+    id: "",
+    label: "",
+    error: null,
+  });
 
   const dirty = JSON.stringify(config) !== JSON.stringify(draft);
+  const visibleLanguages = visibleTextLanguages(draft.text_language_catalog);
 
   async function handleSave() {
     setBusyAction("save");
@@ -29,6 +49,57 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleAddCustomLanguage() {
+    const id = normalizeLanguageId(customLanguage.id);
+    const label = customLanguage.label.trim();
+    const idError = validateCustomLanguageId(id);
+    if (idError) {
+      setCustomLanguage({ ...customLanguage, id, error: idError });
+      return;
+    }
+    if (!label) {
+      setCustomLanguage({ ...customLanguage, id, error: "Language label is required." });
+      return;
+    }
+    if (languageExists(draft.text_language_catalog, id) || draft.text_language_catalog.some((language) => language.id === id)) {
+      setCustomLanguage({ ...customLanguage, id, error: "Language id already exists." });
+      return;
+    }
+
+    const profile: TextLanguageProfile = {
+      id,
+      label,
+      kind: "custom",
+      hidden: false,
+      last_used_at: null,
+    };
+    setDraft({
+      ...draft,
+      text_language_catalog: [...draft.text_language_catalog, profile],
+    });
+    setCustomLanguage({ id: "", label: "", error: null });
+  }
+
+  function updateLanguageLabel(id: string, label: string) {
+    setDraft({
+      ...draft,
+      text_language_catalog: draft.text_language_catalog.map((language) =>
+        language.id === id ? { ...language, label } : language,
+      ),
+    });
+  }
+
+  function toggleCustomLanguageHidden(id: string) {
+    setDraft({
+      ...draft,
+      text_language_catalog: draft.text_language_catalog.map((language) =>
+        language.id === id ? { ...language, hidden: !language.hidden } : language,
+      ),
+      standard_pack_source_language:
+        draft.standard_pack_source_language === id ? null : draft.standard_pack_source_language,
+    });
   }
 
   return (
@@ -73,13 +144,87 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
 
             <label className="field">
               <span>App language</span>
-              <input
-                list="language-suggestions"
+              <TextLanguagePicker
+                catalog={draft.text_language_catalog}
                 value={draft.app_language}
-                onChange={(e) => setDraft({ ...draft, app_language: e.target.value })}
-                placeholder="en-US"
+                onChange={(appLanguage) => setDraft({ ...draft, app_language: appLanguage })}
               />
             </label>
+          </section>
+
+          <section className="settings-group settings-group-wide">
+            <div className="group-heading">
+              <p className="section-kicker">Text Languages</p>
+              <h4>Catalog</h4>
+            </div>
+
+            <div className="language-catalog-list">
+              {draft.text_language_catalog.map((language) => (
+                <div key={language.id} className={`language-catalog-row ${language.hidden ? "hidden" : ""}`}>
+                  <span className="language-kind-badge">{language.kind}</span>
+                  <code>{language.id}</code>
+                  <input
+                    value={language.label}
+                    disabled={language.kind === "builtin"}
+                    onChange={(event) => updateLanguageLabel(language.id, event.target.value)}
+                    title={languageLabel(draft.text_language_catalog, language.id)}
+                  />
+                  {language.kind === "custom" && (
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => toggleCustomLanguageHidden(language.id)}
+                    >
+                      {language.hidden ? "Show" : "Hide"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="custom-language-add">
+              <input
+                value={customLanguage.id}
+                onChange={(event) =>
+                  setCustomLanguage({ ...customLanguage, id: event.target.value, error: null })
+                }
+                placeholder="x-custom or fr-FR"
+              />
+              <input
+                value={customLanguage.label}
+                onChange={(event) =>
+                  setCustomLanguage({ ...customLanguage, label: event.target.value, error: null })
+                }
+                placeholder="Label"
+              />
+              <button type="button" className="ghost-button" onClick={handleAddCustomLanguage}>
+                Add
+              </button>
+            </div>
+            {customLanguage.error && <div className="settings-inline-error">{customLanguage.error}</div>}
+          </section>
+
+          <section className="settings-group">
+            <div className="group-heading">
+              <p className="section-kicker">Standard Pack</p>
+              <h4>Source Language</h4>
+            </div>
+
+            <label className="field">
+              <span>Imported text language</span>
+              <TextLanguagePicker
+                catalog={draft.text_language_catalog}
+                value={draft.standard_pack_source_language ?? ""}
+                allowEmpty
+                placeholder="Select source language"
+                onChange={(sourceLanguage) =>
+                  setDraft({ ...draft, standard_pack_source_language: sourceLanguage || null })
+                }
+              />
+            </label>
+            <span className="field-hint">
+              {visibleLanguages.length} visible language{visibleLanguages.length === 1 ? "" : "s"}
+            </span>
           </section>
 
           <section className="settings-group">
@@ -161,12 +306,6 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
             </label>
           </section>
         </div>
-
-        <datalist id="language-suggestions">
-          <option value="en-US" />
-          <option value="zh-CN" />
-          <option value="ja-JP" />
-        </datalist>
       </div>
     </>
   );

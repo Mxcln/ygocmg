@@ -51,6 +51,7 @@ fn main() {
             tauri_commands::delete_pack_strings,
             tauri_commands::remove_pack_string_translation,
             tauri_commands::confirm_pack_strings_write,
+            tauri_commands::confirm_pack_string_record_write,
             tauri_commands::import_main_image,
             tauri_commands::delete_main_image,
             tauri_commands::import_field_image,

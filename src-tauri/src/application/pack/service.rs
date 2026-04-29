@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,7 +10,11 @@ use crate::domain::card::derive::derive_card_list_row;
 use crate::domain::card::model::{CardEntity, CardsFile};
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::{CardId, PackId};
+use crate::domain::common::issue::IssueLevel;
 use crate::domain::common::time::now_utc;
+use crate::domain::language::rules::{
+    normalize_language_id, validate_catalog_membership, visible_catalog_ids,
+};
 use crate::domain::pack::model::{PackKind, PackMetadata, PackOverview};
 use crate::domain::pack::summary::{touch_pack_metadata, validate_pack_metadata};
 use crate::domain::resource::model::CardAssetState;
@@ -42,6 +47,15 @@ impl<'a> PackService<'a> {
             crate::application::workspace::service::WorkspaceService::new(self.state)
                 .current_workspace_path()?;
         let now = now_utc();
+        let config = crate::application::config::service::ConfigService::new(self.state)
+            .load()
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+        let display_language_order = normalize_language_list(display_language_order);
+        let default_export_language = default_export_language
+            .map(|value| normalize_language_id(&value))
+            .filter(|value| !value.is_empty());
+        let empty_existing_languages = BTreeSet::new();
+
         let metadata = PackMetadata {
             id: Uuid::now_v7().to_string(),
             kind: PackKind::Custom,
@@ -51,14 +65,20 @@ impl<'a> PackService<'a> {
             description,
             created_at: now,
             updated_at: now,
-            display_language_order,
-            default_export_language,
+            display_language_order: display_language_order.clone(),
+            default_export_language: default_export_language.clone(),
         };
 
-        let issues = validate_pack_metadata(&metadata);
+        let mut issues = validate_pack_metadata(&metadata);
+        issues.extend(validate_pack_language_ids(
+            &display_language_order,
+            default_export_language.as_deref(),
+            &config.text_language_catalog,
+            &empty_existing_languages,
+        ));
         if issues
             .iter()
-            .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
+            .any(|issue| matches!(issue.level, IssueLevel::Error))
         {
             return Err(AppError::new(
                 "pack.validation_failed",
@@ -200,13 +220,31 @@ impl<'a> PackService<'a> {
         metadata.author = author.trim().to_string();
         metadata.version = version.trim().to_string();
         metadata.description = description;
-        metadata.display_language_order = display_language_order;
-        metadata.default_export_language = default_export_language;
+        let config = crate::application::config::service::ConfigService::new(self.state)
+            .load()
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+        let existing_languages = pack_existing_languages(
+            &metadata,
+            &json_store::load_cards(&pack_path).unwrap_or_default(),
+            &json_store::load_pack_strings(&pack_path).unwrap_or_default(),
+        );
+        let display_language_order = normalize_language_list(display_language_order);
+        let default_export_language = default_export_language
+            .map(|value| normalize_language_id(&value))
+            .filter(|value| !value.is_empty());
+        metadata.display_language_order = display_language_order.clone();
+        metadata.default_export_language = default_export_language.clone();
 
-        let issues = validate_pack_metadata(&metadata);
+        let mut issues = validate_pack_metadata(&metadata);
+        issues.extend(validate_pack_language_ids(
+            &display_language_order,
+            default_export_language.as_deref(),
+            &config.text_language_catalog,
+            &existing_languages,
+        ));
         if issues
             .iter()
-            .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
+            .any(|issue| matches!(issue.level, IssueLevel::Error))
         {
             return Err(AppError::new(
                 "pack.validation_failed",
@@ -500,6 +538,81 @@ fn build_source_stamp(pack_path: &Path, metadata: &PackMetadata) -> AppResult<St
         cards_meta,
         strings_meta
     ))
+}
+
+fn normalize_language_list(languages: Vec<String>) -> Vec<String> {
+    let mut next = Vec::new();
+    for language in languages {
+        let normalized = normalize_language_id(&language);
+        if !normalized.is_empty() && !next.iter().any(|current| current == &normalized) {
+            next.push(normalized);
+        }
+    }
+    next
+}
+
+fn validate_pack_language_ids(
+    display_language_order: &[String],
+    default_export_language: Option<&str>,
+    catalog: &[crate::domain::language::model::TextLanguageProfile],
+    existing_languages: &std::collections::BTreeSet<String>,
+) -> Vec<crate::domain::common::issue::ValidationIssue> {
+    let mut issues = Vec::new();
+    let visible = visible_catalog_ids(catalog);
+    for language in display_language_order {
+        issues.extend(validate_catalog_membership(
+            language,
+            catalog,
+            existing_languages,
+            "pack",
+            "display_language_order",
+            "pack.display_language",
+        ));
+    }
+    if let Some(language) = default_export_language {
+        issues.extend(validate_catalog_membership(
+            language,
+            catalog,
+            existing_languages,
+            "pack",
+            "default_export_language",
+            "pack.default_export_language",
+        ));
+        if !display_language_order
+            .iter()
+            .any(|current| current == language)
+            && visible.contains(language)
+        {
+            issues.push(
+                crate::domain::common::issue::ValidationIssue::warning(
+                    "pack.default_export_language_not_in_display_order",
+                    crate::domain::common::issue::ValidationTarget::new("pack")
+                        .with_field("default_export_language"),
+                )
+                .with_param("language", language),
+            );
+        }
+    }
+    issues
+}
+
+fn pack_existing_languages(
+    metadata: &PackMetadata,
+    cards: &[CardEntity],
+    strings: &PackStringsFile,
+) -> std::collections::BTreeSet<String> {
+    let mut languages = std::collections::BTreeSet::new();
+    languages.extend(metadata.display_language_order.iter().cloned());
+    if let Some(language) = &metadata.default_export_language {
+        languages.insert(language.clone());
+    }
+    for card in cards {
+        languages.extend(card.texts.keys().cloned());
+    }
+    for record in &strings.entries {
+        languages.extend(record.values.keys().cloned());
+    }
+    languages
 }
 
 fn file_stamp(path: &Path) -> AppResult<String> {

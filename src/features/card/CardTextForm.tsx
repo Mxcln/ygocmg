@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CardEntity, CardTexts } from "../../shared/contracts/card";
 import type { LanguageCode } from "../../shared/contracts/common";
+import type { TextLanguageProfile } from "../../shared/contracts/config";
+import {
+  compactLanguageLabel,
+  languageLabel,
+  uniqueLanguageOrder,
+  visibleTextLanguages,
+} from "../../shared/utils/language";
 
 interface CardTextFormProps {
   draft: CardEntity;
-  availableLanguages: LanguageCode[];
+  catalog: TextLanguageProfile[];
   displayLanguageOrder: LanguageCode[];
   onChange?: (patch: Partial<CardEntity>) => void;
+  onConfirmDeleteLanguage?: (language: LanguageCode, onConfirm: () => void) => void;
   readonly?: boolean;
 }
 
@@ -22,29 +30,48 @@ function ensureCardTexts(texts: CardTexts | undefined): CardTexts {
   };
 }
 
+function hasTextValue(texts: CardTexts | undefined): boolean {
+  if (!texts) return false;
+  return Boolean(texts.name.trim() || texts.desc.trim() || texts.strings.some((value) => value.trim()));
+}
+
 export function CardTextForm({
   draft,
-  availableLanguages,
+  catalog,
   displayLanguageOrder,
   onChange,
+  onConfirmDeleteLanguage,
   readonly = false,
 }: CardTextFormProps) {
-  const allLangs = availableLanguages.length > 0
-    ? availableLanguages
-    : Object.keys(draft.texts);
-
-  const defaultLang = displayLanguageOrder.find((l) => allLangs.includes(l))
+  const expectedLanguages = useMemo(
+    () => uniqueLanguageOrder(displayLanguageOrder),
+    [displayLanguageOrder],
+  );
+  const actualLanguages = Object.keys(draft.texts);
+  const allLangs = useMemo(
+    () => uniqueLanguageOrder([...expectedLanguages, ...actualLanguages]),
+    [expectedLanguages, actualLanguages],
+  );
+  const defaultLang = displayLanguageOrder.find((language) => allLangs.includes(language))
     ?? allLangs[0]
     ?? "";
 
   const [currentLang, setCurrentLang] = useState(defaultLang);
   const [stringsExpanded, setStringsExpanded] = useState(false);
+  const [addingLanguage, setAddingLanguage] = useState(false);
+
+  useEffect(() => {
+    if (currentLang && allLangs.includes(currentLang)) return;
+    setCurrentLang(defaultLang);
+  }, [allLangs, currentLang, defaultLang]);
 
   const activeLang = allLangs.includes(currentLang) ? currentLang : defaultLang;
   const currentTexts = ensureCardTexts(draft.texts[activeLang]);
+  const visibleCatalog = visibleTextLanguages(catalog);
+  const addableLanguages = visibleCatalog.filter((language) => !actualLanguages.includes(language.id));
 
   function updateTexts(patch: Partial<CardTexts>) {
-    if (readonly || !onChange) return;
+    if (readonly || !onChange || !activeLang) return;
     const updated: CardTexts = { ...currentTexts, ...patch };
     onChange({
       texts: { ...draft.texts, [activeLang]: updated },
@@ -57,7 +84,35 @@ export function CardTextForm({
     updateTexts({ strings: nextStrings });
   }
 
-  if (allLangs.length === 0) {
+  function addLanguage(language: string) {
+    if (readonly || !onChange || !language || actualLanguages.includes(language)) return;
+    onChange({
+      texts: {
+        ...draft.texts,
+        [language]: ensureCardTexts(undefined),
+      },
+    });
+    setCurrentLang(language);
+    setAddingLanguage(false);
+  }
+
+  function deleteLanguage(language: string) {
+    if (readonly || !onChange) return;
+    const applyDelete = () => {
+      const nextTexts = { ...draft.texts };
+      delete nextTexts[language];
+      onChange({ texts: nextTexts });
+      const nextLanguage = allLangs.find((current) => current !== language) ?? "";
+      setCurrentLang(nextLanguage);
+    };
+    if (hasTextValue(draft.texts[language]) && onConfirmDeleteLanguage) {
+      onConfirmDeleteLanguage(language, applyDelete);
+    } else {
+      applyDelete();
+    }
+  }
+
+  if (allLangs.length === 0 && readonly) {
     return (
       <div className="card-list-empty">
         <p>No languages available.</p>
@@ -67,77 +122,132 @@ export function CardTextForm({
 
   return (
     <div>
-      <div className="card-text-lang-bar">
-        {allLangs.map((lang) => (
-          <button
-            key={lang}
-            type="button"
-            className={`card-text-lang-btn ${activeLang === lang ? "active" : ""}`}
-            onClick={() => setCurrentLang(lang)}
-          >
-            {lang}
-          </button>
-        ))}
-      </div>
-
-      <div className="card-text-field">
-        <label className="card-text-label">Name</label>
-        <input
-          className="card-text-input"
-          type="text"
-          value={currentTexts.name}
-          onChange={(e) => updateTexts({ name: e.target.value })}
-          readOnly={readonly}
-        />
-      </div>
-
-      <div className="card-text-field">
-        <label className="card-text-label">Effect</label>
-        <textarea
-          className="card-text-input"
-          rows={6}
-          value={currentTexts.desc}
-          onChange={(e) => updateTexts({ desc: e.target.value })}
-          readOnly={readonly}
-        />
-      </div>
-
-      <button
-        type="button"
-        className="strings-toggle"
-        onClick={() => setStringsExpanded(!stringsExpanded)}
-      >
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          style={{
-            transform: stringsExpanded ? "rotate(90deg)" : "none",
-          }}
-        >
-          <path d="M3 1l4 4-4 4" />
-        </svg>
-        Strings (16)
-      </button>
-
-      {stringsExpanded && (
-        <div className="strings-list">
-          {currentTexts.strings.map((s, i) => (
-            <div key={i} className="string-row">
-              <span className="string-row-label">{i}</span>
-              <input
-                className="string-row-input"
-                type="text"
-                value={s}
-                onChange={(e) => updateString(i, e.target.value)}
-                readOnly={readonly}
-              />
-            </div>
-          ))}
+      {!activeLang ? (
+        <div className="card-list-empty">
+          <p>No language selected.</p>
         </div>
+      ) : (
+        <>
+          <div className="card-text-active-row">
+            <div className="card-text-lang-bar">
+              {allLangs.map((lang) => {
+                const missing = !draft.texts[lang];
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    className={`card-text-lang-btn ${activeLang === lang ? "active" : ""} ${missing ? "missing" : ""}`}
+                    onClick={() => {
+                      if (missing && !readonly) {
+                        addLanguage(lang);
+                      } else {
+                        setCurrentLang(lang);
+                      }
+                    }}
+                    title={missing ? "Create empty text for this language" : languageLabel(catalog, lang)}
+                  >
+                    {compactLanguageLabel(catalog, lang)}
+                  </button>
+                );
+              })}
+              {!readonly && (
+                <>
+                  {addingLanguage ? (
+                    <select
+                      className="card-text-add-select"
+                      autoFocus
+                      value=""
+                      onBlur={() => setAddingLanguage(false)}
+                      onChange={(event) => addLanguage(event.target.value)}
+                    >
+                      <option value="">{addableLanguages.length === 0 ? "No languages" : "Add language"}</option>
+                      {addableLanguages.map((language) => (
+                        <option key={language.id} value={language.id}>
+                          {languageLabel(catalog, language.id)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <button
+                      type="button"
+                      className="card-text-lang-add"
+                      disabled={addableLanguages.length === 0}
+                      onClick={() => setAddingLanguage(true)}
+                      title="Add language"
+                    >
+                      +
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            {!readonly && draft.texts[activeLang] && (
+              <button type="button" className="card-text-lang-delete" onClick={() => deleteLanguage(activeLang)}>
+                Delete
+              </button>
+            )}
+          </div>
+
+          <div className="card-text-field">
+            <label className="card-text-label">Name</label>
+            <input
+              className="card-text-input"
+              type="text"
+              value={currentTexts.name}
+              onChange={(e) => updateTexts({ name: e.target.value })}
+              readOnly={readonly}
+            />
+          </div>
+
+          <div className="card-text-field">
+            <label className="card-text-label">Effect</label>
+            <textarea
+              className="card-text-input"
+              rows={6}
+              value={currentTexts.desc}
+              onChange={(e) => updateTexts({ desc: e.target.value })}
+              readOnly={readonly}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="strings-toggle"
+            onClick={() => setStringsExpanded(!stringsExpanded)}
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              style={{
+                transform: stringsExpanded ? "rotate(90deg)" : "none",
+              }}
+            >
+              <path d="M3 1l4 4-4 4" />
+            </svg>
+            Strings (16)
+          </button>
+
+          {stringsExpanded && (
+            <div className="strings-list">
+              {currentTexts.strings.map((s, i) => (
+                <div key={i} className="string-row">
+                  <span className="string-row-label">{i}</span>
+                  <input
+                    className="string-row-input"
+                    type="text"
+                    value={s}
+                    onChange={(e) => updateString(i, e.target.value)}
+                    readOnly={readonly}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

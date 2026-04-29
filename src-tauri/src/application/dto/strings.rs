@@ -111,6 +111,12 @@ pub struct ConfirmPackStringsWriteInput {
     pub confirmation_token: ConfirmationToken,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmPackStringRecordWriteInput {
+    pub confirmation_token: ConfirmationToken,
+}
+
 impl From<PackStringEntry> for PackStringEntryDto {
     fn from(value: PackStringEntry) -> Self {
         Self {

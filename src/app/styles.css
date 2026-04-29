@@ -1050,6 +1050,10 @@ textarea.meta-edit-input {
   gap: 12px;
 }
 
+.settings-group-wide {
+  grid-column: span 2;
+}
+
 .settings-group {
   padding: 14px;
   border: 1px solid var(--line);
@@ -1063,6 +1067,91 @@ textarea.meta-edit-input {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
+}
+
+.text-language-picker {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.text-language-picker:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.language-catalog-list {
+  display: grid;
+  gap: 6px;
+}
+
+.language-catalog-row {
+  display: grid;
+  grid-template-columns: 70px 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-catalog-row.hidden {
+  opacity: 0.58;
+}
+
+.language-catalog-row code {
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.language-catalog-row input,
+.custom-language-add input {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+}
+
+.language-catalog-row input:disabled {
+  background: var(--input);
+  color: var(--text-2);
+}
+
+.language-kind-badge {
+  justify-self: start;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-0);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.custom-language-add {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.settings-inline-error {
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.field-hint {
+  color: var(--text-2);
+  font-size: 12px;
 }
 
 /* ── Workspace List ── */
@@ -1947,30 +2036,99 @@ textarea.meta-edit-input {
 .card-text-lang-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .card-text-lang-btn {
-  padding: 4px 10px;
-  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border: 1px solid transparent;
   border-radius: 3px;
-  background: var(--panel);
-  color: var(--text-1);
-  font-size: 12px;
-  font-weight: 600;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 80ms, border-color 80ms;
+  transition: background 80ms, border-color 80ms, color 80ms;
+}
+
+.card-text-lang-btn.missing {
+  border-style: dashed;
+  color: var(--text-2);
 }
 
 .card-text-lang-btn:hover {
-  border-color: var(--line-strong);
+  border-color: var(--line);
+  color: var(--text-1);
 }
 
 .card-text-lang-btn.active {
-  background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.3);
-  color: var(--brand);
+  background: var(--bg-0);
+  border-color: var(--line);
+  color: var(--text-0);
+}
+
+.card-text-active-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.card-text-active-row .card-text-lang-bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-text-lang-add,
+.card-text-lang-delete {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.card-text-lang-add {
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.card-text-lang-delete {
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.card-text-lang-add:hover:not(:disabled),
+.card-text-lang-delete:hover {
+  border-color: var(--line);
+  background: var(--bg-0);
+  color: var(--text-1);
+}
+
+.card-text-lang-delete:hover {
+  color: var(--danger);
+}
+
+.card-text-lang-add:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.card-text-add-select {
+  max-width: 150px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-1);
+  font-size: 11px;
 }
 
 .card-text-field {
@@ -2112,6 +2270,71 @@ textarea.card-text-input {
   padding: 0 0 12px;
 }
 
+.language-order-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.language-order-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+  align-items: center;
+}
+
+.language-order-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 4px;
+  padding: 3px 5px 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.language-order-chip.legacy {
+  border-style: dashed;
+}
+
+.language-order-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.language-chip-button {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--bg-0);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.language-chip-button:hover:not(:disabled) {
+  color: var(--text-0);
+  background: var(--line);
+}
+
+.language-chip-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.language-order-empty {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
 .strings-lang-select,
 .strings-kind-select {
   padding: 6px 8px;
@@ -2209,7 +2432,6 @@ textarea.card-text-input {
 }
 
 .strings-cell-value-display {
-  cursor: text;
   padding: 2px 4px;
   border-radius: 3px;
   overflow: hidden;
@@ -2218,7 +2440,17 @@ textarea.card-text-input {
   min-height: 20px;
 }
 
-.strings-cell-value-display:hover {
+button.strings-cell-value-display {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: text;
+}
+
+button.strings-cell-value-display:hover {
   background: var(--panel-muted);
 }
 
@@ -2368,6 +2600,10 @@ input.strings-cell-input[type="number"]::-webkit-inner-spin-button {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.pack-form-row-language {
+  align-items: start;
 }
 
 .file-picker-row input {

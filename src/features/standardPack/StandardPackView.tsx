@@ -4,9 +4,11 @@ import { standardPackApi } from "../../shared/api/standardPackApi";
 import { jobApi } from "../../shared/api/jobApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatTimestamp } from "../../shared/utils/format";
+import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardListRow } from "../../shared/contracts/card";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import type { StandardCardSortField } from "../../shared/contracts/standardPack";
+import { languageLabel } from "../../shared/utils/language";
 import { CardBrowserPanel } from "../card/CardBrowserPanel";
 import type { CardBrowserQuery } from "../card/CardBrowserPanel";
 import { StringsBrowserPanel } from "../strings/StringsBrowserPanel";
@@ -32,6 +34,8 @@ function stateLabel(state: string): string {
       return "Stale";
     case "missing_index":
       return "Missing Index";
+    case "missing_language":
+      return "Missing Language";
     case "missing_source":
       return "Missing Source";
     case "not_configured":
@@ -45,7 +49,7 @@ function isTerminalJob(job: JobSnapshot): boolean {
   return ["succeeded", "failed", "cancelled"].includes(job.status);
 }
 
-export function StandardPackView() {
+export function StandardPackView({ config }: { config: GlobalConfig }) {
   const [activeTab, setActiveTab] = useState<StandardTab>("cards");
   const [selectedCode, setSelectedCode] = useState<number | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -77,7 +81,8 @@ export function StandardPackView() {
   const status = statusQuery.data ?? null;
   const activeJob = jobQuery.data ?? lastJob;
   const rebuilding = activeJobId !== null;
-  const canBrowseCards = Boolean(status?.index_exists);
+  const canBrowseCards = Boolean(status?.index_exists && status.source_language);
+  const canRebuild = Boolean(status?.configured && config.standard_pack_source_language);
 
   async function handleRebuild() {
     setRebuildError(null);
@@ -142,10 +147,15 @@ export function StandardPackView() {
               Settings
             </button>
           )}
+          {status?.state === "missing_language" && (
+            <button type="button" className="ghost-button" onClick={() => openModal("settings")}>
+              Settings
+            </button>
+          )}
           <button
             type="button"
             className="primary-button"
-            disabled={rebuilding}
+            disabled={rebuilding || !canRebuild}
             onClick={() => void handleRebuild()}
           >
             {rebuilding ? "Rebuilding..." : "Rebuild Index"}
@@ -160,6 +170,13 @@ export function StandardPackView() {
           <>
             <span className="status-pill">{stateLabel(status.state)}</span>
             <span title={status.ygopro_path ?? undefined}>{status.ygopro_path ?? "YGOPro path is not configured"}</span>
+            <span>
+              Source: {status.source_language
+                ? languageLabel(config.text_language_catalog, status.source_language)
+                : config.standard_pack_source_language
+                  ? languageLabel(config.text_language_catalog, config.standard_pack_source_language)
+                  : "Not configured"}
+            </span>
             {status.cdb_path && <span title={status.cdb_path}>CDB: {status.cdb_path}</span>}
             <span>Indexed: {formatTimestamp(status.indexed_at)}</span>
             {status.message && <span className="status-message">{status.message}</span>}
@@ -223,7 +240,8 @@ export function StandardPackView() {
             <StringsBrowserPanel
               enabled={canBrowseCards}
               queryKeyBase={["standard-strings"]}
-              languages={["default"]}
+              languages={status?.source_language ? [status.source_language] : []}
+              catalog={config.text_language_catalog}
               loadPage={loadStandardStringsPage}
               emptyTitle="No standard strings found."
               emptyHint="strings.conf is missing or no entries match the current filter."

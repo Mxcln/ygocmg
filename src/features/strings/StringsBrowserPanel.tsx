@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatStringKeyHex, parseHexInput } from "../../shared/utils/format";
-import type { PackStringEntry, PackStringKind, PackStringsPage } from "../../shared/contracts/strings";
+import type { TextLanguageProfile } from "../../shared/contracts/config";
+import type {
+  PackStringEntry,
+  PackStringKind,
+  PackStringsPage,
+} from "../../shared/contracts/strings";
+import { languageLabel } from "../../shared/utils/language";
 
 const PAGE_SIZE = 50;
 
@@ -38,6 +44,7 @@ interface StringsBrowserPanelProps {
   enabled: boolean;
   queryKeyBase: readonly unknown[];
   languages: string[];
+  catalog?: TextLanguageProfile[];
   loadPage: (query: StringsBrowserQuery) => Promise<PackStringsPage>;
   editable?: boolean;
   emptyTitle: string;
@@ -46,6 +53,7 @@ interface StringsBrowserPanelProps {
   saving?: boolean;
   onCreate?: (entry: PackStringEntry, language: string) => Promise<void>;
   onUpdate?: (entry: PackStringEntry, language: string) => Promise<void>;
+  onClearTranslation?: (entry: PackStringEntry, language: string) => Promise<void>;
   onDelete?: (entry: PackStringEntry) => void;
 }
 
@@ -59,6 +67,7 @@ export function StringsBrowserPanel({
   enabled,
   queryKeyBase,
   languages,
+  catalog = [],
   loadPage,
   editable = false,
   emptyTitle,
@@ -67,6 +76,7 @@ export function StringsBrowserPanel({
   saving = false,
   onCreate,
   onUpdate,
+  onClearTranslation,
   onDelete,
 }: StringsBrowserPanelProps) {
   const [language, setLanguage] = useState(languages[0] ?? "");
@@ -117,30 +127,36 @@ export function StringsBrowserPanel({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const shownError = errorMessage ?? localError;
 
+  function entryKey(entry: Pick<PackStringEntry, "kind" | "key">): string {
+    return `${entry.kind}:${entry.key}`;
+  }
+
   function handleStartEdit(entry: PackStringEntry) {
     if (!editable || saving) return;
     setEditingCell({ kind: entry.kind, key: entry.key, value: entry.value });
-    setNewRow(null);
     setLocalError(null);
   }
 
   async function handleCommitEdit() {
-    if (!editable || !editingCell || saving || !onUpdate) return;
+    if (!editable || !editingCell || saving) return;
     const original = items.find(
       (entry) => entry.kind === editingCell.kind && entry.key === editingCell.key,
     );
-    if (original && original.value === editingCell.value) {
+    if (!original) {
       setEditingCell(null);
       return;
     }
-    await onUpdate(
-      {
-        kind: editingCell.kind,
-        key: editingCell.key,
-        value: editingCell.value,
-      },
-      language,
-    );
+    if (original.value === editingCell.value) {
+      setEditingCell(null);
+      return;
+    }
+    if (editingCell.value.trim()) {
+      if (!onUpdate) return;
+      await onUpdate({ ...original, value: editingCell.value }, language);
+    } else {
+      if (!onClearTranslation) return;
+      await onClearTranslation(original, language);
+    }
     setEditingCell(null);
   }
 
@@ -205,7 +221,7 @@ export function StringsBrowserPanel({
         >
           {languages.map((lang) => (
             <option key={lang} value={lang}>
-              {lang}
+              {languageLabel(catalog, lang)}
             </option>
           ))}
         </select>
@@ -329,16 +345,11 @@ export function StringsBrowserPanel({
             )}
 
             {items.map((entry) => {
-              const isEditing =
-                editingCell &&
-                editingCell.kind === entry.kind &&
-                editingCell.key === entry.key;
+              const rowKey = entryKey(entry);
+              const isEditing = editingCell?.kind === entry.kind && editingCell.key === entry.key;
 
               return (
-                <div
-                  key={`${entry.kind}-${entry.key}`}
-                  className={`strings-table-row ${isEditing ? "editing" : ""}`}
-                >
+                <div key={rowKey} className={`strings-table-row ${isEditing ? "editing" : ""}`}>
                   <span className="strings-cell-kind-display">{entry.kind}</span>
                   <span className="strings-cell-key-display">{formatStringKeyHex(entry.key)}</span>
                   {isEditing ? (
@@ -347,42 +358,37 @@ export function StringsBrowserPanel({
                       className="strings-cell-input strings-cell-value"
                       type="text"
                       value={editingCell.value}
-                      onChange={(e) =>
-                        setEditingCell({ ...editingCell, value: e.target.value })
+                      onChange={(event) =>
+                        setEditingCell({ ...editingCell, value: event.target.value })
                       }
                       onKeyDown={handleEditKeyDown}
                       onBlur={() => void handleCommitEdit()}
                     />
-                  ) : (
-                    <span
+                  ) : editable ? (
+                    <button
+                      type="button"
                       className="strings-cell-value-display"
-                      onDoubleClick={() => handleStartEdit(entry)}
-                      title={editable ? "Double-click to edit" : undefined}
+                      onClick={() => handleStartEdit(entry)}
                     >
+                      {entry.value || "\u00A0"}
+                    </button>
+                  ) : (
+                    <span className="strings-cell-value-display">
                       {entry.value || "\u00A0"}
                     </span>
                   )}
                   <span className="strings-row-actions">
-                    {editable && isEditing ? (
-                      <button
-                        type="button"
-                        className="strings-action-btn"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setEditingCell(null)}
-                        title="Cancel"
-                      >
-                        X
-                      </button>
-                    ) : editable ? (
+                    {editable && onDelete && (
                       <button
                         type="button"
                         className="strings-action-btn strings-delete-btn"
-                        onClick={() => onDelete?.(entry)}
-                        title="Delete"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => onDelete(entry)}
+                        title="Delete string"
                       >
                         Del
                       </button>
-                    ) : null}
+                    )}
                   </span>
                 </div>
               );

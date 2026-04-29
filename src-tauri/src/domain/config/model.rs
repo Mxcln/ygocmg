@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::common::ids::LanguageCode;
+use crate::domain::language::model::TextLanguageProfile;
+use crate::domain::language::rules::default_text_language_catalog;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GlobalConfig {
@@ -20,6 +22,10 @@ pub struct GlobalConfig {
     pub shell_window_height: u32,
     #[serde(default)]
     pub shell_window_is_maximized: bool,
+    #[serde(default = "default_text_language_catalog")]
+    pub text_language_catalog: Vec<TextLanguageProfile>,
+    #[serde(default)]
+    pub standard_pack_source_language: Option<LanguageCode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

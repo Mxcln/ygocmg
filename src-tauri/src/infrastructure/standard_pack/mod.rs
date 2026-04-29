@@ -8,17 +8,19 @@ use serde::{Deserialize, Serialize};
 use crate::domain::card::derive::derive_card_list_row;
 use crate::domain::card::model::CardEntity;
 use crate::domain::common::error::{AppError, AppResult};
+use crate::domain::common::ids::LanguageCode;
 use crate::domain::common::time::{AppTimestamp, now_utc};
 use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringNamespaceBaseline};
 use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::PackStringRecord;
 
-pub const STANDARD_INDEX_SCHEMA_VERSION: u32 = 2;
+pub const STANDARD_INDEX_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StandardPackIndexFile {
     pub schema_version: u32,
     pub source: StandardPackSourceSnapshot,
+    pub source_language: LanguageCode,
     pub indexed_at: AppTimestamp,
     pub cards: Vec<StandardCardIndexRecord>,
     pub strings: StandardStringsIndex,
@@ -61,11 +63,13 @@ pub struct StandardPackSource {
 #[derive(Debug, Clone)]
 pub struct StandardPackStatus {
     pub configured: bool,
+    pub source_language_configured: bool,
     pub ygopro_path: Option<PathBuf>,
     pub cdb_path: Option<PathBuf>,
     pub index_exists: bool,
     pub schema_mismatch: bool,
     pub stale: bool,
+    pub source_language: Option<LanguageCode>,
     pub indexed_at: Option<AppTimestamp>,
     pub card_count: usize,
     pub message: Option<String>,
@@ -124,7 +128,11 @@ pub fn save_index(app_data_dir: &Path, index: &StandardPackIndexFile) -> AppResu
     crate::infrastructure::json_store::write_json(&standard_pack_index_path(app_data_dir), index)
 }
 
-pub fn status(app_data_dir: &Path, ygopro_path: Option<&Path>) -> StandardPackStatus {
+pub fn status(
+    app_data_dir: &Path,
+    ygopro_path: Option<&Path>,
+    configured_source_language: Option<&str>,
+) -> StandardPackStatus {
     let configured = ygopro_path.is_some();
     let source_result = ygopro_path.map(discover_source);
     let source = source_result
@@ -142,10 +150,16 @@ pub fn status(app_data_dir: &Path, ygopro_path: Option<&Path>) -> StandardPackSt
     let index = index_result.ok();
     let index_exists = index.is_some();
     let stale = match (&index, source) {
-        (Some(index), Some(source)) => index.source != source.snapshot,
+        (Some(index), Some(source)) => {
+            index.source != source.snapshot
+                || configured_source_language
+                    .is_some_and(|language| language != index.source_language)
+        }
         _ => false,
     };
-    let message = if schema_mismatch {
+    let message = if configured && configured_source_language.is_none() {
+        Some("standard pack source language is not configured".to_string())
+    } else if schema_mismatch {
         Some("standard pack index schema is outdated; rebuild required".to_string())
     } else {
         source_error
@@ -153,11 +167,13 @@ pub fn status(app_data_dir: &Path, ygopro_path: Option<&Path>) -> StandardPackSt
 
     StandardPackStatus {
         configured,
+        source_language_configured: configured_source_language.is_some(),
         ygopro_path: ygopro_path.map(Path::to_path_buf),
         cdb_path: source.map(|source| source.cdb_path.clone()),
         index_exists,
         schema_mismatch,
         stale,
+        source_language: index.as_ref().map(|index| index.source_language.clone()),
         indexed_at: index.as_ref().map(|index| index.indexed_at),
         card_count: index.as_ref().map(|index| index.cards.len()).unwrap_or(0),
         message,
@@ -241,17 +257,21 @@ pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
     }
 }
 
-pub fn rebuild_index(ygopro_path: &Path) -> AppResult<StandardPackIndexFile> {
+pub fn rebuild_index(
+    ygopro_path: &Path,
+    source_language: &str,
+) -> AppResult<StandardPackIndexFile> {
     let source = discover_source(ygopro_path)?;
-    let mut records = load_cards_from_cdb(&source)?;
+    let mut records = load_cards_from_cdb(&source, source_language)?;
     records.sort_by(|left, right| left.card.code.cmp(&right.card.code));
 
     Ok(StandardPackIndexFile {
         schema_version: STANDARD_INDEX_SCHEMA_VERSION,
         source: source.snapshot,
+        source_language: source_language.to_string(),
         indexed_at: now_utc(),
         cards: records,
-        strings: load_standard_strings(&source.ygopro_path.join("strings.conf")),
+        strings: load_standard_strings(&source.ygopro_path.join("strings.conf"), source_language),
     })
 }
 
@@ -284,13 +304,18 @@ pub fn standard_baseline_from_index(app_data_dir: &Path) -> Option<StandardNames
         })
 }
 
-fn load_cards_from_cdb(source: &StandardPackSource) -> AppResult<Vec<StandardCardIndexRecord>> {
+fn load_cards_from_cdb(
+    source: &StandardPackSource,
+    source_language: &str,
+) -> AppResult<Vec<StandardCardIndexRecord>> {
     let assets = StandardAssetIndex::scan(&source.ygopro_path);
     let records = crate::infrastructure::ygopro_cdb::load_cards_from_cdb(&source.cdb_path)?
         .into_iter()
-        .map(|record| {
+        .map(|mut record| {
+            remap_card_language(&mut record.card, source_language);
             let asset_state = assets.asset_state(record.card.code);
-            let row = derive_card_list_row(&record.card, &asset_state, &["default".to_string()]);
+            let row =
+                derive_card_list_row(&record.card, &asset_state, &[source_language.to_string()]);
             StandardCardIndexRecord {
                 card: record.card,
                 row,
@@ -361,14 +386,41 @@ fn scan_numeric_assets(dir: &Path, prefix: &str, extension: &str) -> BTreeSet<u3
     values
 }
 
-fn load_standard_strings(path: &Path) -> StandardStringsIndex {
+fn load_standard_strings(path: &Path, source_language: &str) -> StandardStringsIndex {
     let Ok(mut records) = crate::infrastructure::strings_conf::load_records(path) else {
         return StandardStringsIndex::default();
     };
+    for record in &mut records {
+        remap_string_language(record, source_language);
+    }
     records.sort_by(|left, right| left.kind.cmp(&right.kind).then(left.key.cmp(&right.key)));
     let baseline = crate::infrastructure::strings_conf::baseline_from_records(&records);
 
     StandardStringsIndex { baseline, records }
+}
+
+fn remap_card_language(card: &mut CardEntity, source_language: &str) {
+    if card.texts.contains_key(source_language) {
+        return;
+    }
+    if let Some(texts) = card
+        .texts
+        .remove(crate::domain::language::model::LEGACY_DEFAULT_LANGUAGE)
+    {
+        card.texts.insert(source_language.to_string(), texts);
+    }
+}
+
+fn remap_string_language(record: &mut PackStringRecord, source_language: &str) {
+    if record.values.contains_key(source_language) {
+        return;
+    }
+    if let Some(value) = record
+        .values
+        .remove(crate::domain::language::model::LEGACY_DEFAULT_LANGUAGE)
+    {
+        record.values.insert(source_language.to_string(), value);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

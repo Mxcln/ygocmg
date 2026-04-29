@@ -57,7 +57,8 @@ fn rebuild_index_reads_cdb_and_supports_search_and_detail() {
     fs::create_dir_all(root.path().join("script")).unwrap();
     fs::write(root.path().join("script").join("c100.lua"), "-- test").unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let state = AppState::new(app.path().to_path_buf()).unwrap();
@@ -77,7 +78,7 @@ fn rebuild_index_reads_cdb_and_supports_search_and_detail() {
     let detail = service
         .get_card(ygocmg_core::application::dto::standard_pack::GetStandardCardInput { code: 100 })
         .unwrap();
-    assert_eq!(detail.card.texts["default"].name, "Alpha Dragon");
+    assert_eq!(detail.card.texts["zh-CN"].name, "Alpha Dragon");
     assert!(detail.asset_state.has_script);
 }
 
@@ -90,7 +91,8 @@ fn rebuild_index_accepts_signed_32_bit_cdb_bitfields() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     let card = &index.cards[0].card;
     assert_eq!(card.code, 300);
     assert_eq!(card.category, (-2_147_483_384i64 as u32) as u64);
@@ -106,7 +108,8 @@ fn card_code_context_uses_standard_index_before_fallback_baseline() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
@@ -118,7 +121,7 @@ fn card_code_context_uses_standard_index_before_fallback_baseline() {
         .open_workspace(workspace.path())
         .unwrap();
     let pack = ygocmg_core::application::pack::service::PackService::new(&state)
-        .create_pack("pack", "me", "1", None, vec!["default".to_string()], None)
+        .create_pack("pack", "me", "1", None, vec!["zh-CN".to_string()], None)
         .unwrap();
     let context = ygocmg_core::application::card::service::CardService::new(&state)
         .build_code_context(&pack.id, None)
@@ -140,6 +143,7 @@ fn rebuild_index_job_success_and_failure_are_queryable() {
     let state = AppState::new(app.path().to_path_buf()).unwrap();
     let mut config = ygocmg_core::domain::config::rules::default_global_config();
     config.ygopro_path = Some(root.path().to_path_buf());
+    config.standard_pack_source_language = Some("zh-CN".to_string());
     app_commands::save_config(&state, &config).unwrap();
 
     let accepted = app_commands::rebuild_standard_pack_index(&state).unwrap();
@@ -164,7 +168,8 @@ fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
@@ -178,7 +183,7 @@ fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
         "me",
         "1",
         None,
-        vec!["default".to_string()],
+        vec!["zh-CN".to_string()],
         None,
     )
     .unwrap();
@@ -241,7 +246,8 @@ fn strings_conf_namespace_enters_standard_baseline() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
@@ -255,7 +261,7 @@ fn strings_conf_namespace_enters_standard_baseline() {
         "me",
         "1",
         None,
-        vec!["default".to_string()],
+        vec!["zh-CN".to_string()],
         None,
     )
     .unwrap();
@@ -270,7 +276,7 @@ fn strings_conf_namespace_enters_standard_baseline() {
                 kind: PackStringKind::Victory,
                 key: 0x10,
                 values: vec![PackStringValueDto {
-                    language: "default".to_string(),
+                    language: "zh-CN".to_string(),
                     value: "custom".to_string(),
                 }],
             },
@@ -306,7 +312,8 @@ fn standard_strings_are_indexed_and_searchable() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     assert_eq!(index.strings.records.len(), 4);
     assert!(index.strings.baseline.system_keys.contains(&123));
     assert!(index.strings.baseline.victory_keys.contains(&0x10));
@@ -325,7 +332,7 @@ fn standard_strings_are_indexed_and_searchable() {
             page_size: 20,
         })
         .unwrap();
-    assert_eq!(page.language, "default");
+    assert_eq!(page.language, "zh-CN");
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].key, 0x10);
     assert_eq!(page.items[0].value, "Victory value");
@@ -359,7 +366,8 @@ fn standard_strings_parse_ygopro_inline_format() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     assert_eq!(index.strings.records.len(), 4);
     assert!(index.strings.baseline.system_keys.contains(&1));
     assert!(index.strings.baseline.victory_keys.contains(&0x10));
@@ -368,7 +376,7 @@ fn standard_strings_parse_ygopro_inline_format() {
     assert!(index.strings.records.iter().any(|record| {
         record
             .values
-            .get("default")
+            .get("zh-CN")
             .is_some_and(|value| value == "通常召唤")
     }));
 }
@@ -387,7 +395,7 @@ fn schema_mismatch_requires_rebuild() {
     let err = ygocmg_core::infrastructure::standard_pack::load_index(app.path()).unwrap_err();
     assert_eq!(err.code, "standard_pack.index_schema_mismatch");
 
-    let status = ygocmg_core::infrastructure::standard_pack::status(app.path(), None);
+    let status = ygocmg_core::infrastructure::standard_pack::status(app.path(), None, None);
     assert!(status.schema_mismatch);
     assert!(!status.index_exists);
 }
@@ -403,11 +411,15 @@ fn source_missing_keeps_existing_index_browsable() {
     .unwrap();
     fs::write(root.path().join("strings.conf"), "!system\n1 Hello\n").unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
     let missing_path = root.path().join("missing");
-    let status =
-        ygocmg_core::infrastructure::standard_pack::status(app.path(), Some(&missing_path));
+    let status = ygocmg_core::infrastructure::standard_pack::status(
+        app.path(),
+        Some(&missing_path),
+        Some("zh-CN"),
+    );
     assert!(status.index_exists);
     assert!(status.message.is_some());
 
@@ -447,12 +459,17 @@ fn source_change_marks_stale_without_auto_rebuild() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     std::thread::sleep(Duration::from_secs(1));
     fs::write(root.path().join("strings.conf"), "!system 1 Updated\n").unwrap();
-    let status = ygocmg_core::infrastructure::standard_pack::status(app.path(), Some(root.path()));
+    let status = ygocmg_core::infrastructure::standard_pack::status(
+        app.path(),
+        Some(root.path()),
+        Some("zh-CN"),
+    );
     assert!(status.index_exists);
     assert!(status.stale);
 
@@ -510,7 +527,8 @@ fn rebuild_index_uses_prescanned_asset_state() {
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     let with_assets = index
         .cards
         .iter()
@@ -538,7 +556,8 @@ fn malformed_cdb_schema_returns_clear_error() {
         .execute_batch("create table datas(id integer primary key);")
         .unwrap();
 
-    let err = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap_err();
+    let err = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN")
+        .unwrap_err();
     assert_eq!(err.code, "ygopro_cdb.schema_missing_columns");
 }
 
@@ -552,7 +571,8 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
     )
     .unwrap();
 
-    let index = ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path()).unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let workspace = tempdir().unwrap();
@@ -567,7 +587,7 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
         "me",
         "1",
         None,
-        vec!["default".to_string()],
+        vec!["zh-CN".to_string()],
         None,
     )
     .unwrap();
@@ -578,7 +598,7 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
         "me",
         "1",
         None,
-        vec!["default".to_string()],
+        vec!["zh-CN".to_string()],
         None,
     )
     .unwrap();
@@ -609,7 +629,7 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
         PreviewExportBundleInput {
             workspace_id: workspace_meta.id,
             pack_ids: vec![conflict_pack.id, warning_pack.id],
-            export_language: "default".to_string(),
+            export_language: "zh-CN".to_string(),
             output_dir: workspace.path().join("out"),
             output_name: "bundle".to_string(),
         },
@@ -668,7 +688,7 @@ fn test_monster_input(code: u32, name: &str) -> CardUpdateInput {
         category: 0,
         primary_type: PrimaryType::Monster,
         texts: std::collections::BTreeMap::from([(
-            "default".to_string(),
+            "zh-CN".to_string(),
             CardTexts {
                 name: name.to_string(),
                 desc: "desc".to_string(),

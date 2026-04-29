@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { packApi } from "../../shared/api/packApi";
+import type { GlobalConfig } from "../../shared/contracts/config";
 import type { PackMetadata, PackOverview } from "../../shared/contracts/pack";
 import { formatTimestamp, formatError } from "../../shared/utils/format";
+import { preferredAuthoringLanguage } from "../../shared/utils/language";
+import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
+import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import { ImportPackPanel } from "./ImportPackPanel";
 
 type AddPackTab = "openPack" | "createPack" | "importPack";
@@ -12,20 +16,24 @@ interface CreatePackForm {
   author: string;
   version: string;
   description: string;
-  displayLanguageOrder: string;
+  displayLanguageOrder: string[];
   defaultExportLanguage: string;
 }
 
-const EMPTY_CREATE_FORM: CreatePackForm = {
-  name: "",
-  author: "",
-  version: "1.0.0",
-  description: "",
-  displayLanguageOrder: "en-US",
-  defaultExportLanguage: "",
-};
+function emptyCreateForm(config: GlobalConfig): CreatePackForm {
+  const language = preferredAuthoringLanguage(config);
+  return {
+    name: "",
+    author: "",
+    version: "1.0.0",
+    description: "",
+    displayLanguageOrder: [language],
+    defaultExportLanguage: language,
+  };
+}
 
 export interface AddPackModalProps {
+  config: GlobalConfig;
   hasWorkspace: boolean;
   onPackOpened: (packId: string, metadata: PackMetadata) => void;
   onPackCreated: (packId: string, metadata: PackMetadata) => void;
@@ -34,6 +42,7 @@ export interface AddPackModalProps {
 }
 
 export function AddPackModal({
+  config,
   hasWorkspace,
   onPackOpened,
   onPackCreated,
@@ -49,7 +58,7 @@ export function AddPackModal({
   const [overviews, setOverviews] = useState<PackOverview[]>([]);
   const [loadingOverviews, setLoadingOverviews] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState<CreatePackForm>(EMPTY_CREATE_FORM);
+  const [createForm, setCreateForm] = useState<CreatePackForm>(() => emptyCreateForm(config));
 
   useEffect(() => {
     if (!hasWorkspace) return;
@@ -97,10 +106,7 @@ export function AddPackModal({
 
     setBusyAction("create");
     try {
-      const langOrder = createForm.displayLanguageOrder
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const langOrder = createForm.displayLanguageOrder;
       const defExport = createForm.defaultExportLanguage.trim() || null;
       const desc = createForm.description.trim() || null;
 
@@ -115,7 +121,7 @@ export function AddPackModal({
 
       const openedMeta = await packApi.openPack({ packId: createdMeta.id });
       onPackCreated(createdMeta.id, openedMeta);
-      setCreateForm(EMPTY_CREATE_FORM);
+      setCreateForm(emptyCreateForm(config));
       onNotice("success", "Pack created", `${createdMeta.name} has been created.`);
       closeModal();
     } catch (err) {
@@ -177,14 +183,16 @@ export function AddPackModal({
           ) : addPackTab === "createPack" ? (
             <CreatePackPanel
               form={createForm}
+              config={config}
               busyAction={busyAction}
               onFormChange={setCreateForm}
-              onReset={() => setCreateForm(EMPTY_CREATE_FORM)}
+              onReset={() => setCreateForm(emptyCreateForm(config))}
               onSubmit={handleCreatePack}
             />
           ) : workspaceId ? (
             <ImportPackPanel
               workspaceId={workspaceId}
+              config={config}
               onPackOpened={onPackOpened}
               onNotice={onNotice}
               closeModal={closeModal}
@@ -257,17 +265,23 @@ function OpenPackPanel({
 
 function CreatePackPanel({
   form,
+  config,
   busyAction,
   onFormChange,
   onReset,
   onSubmit,
 }: {
   form: CreatePackForm;
+  config: GlobalConfig;
   busyAction: string | null;
   onFormChange: (form: CreatePackForm) => void;
   onReset: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }) {
+  const defaultExportValue = form.displayLanguageOrder.includes(form.defaultExportLanguage)
+    ? form.defaultExportLanguage
+    : form.displayLanguageOrder[0] ?? "";
+
   return (
     <section className="workspace-create-panel">
       <div className="panel-header">
@@ -316,25 +330,29 @@ function CreatePackPanel({
           />
         </label>
 
-        <div className="pack-form-row">
-          <label className="field">
+        <div className="pack-form-row pack-form-row-language">
+          <div className="field">
             <span>Display languages</span>
-            <input
+            <LanguageOrderEditor
+              catalog={config.text_language_catalog}
               value={form.displayLanguageOrder}
-              onChange={(e) =>
-                onFormChange({ ...form, displayLanguageOrder: e.target.value })
-              }
-              placeholder="en-US, zh-CN, ja-JP"
+              onChange={(displayLanguageOrder) => {
+                const defaultExportLanguage = displayLanguageOrder.includes(form.defaultExportLanguage)
+                  ? form.defaultExportLanguage
+                  : displayLanguageOrder[0] ?? "";
+                onFormChange({ ...form, displayLanguageOrder, defaultExportLanguage });
+              }}
             />
-          </label>
+          </div>
           <label className="field">
             <span>Default export language</span>
-            <input
-              value={form.defaultExportLanguage}
-              onChange={(e) =>
-                onFormChange({ ...form, defaultExportLanguage: e.target.value })
+            <TextLanguagePicker
+              catalog={config.text_language_catalog}
+              value={defaultExportValue}
+              existingLanguages={form.displayLanguageOrder}
+              onChange={(defaultExportLanguage) =>
+                onFormChange({ ...form, defaultExportLanguage })
               }
-              placeholder="en-US"
             />
           </label>
         </div>

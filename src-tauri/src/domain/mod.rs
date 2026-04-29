@@ -1,6 +1,7 @@
 pub mod card;
 pub mod common;
 pub mod config;
+pub mod language;
 pub mod namespace;
 pub mod pack;
 pub mod resource;

@@ -10,9 +10,12 @@ import type { GlobalConfig } from "../shared/contracts/config";
 import type { PackMetadata } from "../shared/contracts/pack";
 import type { WorkspaceMeta, WorkspaceRegistryFile } from "../shared/contracts/workspace";
 import { formatError, formatTimestamp } from "../shared/utils/format";
+import { compactLanguageLabel, languageLabel } from "../shared/utils/language";
 import { WorkspaceModal } from "../features/workspace/WorkspaceModal";
 import { SettingsModal } from "../features/settings/SettingsModal";
 import { AddPackModal } from "../features/pack/AddPackModal";
+import { LanguageOrderEditor } from "../features/language/LanguageOrderEditor";
+import { TextLanguagePicker } from "../features/language/TextLanguagePicker";
 import { CardListPanel } from "../features/card/CardListPanel";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardEditDrawer } from "../features/card/CardEditDrawer";
@@ -58,7 +61,7 @@ export function App() {
     author: string;
     version: string;
     description: string;
-    displayLanguageOrder: string;
+    displayLanguageOrder: string[];
     defaultExportLanguage: string;
   } | null>(null);
   const [metaSaving, setMetaSaving] = useState(false);
@@ -442,7 +445,7 @@ export function App() {
       author: activeMeta.author,
       version: activeMeta.version,
       description: activeMeta.description || "",
-      displayLanguageOrder: activeMeta.display_language_order.join(", "),
+      displayLanguageOrder: activeMeta.display_language_order,
       defaultExportLanguage: activeMeta.default_export_language || "",
     });
     setMetaEditing(true);
@@ -464,10 +467,7 @@ export function App() {
 
     setMetaSaving(true);
     try {
-      const langList = metaDraft.displayLanguageOrder
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const langList = metaDraft.displayLanguageOrder;
 
       const updated = await packApi.updatePackMetadata({
         packId,
@@ -480,6 +480,8 @@ export function App() {
       });
 
       updatePackMetadataInStore(packId, updated);
+      void queryClient.invalidateQueries({ queryKey: ["cards", packId] });
+      void queryClient.invalidateQueries({ queryKey: ["strings", packId] });
       const overviews = await packApi.listPackOverviews();
       setPackOverviews(overviews);
       setMetaEditing(false);
@@ -532,7 +534,9 @@ export function App() {
   const isStandardView = activeView?.type === "standard_pack";
   const activeMeta = activeCustomPackId ? packMetadataMap[activeCustomPackId] : null;
   const shellStyle = { "--sidebar-width": `${sidebarWidth}px` } as CSSProperties;
-  const preferredTextLanguages = activeMeta?.display_language_order.join(", ") || "—";
+  const preferredTextLanguages = activeMeta
+    ? activeMeta.display_language_order.map((language) => compactLanguageLabel(config.text_language_catalog, language)).join(", ")
+    : "—";
   const summaryDetail = activeMeta
     ? `${activeMeta.author} · v${activeMeta.version} · ${preferredTextLanguages}`
     : "Loading metadata...";
@@ -694,7 +698,7 @@ export function App() {
           )}
 
           {isStandardView ? (
-            <StandardPackView />
+            <StandardPackView config={config} />
           ) : !activeCustomPackId ? (
             <div className="empty-state">
               <p className="empty-label">No Pack Open</p>
@@ -776,20 +780,25 @@ export function App() {
                             </div>
                             <div className="meta-field">
                               <span className="meta-field-label">Preferred Text Languages</span>
-                              <input
-                                className="meta-edit-input"
+                              <LanguageOrderEditor
+                                catalog={config.text_language_catalog}
                                 value={metaDraft.displayLanguageOrder}
-                                onChange={(e) => setMetaDraft({ ...metaDraft, displayLanguageOrder: e.target.value })}
-                                placeholder="e.g. zh-CN, en-US"
+                                existingLanguages={activeMeta.display_language_order}
+                                onChange={(displayLanguageOrder) => {
+                                  const defaultExportLanguage = displayLanguageOrder.includes(metaDraft.defaultExportLanguage)
+                                    ? metaDraft.defaultExportLanguage
+                                    : displayLanguageOrder[0] ?? "";
+                                  setMetaDraft({ ...metaDraft, displayLanguageOrder, defaultExportLanguage });
+                                }}
                               />
                             </div>
                             <div className="meta-field">
                               <span className="meta-field-label">Default Export Language</span>
-                              <input
-                                className="meta-edit-input"
+                              <TextLanguagePicker
+                                catalog={config.text_language_catalog}
                                 value={metaDraft.defaultExportLanguage}
-                                onChange={(e) => setMetaDraft({ ...metaDraft, defaultExportLanguage: e.target.value })}
-                                placeholder="e.g. zh-CN"
+                                existingLanguages={activeMeta.display_language_order}
+                                onChange={(defaultExportLanguage) => setMetaDraft({ ...metaDraft, defaultExportLanguage })}
                               />
                             </div>
                             <div className="meta-field">
@@ -862,7 +871,9 @@ export function App() {
                                 className="meta-field-value meta-field-value-inline"
                                 title={activeMeta.default_export_language || "—"}
                               >
-                                {activeMeta.default_export_language || "—"}
+                                {activeMeta.default_export_language
+                                  ? languageLabel(config.text_language_catalog, activeMeta.default_export_language)
+                                  : "—"}
                               </span>
                             </div>
                             <div className="meta-field">
@@ -939,7 +950,7 @@ export function App() {
                   {activeTab === "cards" ? (
                     <CardListPanel onEditCard={handleEditCard} onNewCard={handleNewCard} />
                   ) : (
-                    <StringsListPanel />
+                    <StringsListPanel catalog={config.text_language_catalog} />
                   )}
                 </div>
               </div>
@@ -949,6 +960,7 @@ export function App() {
                   packId={activeCustomPackId}
                   workspaceId={useShellStore.getState().workspaceId!}
                   cardId={isCreatingCard ? null : editingCardId}
+                  config={config}
                   onClose={handleDrawerClose}
                   onSaved={handleDrawerSaved}
                 />
@@ -977,6 +989,7 @@ export function App() {
             )}
             {modal.type === "addPack" && (
               <AddPackModal
+                config={config}
                 hasWorkspace={currentWorkspace !== null}
                 onPackOpened={(id, meta) => void handlePackOpened(id, meta)}
                 onPackCreated={(id, meta) => void handlePackCreated(id, meta)}
@@ -985,7 +998,7 @@ export function App() {
               />
             )}
             {modal.type === "export" && (
-              <ExportModal onNotice={handleNotice} />
+              <ExportModal config={config} onNotice={handleNotice} />
             )}
           </section>
         </div>
