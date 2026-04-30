@@ -82,12 +82,20 @@ function formatSetcodeHex(value: number): string {
   return `0x${value.toString(16).toUpperCase()}`;
 }
 
+function formatSetcodePackedHex(slots: number[]): string {
+  if (slots.length === 0) return "0x0";
+  let packed = BigInt(0);
+  for (let i = slots.length - 1; i >= 0; i--) {
+    packed = (packed << BigInt(16)) | BigInt(slots[i] & 0xffff);
+  }
+  return `0x${packed.toString(16).toUpperCase()}`;
+}
+
 export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries = [] }: CardInfoFormProps) {
   const [categoryRawInput, setCategoryRawInput] = useState("");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [setcodePickerOpen, setSetcodePickerOpen] = useState(false);
   const [setcodeSearch, setSetcodeSearch] = useState("");
-  const [setcodeRawOpen, setSetcodeRawOpen] = useState(false);
 
   const setnameMap = useMemo(() => {
     const map = new Map<number, SetnameEntry>();
@@ -222,43 +230,66 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
   return (
     <div className={styles.cardInfoGrid}>
-      {/* Basic fields */}
-      <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>Code</label>
-        <input
-          className={styles.cardInfoInput}
-          type="text"
-          inputMode="numeric"
-          value={draft.code}
-          onChange={(e) => handleNumberInput("code", e.target.value)}
-          readOnly={readonly}
-        />
-      </div>
-      <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>Alias</label>
-        <input
-          className={styles.cardInfoInput}
-          type="text"
-          inputMode="numeric"
-          value={draft.alias}
-          onChange={(e) => handleNumberInput("alias", e.target.value)}
-          readOnly={readonly}
-        />
+      {/* Code / Alias / OT — compact triple row */}
+      <div className={styles.tripleRow}>
+        <div className={styles.cardInfoField}>
+          <label className={styles.cardInfoLabel}>Code</label>
+          <input
+            className={styles.cardInfoInput}
+            type="text"
+            inputMode="numeric"
+            value={draft.code}
+            onChange={(e) => handleNumberInput("code", e.target.value)}
+            readOnly={readonly}
+          />
+        </div>
+        <div className={styles.cardInfoField}>
+          <label className={styles.cardInfoLabel}>Alias</label>
+          <input
+            className={styles.cardInfoInput}
+            type="text"
+            inputMode="numeric"
+            value={draft.alias}
+            onChange={(e) => handleNumberInput("alias", e.target.value)}
+            readOnly={readonly}
+          />
+        </div>
+        <div className={styles.cardInfoField}>
+          <label className={styles.cardInfoLabel}>OT</label>
+          <select
+            className={styles.cardInfoSelect}
+            value={draft.ot}
+            onChange={(e) => emitChange({ ot: e.target.value as Ot })}
+            disabled={readonly}
+          >
+            {ALL_OT.map((o) => (
+              <option key={o} value={o}>{displayLabel(o)}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-        <label className={styles.cardInfoLabel}>Setcodes</label>
-        <div className={styles.setcodeTagRow}>
+      {/* Setcodes + Categories — same row */}
+      <div className={styles.setcodeCategoryRow}>
+        <div className={styles.cardInfoField}>
+          <div className={styles.tagFieldHeader}>
+            <label className={styles.cardInfoLabel}>Setcodes</label>
+            {draft.setcodes.length > 0 && (
+              <span className={styles.tagFieldRaw}>
+                Raw: {formatSetcodePackedHex(draft.setcodes)}
+              </span>
+            )}
+          </div>
           <div className={styles.setcodeTags}>
             {draft.setcodes.length === 0 ? (
               <span className={styles.setcodeEmptyTag}>No archetypes</span>
             ) : (
               draft.setcodes.map((code) => {
                 const entry = setnameMap.get(code);
-                const label = entry
-                  ? `${entry.name} (${formatSetcodeHex(code)})`
+                const label = entry ? entry.name : formatSetcodeHex(code);
+                const tooltip = entry
+                  ? `${entry.name} (${formatSetcodeHex(code)})${entry.source === "pack" ? " [Pack]" : " [Std]"}`
                   : formatSetcodeHex(code);
-                const sourceTag = entry ? (entry.source === "pack" ? " [Pack]" : " [Std]") : "";
                 return (
                   <button
                     key={code}
@@ -268,78 +299,37 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                       emitChange({ setcodes: draft.setcodes.filter((c) => c !== code) });
                     }}
                     disabled={readonly}
-                    title={`Remove ${label}${sourceTag}`}
+                    title={`Remove ${tooltip}`}
                   >
                     {label} &times;
                   </button>
                 );
               })
             )}
+            {draft.setcodes.length < 4 && (
+              <button
+                type="button"
+                className={`${styles.setcodeAddButton} ${setcodePickerOpen ? "active" : ""}`}
+                onClick={() => {
+                  setSetcodePickerOpen((open) => !open);
+                  setSetcodeSearch("");
+                }}
+                disabled={readonly}
+                aria-expanded={setcodePickerOpen}
+              >
+                +
+              </button>
+            )}
           </div>
-          {draft.setcodes.length < 4 && (
-            <button
-              type="button"
-              className={`${styles.setcodeAddButton} ${setcodePickerOpen ? "active" : ""}`}
-              onClick={() => {
-                setSetcodePickerOpen((open) => !open);
-                setSetcodeSearch("");
-              }}
-              disabled={readonly}
-              aria-expanded={setcodePickerOpen}
-            >
-              +
-            </button>
-          )}
         </div>
-        {setcodePickerOpen && (
-          <SetcodePicker
-            search={setcodeSearch}
-            onSearchChange={setSetcodeSearch}
-            setnameEntries={setnameEntries}
-            existingCodes={draft.setcodes}
-            onSelect={(code) => {
-              if (!draft.setcodes.includes(code) && draft.setcodes.length < 4) {
-                emitChange({ setcodes: [...draft.setcodes, code] });
-              }
-              setSetcodePickerOpen(false);
-              setSetcodeSearch("");
-            }}
-            readonly={readonly}
-          />
-        )}
-        <details
-          className={styles.setcodeAdvanced}
-          open={setcodeRawOpen}
-          onToggle={(e) => setSetcodeRawOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary>Advanced raw hex</summary>
-          <SetcodeRawInput
-            setcodes={draft.setcodes}
-            onChange={(codes) => emitChange({ setcodes: codes })}
-            readonly={readonly}
-          />
-        </details>
-      </div>
-      <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>OT</label>
-        <select
-          className={styles.cardInfoSelect}
-          value={draft.ot}
-          onChange={(e) => emitChange({ ot: e.target.value as Ot })}
-          disabled={readonly}
-        >
-          {ALL_OT.map((o) => (
-            <option key={o} value={o}>{displayLabel(o)}</option>
-          ))}
-        </select>
-      </div>
 
-      <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-        <div className={styles.categoryHeader}>
-          <label className={styles.cardInfoLabel}>Effect Categories</label>
-          <span className={styles.categoryRawValue}>Raw: {categoryRawDisplay}</span>
-        </div>
-        <div className={styles.categoryTagRow}>
+        <div className={styles.cardInfoField}>
+          <div className={styles.tagFieldHeader}>
+            <label className={styles.cardInfoLabel}>Effect Categories</label>
+            {normalizedCategory > 0 && (
+              <span className={styles.tagFieldRaw}>Raw: {categoryRawDisplay}</span>
+            )}
+          </div>
           <div className={styles.categoryTags}>
             {selectedCategoryOptions.length === 0 ? (
               <span className={styles.categoryEmptyTag}>No categories</span>
@@ -357,19 +347,39 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                 </button>
               ))
             )}
+            <button
+              type="button"
+              className={`${styles.categoryAddButton} ${categoryPickerOpen ? "active" : ""}`}
+              onClick={() => setCategoryPickerOpen((open) => !open)}
+              disabled={readonly}
+              aria-expanded={categoryPickerOpen}
+            >
+              +
+            </button>
           </div>
-          <button
-            type="button"
-            className={`${styles.categoryAddButton} ${categoryPickerOpen ? "active" : ""}`}
-            onClick={() => setCategoryPickerOpen((open) => !open)}
-            disabled={readonly}
-            aria-expanded={categoryPickerOpen}
-          >
-            +
-          </button>
         </div>
+
+        {/* Expanded panels span full width below the row */}
+        {setcodePickerOpen && (
+          <div className={styles.expandedPanel}>
+            <SetcodePicker
+              search={setcodeSearch}
+              onSearchChange={setSetcodeSearch}
+              setnameEntries={setnameEntries}
+              existingCodes={draft.setcodes}
+              onSelect={(code) => {
+                if (!draft.setcodes.includes(code) && draft.setcodes.length < 4) {
+                  emitChange({ setcodes: [...draft.setcodes, code] });
+                }
+                setSetcodePickerOpen(false);
+                setSetcodeSearch("");
+              }}
+              readonly={readonly}
+            />
+          </div>
+        )}
         {categoryPickerOpen && (
-          <div className={styles.categoryPickerPanel}>
+          <div className={styles.expandedPanel}>
             <div className={styles.categoryCheckboxGrid}>
               {CARD_CATEGORY_OPTIONS.map((option) => {
                 const selected = hasCardCategoryMask(normalizedCategory, option.mask);
@@ -736,61 +746,3 @@ function SetcodePicker({
   );
 }
 
-function SetcodeRawInput({
-  setcodes,
-  onChange,
-  readonly,
-}: {
-  setcodes: number[];
-  onChange: (codes: number[]) => void;
-  readonly: boolean;
-}) {
-  const packed = useMemo(() => {
-    let result = BigInt(0);
-    for (let i = setcodes.length - 1; i >= 0; i--) {
-      result = (result << BigInt(16)) | BigInt(setcodes[i] & 0xffff);
-    }
-    return "0x" + result.toString(16).toUpperCase();
-  }, [setcodes]);
-
-  const [rawInput, setRawInput] = useState(packed);
-
-  useEffect(() => {
-    setRawInput(packed);
-  }, [packed]);
-
-  function handleChange(value: string) {
-    setRawInput(value);
-    const hex = value.trim().replace(/^0x/i, "");
-    if (!hex) {
-      onChange([]);
-      return;
-    }
-    if (!/^[0-9a-fA-F]+$/.test(hex)) return;
-    try {
-      let v = BigInt("0x" + hex);
-      const slots: number[] = [];
-      while (v > 0n) {
-        const slot = Number(v & 0xffffn);
-        if (slot !== 0) slots.push(slot);
-        v >>= 16n;
-      }
-      if (slots.length <= 4) {
-        onChange(slots);
-      }
-    } catch {
-      // ignore invalid input
-    }
-  }
-
-  return (
-    <input
-      className={styles.cardInfoInput}
-      type="text"
-      value={rawInput}
-      onChange={(e) => handleChange(e.target.value)}
-      onBlur={() => setRawInput(packed)}
-      readOnly={readonly}
-    />
-  );
-}

@@ -55,8 +55,7 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
 
   const handleDrawerSaved = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["cards"] });
-    handleDrawerClose();
-  }, [queryClient, handleDrawerClose]);
+  }, [queryClient]);
 
   if (!activeCustomPackId) return null;
 

@@ -100,33 +100,48 @@
   margin: 0 0 8px;
 }
 
-.categoryHeader {
+.tripleRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.setcodeCategoryRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.tagFieldHeader {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
   gap: 8px;
 }
 
-.categoryRawValue {
+.tagFieldRaw {
   color: var(--text-2);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
   white-space: nowrap;
 }
 
-.categoryTagRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 6px;
-  min-height: 32px;
+.expandedPanel {
+  grid-column: 1 / -1;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg-0);
 }
+
 
 .categoryTags {
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  overflow-x: auto;
+  flex-wrap: wrap;
   padding: 2px 0;
 }
 
@@ -167,16 +182,16 @@
 }
 
 .categoryAddButton {
-  width: 100%;
-  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 4px 8px;
   border: 1px dashed var(--line-strong);
   border-radius: 3px;
   background: var(--panel);
   color: var(--text-1);
   cursor: pointer;
-  font-size: 18px;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1;
+  white-space: nowrap;
 }
 
 .categoryAddButton:hover {
@@ -193,14 +208,6 @@
 .categoryAddButton:disabled {
   cursor: default;
   opacity: 0.65;
-}
-
-.categoryPickerPanel {
-  margin-top: 6px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--bg-0);
 }
 
 .categoryCheckboxGrid {
@@ -320,12 +327,6 @@
 }
 
 /* Setcode editor */
-.setcodeTagRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-}
 
 .setcodeTags {
   display: flex;
@@ -374,16 +375,15 @@
 
 .setcodeAddButton {
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  padding: 4px 8px;
   border: 1px dashed var(--line-strong);
   border-radius: 3px;
   background: var(--panel);
   color: var(--text-1);
   cursor: pointer;
-  font-size: 18px;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1;
+  white-space: nowrap;
 }
 
 .setcodeAddButton:hover {
@@ -497,20 +497,3 @@
   font-size: 12px;
 }
 
-.setcodeAdvanced {
-  margin-top: 8px;
-}
-
-.setcodeAdvanced summary {
-  width: max-content;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.setcodeAdvanced input {
-  margin-top: 5px;
-  max-width: 240px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-}
