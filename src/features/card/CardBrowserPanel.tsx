@@ -108,7 +108,7 @@ export function CardBrowserPanel({
   loadingText,
   errorText,
 }: CardBrowserPanelProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const [keyword, setKeyword] = useState("");
   const [sortBy, setSortBy] = useState<BrowserSortField>("code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -205,9 +205,9 @@ export function CardBrowserPanel({
             <span>{t("card.list.name")}</span>
             <span>{t("card.list.type")}</span>
             <span>{t("card.list.subtype")}</span>
-            <span>{td("card.list.atk", "ATK")}</span>
-            <span>{td("card.list.def", "DEF")}</span>
-            <span>{td("card.list.levelShort", "Lv")}</span>
+            <span>{t("card.list.atk")}</span>
+            <span>{t("card.list.def")}</span>
+            <span>{t("card.list.levelShort")}</span>
             <span />
           </div>
           <div className={styles.cardListBody}>

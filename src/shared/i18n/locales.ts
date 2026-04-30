@@ -1,5 +1,3 @@
-import type { MessageDescriptor } from "react-intl";
-
 export type AppLocale = "en-US" | "zh-CN";
 
 export interface AppLocaleOption {
@@ -21,12 +19,4 @@ export function isSupportedAppLocale(value: string): value is AppLocale {
 export function normalizeAppLocale(value: string | null | undefined): AppLocale {
   const normalized = value?.trim();
   return normalized && isSupportedAppLocale(normalized) ? normalized : DEFAULT_APP_LOCALE;
-}
-
-export function makeDescriptor(
-  id: string,
-  defaultMessage: string,
-  description?: string,
-): MessageDescriptor {
-  return { id, defaultMessage, description };
 }

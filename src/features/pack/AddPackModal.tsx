@@ -52,7 +52,7 @@ export function AddPackModal({
   onOverviewsRefreshed,
   onNotice,
 }: AddPackModalProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
   const addPackTab = useShellStore((s) => s.modal?.addPackTab ?? "openPack");
   const setAddPackTab = useShellStore((s) => s.setAddPackTab);
@@ -89,10 +89,10 @@ export function AddPackModal({
     try {
       const metadata = await packApi.openPack({ packId });
       onPackOpened(packId, metadata);
-      onNotice("success", td("pack.opened.title", "Pack opened"), td("pack.opened.detail", "Pack is now active in the sidebar."));
+      onNotice("success", t("pack.opened.title"), t("pack.opened.detail"));
       closeModal();
     } catch (err) {
-      onNotice("error", td("pack.openFailed", "Failed to open pack"), formatError(err));
+      onNotice("error", t("pack.openFailed"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -104,7 +104,7 @@ export function AddPackModal({
     const author = createForm.author.trim();
     const version = createForm.version.trim();
     if (!name || !author || !version) {
-      onNotice("warning", td("pack.missingFields.title", "Missing fields"), td("pack.missingFields.detail", "Name, author, and version are required."));
+      onNotice("warning", t("pack.missingFields.title"), t("pack.missingFields.detail"));
       return;
     }
 
@@ -126,10 +126,10 @@ export function AddPackModal({
       const openedMeta = await packApi.openPack({ packId: createdMeta.id });
       onPackCreated(createdMeta.id, openedMeta);
       setCreateForm(emptyCreateForm(config));
-      onNotice("success", td("pack.created.title", "Pack created"), td("pack.created.detail", "{name} has been created.", { name: createdMeta.name }));
+      onNotice("success", t("pack.created.title"), t("pack.created.detail", { name: createdMeta.name }));
       closeModal();
     } catch (err) {
-      onNotice("error", td("pack.createFailed", "Failed to create pack"), formatError(err));
+      onNotice("error", t("pack.createFailed"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -138,7 +138,7 @@ export function AddPackModal({
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>{td("pack.addTitle", "Add Pack")}</h2>
+        <h2>{t("pack.addTitle")}</h2>
         <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
           {t("action.close")}
         </button>
@@ -151,28 +151,28 @@ export function AddPackModal({
             className={addPackTab === "openPack" ? "active" : ""}
             onClick={() => setAddPackTab("openPack")}
           >
-            {td("pack.tab.open", "Open Pack")}
+            {t("pack.tab.open")}
           </button>
           <button
             type="button"
             className={addPackTab === "createPack" ? "active" : ""}
             onClick={() => setAddPackTab("createPack")}
           >
-            {td("pack.tab.create", "Create Pack")}
+            {t("pack.tab.create")}
           </button>
           <button
             type="button"
             className={addPackTab === "importPack" ? "active" : ""}
             onClick={() => setAddPackTab("importPack")}
           >
-            {td("pack.tab.import", "Import Pack")}
+            {t("pack.tab.import")}
           </button>
         </aside>
 
         <div className={shared.modalPanel}>
           {!hasWorkspace ? (
             <p className={shared.emptyStateText}>
-              {td("pack.openWorkspaceFirst", "Open a workspace first before managing packs.")}
+              {t("pack.openWorkspaceFirst")}
             </p>
           ) : addPackTab === "openPack" ? (
             <OpenPackPanel
@@ -181,11 +181,11 @@ export function AddPackModal({
               busyAction={busyAction}
               onOpen={handleOpenPack}
               labels={{
-                loading: td("pack.loading", "Loading packs..."),
-                empty: td("pack.openEmpty", "All packs are already open, or no packs exist yet. Create one using the Create Pack tab."),
-                opening: td("pack.opening", "Opening..."),
+                loading: t("pack.loading"),
+                empty: t("pack.openEmpty"),
+                opening: t("pack.opening"),
                 open: t("action.open"),
-                cardLabel: (count: number) => td("pack.cardCount", "{count} card{plural}", {
+                cardLabel: (count: number) => t("pack.cardCount", {
                   count,
                   plural: count !== 1 ? "s" : "",
                 }),
@@ -200,16 +200,16 @@ export function AddPackModal({
               onReset={() => setCreateForm(emptyCreateForm(config))}
               onSubmit={handleCreatePack}
               labels={{
-                packName: td("pack.form.name", "Pack name"),
-                author: td("pack.form.author", "Author"),
-                version: td("pack.form.version", "Version"),
-                description: td("pack.form.description", "Description"),
-                descriptionPlaceholder: td("pack.form.descriptionPlaceholder", "Optional description for the pack."),
-                displayLanguages: td("pack.form.displayLanguages", "Display languages"),
-                defaultExportLanguage: td("pack.form.defaultExportLanguage", "Default export language"),
-                creating: td("pack.creating", "Creating..."),
-                createPack: td("pack.createPack", "Create Pack"),
-                reset: td("workspace.reset", "Reset"),
+                packName: t("pack.form.name"),
+                author: t("pack.form.author"),
+                version: t("pack.form.version"),
+                description: t("pack.form.description"),
+                descriptionPlaceholder: t("pack.form.descriptionPlaceholder"),
+                displayLanguages: t("pack.form.displayLanguages"),
+                defaultExportLanguage: t("pack.form.defaultExportLanguage"),
+                creating: t("pack.creating"),
+                createPack: t("pack.createPack"),
+                reset: t("workspace.reset"),
               }}
             />
           ) : workspaceId ? (

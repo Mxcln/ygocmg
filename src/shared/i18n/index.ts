@@ -1,7 +1,6 @@
 export {
   AppI18nProvider,
   formatAppMessage,
-  formatAppMessageByDefault,
   formatAppMessageById,
   getActiveAppLocale,
   useAppI18n,

@@ -74,7 +74,7 @@ export function StringsBrowserPanel({
   onClearTranslation,
   onDelete,
 }: StringsBrowserPanelProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const [language, setLanguage] = useState(languages[0] ?? "");
   const [kindFilter, setKindFilter] = useState<PackStringKind | "">("");
   const [keyword, setKeyword] = useState("");
@@ -123,11 +123,11 @@ export function StringsBrowserPanel({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const shownError = errorMessage ?? localError;
   const kindOptions: { value: PackStringKind | ""; label: string }[] = [
-    { value: "", label: td("strings.kind.all", "All Kinds") },
-    { value: "system", label: td("common.stringKind.system", "System") },
-    { value: "counter", label: td("common.stringKind.counter", "Counter") },
-    { value: "victory", label: td("common.stringKind.victory", "Victory") },
-    { value: "setname", label: td("common.stringKind.setname", "Setname") },
+    { value: "", label: t("strings.kind.all") },
+    { value: "system", label: t("common.stringKind.system") },
+    { value: "counter", label: t("common.stringKind.counter") },
+    { value: "victory", label: t("common.stringKind.victory") },
+    { value: "setname", label: t("common.stringKind.setname") },
   ];
 
   function entryKey(entry: Pick<PackStringEntry, "kind" | "key">): string {
@@ -178,11 +178,11 @@ export function StringsBrowserPanel({
     if (!editable || !newRow || saving || !onCreate) return;
     const parsedKey = parseHexInput(newRow.key);
     if (isNaN(parsedKey) || parsedKey < 0) {
-      setLocalError(td("strings.error.invalidKey", "Key must be a non-negative hexadecimal value."));
+      setLocalError(t("strings.error.invalidKey"));
       return;
     }
     if (!newRow.value.trim()) {
-      setLocalError(td("strings.error.emptyValue", "Value cannot be empty."));
+      setLocalError(t("strings.error.emptyValue"));
       return;
     }
     await onCreate({ kind: newRow.kind, key: parsedKey, value: newRow.value }, language);
@@ -203,7 +203,7 @@ export function StringsBrowserPanel({
   if (!language && languages.length === 0) {
     return (
       <div className={shared.cardListEmpty}>
-        <p>{td("strings.noLanguages", "No languages available.")}</p>
+        <p>{t("strings.noLanguages")}</p>
       </div>
     );
   }
@@ -245,7 +245,7 @@ export function StringsBrowserPanel({
         <input
           className={styles.stringsSearchInput}
           type="text"
-          placeholder={td("strings.searchValue", "Search value...")}
+          placeholder={t("strings.searchValue")}
           value={keyword}
           onChange={(e) => {
             setKeyword(e.target.value);
@@ -262,7 +262,7 @@ export function StringsBrowserPanel({
               setLocalError(null);
             }}
           >
-            {td("strings.newString", "+ New String")}
+            {t("strings.newString")}
           </button>
         )}
       </div>
@@ -271,11 +271,11 @@ export function StringsBrowserPanel({
 
       {isLoading && items.length === 0 ? (
         <div className={shared.cardListEmpty}>
-          <p>{td("strings.loading", "Loading strings...")}</p>
+          <p>{t("strings.loading")}</p>
         </div>
       ) : queryError ? (
         <div className={shared.cardListEmpty}>
-          <p>{td("strings.failed", "Failed to load strings.")}</p>
+          <p>{t("strings.failed")}</p>
         </div>
       ) : items.length === 0 && !newRow ? (
         <div className={shared.cardListEmpty}>
@@ -285,9 +285,9 @@ export function StringsBrowserPanel({
       ) : (
         <>
           <div className={styles.stringsTableHeader}>
-            <span>{td("strings.kind", "Kind")}</span>
-            <span>{td("strings.key", "Key")}</span>
-            <span>{td("strings.value", "Value")}</span>
+            <span>{t("strings.kind")}</span>
+            <span>{t("strings.key")}</span>
+            <span>{t("strings.value")}</span>
             <span />
           </div>
           <div className={styles.stringsTableBody}>
@@ -300,17 +300,17 @@ export function StringsBrowserPanel({
                     setNewRow({ ...newRow, kind: e.target.value as PackStringKind })
                   }
                 >
-                  <option value="system">{td("common.stringKind.system", "System")}</option>
-                  <option value="counter">{td("common.stringKind.counter", "Counter")}</option>
-                  <option value="victory">{td("common.stringKind.victory", "Victory")}</option>
-                  <option value="setname">{td("common.stringKind.setname", "Setname")}</option>
+                  <option value="system">{t("common.stringKind.system")}</option>
+                  <option value="counter">{t("common.stringKind.counter")}</option>
+                  <option value="victory">{t("common.stringKind.victory")}</option>
+                  <option value="setname">{t("common.stringKind.setname")}</option>
                 </select>
                 <input
                   ref={newKeyRef}
                   className={`${styles.stringsCellInput} ${styles.stringsCellKey}`}
                   type="text"
                   inputMode="text"
-                  placeholder={td("strings.hexKey", "Hex key")}
+                  placeholder={t("strings.hexKey")}
                   value={newRow.key}
                   onChange={(e) =>
                     setNewRow({ ...newRow, key: normalizeHexDraft(e.target.value) })
@@ -320,7 +320,7 @@ export function StringsBrowserPanel({
                 <input
                   className={`${styles.stringsCellInput} ${styles.stringsCellValue}`}
                   type="text"
-                  placeholder={td("strings.value", "Value")}
+                  placeholder={t("strings.value")}
                   value={newRow.value}
                   onChange={(e) => setNewRow({ ...newRow, value: e.target.value })}
                   onKeyDown={handleNewKeyDown}
@@ -390,7 +390,7 @@ export function StringsBrowserPanel({
                         className={`${styles.stringsActionBtn} ${styles.stringsDeleteBtn}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onDelete(entry)}
-                        title={td("strings.deleteString", "Delete string")}
+                        title={t("strings.deleteString")}
                       >
                         Del
                       </button>

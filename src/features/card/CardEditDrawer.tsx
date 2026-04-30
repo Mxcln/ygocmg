@@ -71,7 +71,7 @@ export function CardEditDrawer({
   onClose,
   onSaved,
 }: CardEditDrawerProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const isCreate = cardId === null;
   const [draft, setDraft] = useState<CardEntity | null>(null);
   const [assetState, setAssetState] = useState<CardAssetState>(EMPTY_ASSET_STATE);
@@ -252,9 +252,9 @@ export function CardEditDrawer({
         setErrorMsg(null);
         openDialog({
           kind: "warning",
-          title: isCreate ? td("card.warning.createTitle", "Review card warnings") : td("card.warning.saveTitle", "Review save warnings"),
-          message: td("card.warning.message", "This write produced warnings. Continue to apply the change?"),
-          confirmLabel: td("card.warning.continue", "Continue"),
+          title: isCreate ? t("card.warning.createTitle") : t("card.warning.saveTitle"),
+          message: t("card.warning.message"),
+          confirmLabel: t("card.warning.continue"),
           cancelLabel: t("action.cancel"),
           warnings: result.warnings,
           onConfirm: async () => {
@@ -288,8 +288,8 @@ export function CardEditDrawer({
     setErrorMsg(null);
     openDialog({
       kind: "confirm",
-      title: td("card.delete.title", "Delete card"),
-      message: td("card.delete.message", "This card will be permanently removed from the pack."),
+      title: t("card.delete.title"),
+      message: t("card.delete.message"),
       confirmLabel: t("action.delete"),
       cancelLabel: t("action.cancel"),
       danger: true,
@@ -299,7 +299,7 @@ export function CardEditDrawer({
         try {
           const result = await cardApi.deleteCard({ workspaceId, packId, cardId: deleteCardId });
           if (result.status !== "ok") {
-            throw new Error(td("card.delete.unsupportedState", "Delete card returned an unsupported confirmation state."));
+            throw new Error(t("card.delete.unsupportedState"));
           }
           closeDialog();
           onSaved();
@@ -338,7 +338,7 @@ export function CardEditDrawer({
                 onClick={() => void handleDelete()}
                 disabled={deleting}
               >
-                {deleting ? td("card.deleting", "Deleting...") : t("action.delete")}
+                {deleting ? t("card.deleting") : t("action.delete")}
               </button>
             )}
           </div>
@@ -349,7 +349,7 @@ export function CardEditDrawer({
             onClick={() => void handleSave()}
             disabled={saving || !draft}
           >
-            {saving ? td("pack.metadata.saving", "Saving...") : isCreate ? t("action.create") : t("action.save")}
+            {saving ? t("pack.metadata.saving") : isCreate ? t("action.create") : t("action.save")}
           </button>
         </div>
 
@@ -372,7 +372,7 @@ export function CardEditDrawer({
 
         {showLoading ? (
           <div className={shared.cardListEmpty}>
-            <p>{td("card.loading", "Loading card...")}</p>
+            <p>{t("card.loading")}</p>
           </div>
         ) : draft ? (
           <div className={styles.cardEditBody}>
@@ -395,14 +395,14 @@ export function CardEditDrawer({
                   className={`${styles.cardFormTab} ${activeTab === "text" ? "active" : ""}`}
                   onClick={() => setActiveTab("text")}
                 >
-                  {td("card.tab.text", "Text")}
+                  {t("card.tab.text")}
                 </button>
                 <button
                   type="button"
                   className={`${styles.cardFormTab} ${activeTab === "info" ? "active" : ""}`}
                   onClick={() => setActiveTab("info")}
                 >
-                  {td("card.tab.info", "Info")}
+                  {t("card.tab.info")}
                 </button>
               </div>
               <div className={styles.cardFormContent}>
@@ -415,8 +415,8 @@ export function CardEditDrawer({
                     onConfirmDeleteLanguage={(language, onConfirm) => {
                       openDialog({
                         kind: "confirm",
-                        title: td("card.text.deleteLanguageTitle", "Delete language text"),
-                        message: td("card.text.deleteLanguageMessage", "Delete card text for {language}? This cannot be undone.", { language }),
+                        title: t("card.text.deleteLanguageTitle"),
+                        message: t("card.text.deleteLanguageMessage", { language }),
                         confirmLabel: t("action.delete"),
                         cancelLabel: t("action.cancel"),
                         danger: true,

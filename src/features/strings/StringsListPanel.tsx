@@ -12,7 +12,7 @@ import { StringsBrowserPanel } from "./StringsBrowserPanel";
 import type { StringsBrowserQuery } from "./StringsBrowserPanel";
 
 export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeMeta = useShellStore((s) =>
@@ -37,9 +37,9 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
   ) {
     openDialog({
       kind: "warning",
-      title: td("strings.warning.title", "Review string warnings"),
-      message: td("strings.warning.message", "This string change produced warnings. Continue to apply it?"),
-      confirmLabel: td("action.apply", "Apply"),
+      title: t("strings.warning.title"),
+      message: t("strings.warning.message"),
+      confirmLabel: t("action.apply"),
       cancelLabel: t("action.cancel"),
       warnings,
       onConfirm,
@@ -117,8 +117,8 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
     if (!workspaceId || !activePackId) return;
     openDialog({
       kind: "confirm",
-      title: td("strings.delete.title", "Delete string entry"),
-      message: td("strings.delete.message", "Delete {kind}[{key}]? This cannot be undone.", {
+      title: t("strings.delete.title"),
+      message: t("strings.delete.message", {
         kind: entry.kind,
         key: formatStringKeyHex(entry.key),
       }),
@@ -144,8 +144,8 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
   if (languages.length === 0) {
     return (
       <div className={shared.cardListEmpty}>
-        <p>{td("strings.noConfiguredLanguages", "No languages configured for this pack.")}</p>
-        <p>{td("strings.addDisplayLanguagesHint", "Edit pack metadata to add display languages.")}</p>
+        <p>{t("strings.noConfiguredLanguages")}</p>
+        <p>{t("strings.addDisplayLanguagesHint")}</p>
       </div>
     );
   }
@@ -164,8 +164,8 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
       onUpdate={commitEntry}
       onClearTranslation={clearTranslation}
       onDelete={handleDeleteEntry}
-      emptyTitle={td("strings.emptyTitle", "No string entries yet.")}
-      emptyHint={td("strings.emptyHint", "Click \"+ New String\" to create one.")}
+      emptyTitle={t("strings.emptyTitle")}
+      emptyHint={t("strings.emptyHint")}
     />
   );
 }

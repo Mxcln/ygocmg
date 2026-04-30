@@ -42,7 +42,7 @@ export function WorkspaceModal({
   onRecentRefreshed,
   onNotice,
 }: WorkspaceModalProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
 
   const [view, setView] = useState<WorkspaceView>(currentWorkspace ? "recent" : "create");
@@ -63,7 +63,7 @@ export function WorkspaceModal({
   async function handleOpenWorkspace(path: string) {
     const trimmedPath = path.trim();
     if (!trimmedPath) {
-      onNotice("warning", td("workspace.notice.pathRequired.title", "Workspace path required"), td("workspace.notice.pathRequired.detail", "Enter a workspace path or choose from recent workspaces."));
+      onNotice("warning", t("workspace.notice.pathRequired.title"), t("workspace.notice.pathRequired.detail"));
       return;
     }
 
@@ -73,9 +73,9 @@ export function WorkspaceModal({
       await refreshRecent();
       onWorkspaceOpened(workspace, trimmedPath);
       closeModal();
-      onNotice("success", td("workspace.notice.opened.title", "Workspace opened"), td("workspace.notice.opened.detail", "Current workspace switched to {name}.", { name: workspace.name }));
+      onNotice("success", t("workspace.notice.opened.title"), t("workspace.notice.opened.detail", { name: workspace.name }));
     } catch (err) {
-      onNotice("error", td("workspace.notice.openFailed", "Failed to open workspace"), formatError(err));
+      onNotice("error", t("workspace.notice.openFailed"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -91,7 +91,7 @@ export function WorkspaceModal({
       const path = createForm.path.trim();
 
       if (!name || !path) {
-        throw new Error(td("workspace.error.nameAndPathRequired", "Workspace name and path are both required."));
+        throw new Error(t("workspace.error.nameAndPathRequired"));
       }
 
       await workspaceApi.createWorkspace({ name, description, path });
@@ -100,9 +100,9 @@ export function WorkspaceModal({
       onWorkspaceOpened(opened, path);
       setCreateForm({ name: "", description: "", path: "" });
       closeModal();
-      onNotice("success", td("workspace.notice.created.title", "Workspace created"), td("workspace.notice.created.detail", "{name} is now the current workspace.", { name }));
+      onNotice("success", t("workspace.notice.created.title"), t("workspace.notice.created.detail", { name }));
     } catch (err) {
-      onNotice("error", td("workspace.notice.createFailed", "Failed to create workspace"), formatError(err));
+      onNotice("error", t("workspace.notice.createFailed"), formatError(err));
       setView("create");
     } finally {
       setBusyAction(null);
@@ -112,7 +112,7 @@ export function WorkspaceModal({
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>{td("workspace.title", "Workspace")}</h2>
+        <h2>{t("workspace.title")}</h2>
         <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
           {t("action.close")}
         </button>
@@ -121,10 +121,10 @@ export function WorkspaceModal({
       <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
         <aside className={shared.modalTabs}>
           <button type="button" className={view === "recent" ? "active" : ""} onClick={() => setView("recent")}>
-            {td("workspace.tab.open", "Open Workspace")}
+            {t("workspace.tab.open")}
           </button>
           <button type="button" className={view === "create" ? "active" : ""} onClick={() => setView("create")}>
-            {td("workspace.tab.create", "Create Workspace")}
+            {t("workspace.tab.create")}
           </button>
         </aside>
 
@@ -138,14 +138,14 @@ export function WorkspaceModal({
               onOpenPathChange={setOpenPath}
               onOpen={handleOpenWorkspace}
               labels={{
-                workspacePath: td("workspace.path", "Workspace path"),
+                workspacePath: t("workspace.path"),
                 browse: t("action.browse"),
                 open: t("action.open"),
-                opening: td("workspace.opening", "Opening..."),
-                noRecent: td("workspace.noRecent", "No recent workspaces have been recorded yet."),
-                unnamed: td("workspace.unnamed", "Unnamed Workspace"),
-                current: td("workspace.current", "CURRENT"),
-                selectDirectory: td("workspace.selectDirectory", "Select Workspace Directory"),
+                opening: t("workspace.opening"),
+                noRecent: t("workspace.noRecent"),
+                unnamed: t("workspace.unnamed"),
+                current: t("workspace.current"),
+                selectDirectory: t("workspace.selectDirectory"),
               }}
             />
           )}
@@ -158,15 +158,15 @@ export function WorkspaceModal({
               onReset={() => setCreateForm({ name: "", description: "", path: "" })}
               onSubmit={handleCreateWorkspace}
               labels={{
-                workspaceName: td("workspace.name", "Workspace name"),
-                description: td("workspace.description", "Description"),
-                workspacePath: td("workspace.path", "Workspace path"),
-                descriptionPlaceholder: td("workspace.descriptionPlaceholder", "Optional notes for what this workspace is for."),
+                workspaceName: t("workspace.name"),
+                description: t("workspace.description"),
+                workspacePath: t("workspace.path"),
+                descriptionPlaceholder: t("workspace.descriptionPlaceholder"),
                 browse: t("action.browse"),
-                createAndOpen: td("workspace.createAndOpen", "Create and Open"),
-                creating: td("workspace.creating", "Creating..."),
-                reset: td("workspace.reset", "Reset"),
-                selectDirectory: td("workspace.selectDirectory", "Select Workspace Directory"),
+                createAndOpen: t("workspace.createAndOpen"),
+                creating: t("workspace.creating"),
+                reset: t("workspace.reset"),
+                selectDirectory: t("workspace.selectDirectory"),
               }}
             />
           )}

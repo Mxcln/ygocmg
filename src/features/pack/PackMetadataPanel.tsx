@@ -26,7 +26,7 @@ export function PackMetadataPanel({
   onPackDeleted,
   children,
 }: PackMetadataPanelProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
   const packMetadataMap = useShellStore((s) => s.packMetadataMap);
@@ -58,7 +58,7 @@ export function PackMetadataPanel({
     : t("common.none");
   const summaryDetail = metadata
     ? `${metadata.author} · v${metadata.version} · ${preferredTextLanguages}`
-    : td("pack.metadata.loading", "Loading metadata...");
+    : t("pack.metadata.loading");
 
   function handleStartEdit() {
     if (!metadata) return;
@@ -82,7 +82,7 @@ export function PackMetadataPanel({
     if (!packId || !metaDraft) return;
     const trimmedName = metaDraft.name.trim();
     if (!trimmedName) {
-      onNotice("error", td("pack.metadata.validationError", "Validation Error"), td("pack.metadata.nameEmpty", "Pack name cannot be empty."));
+      onNotice("error", t("pack.metadata.validationError"), t("pack.metadata.nameEmpty"));
       return;
     }
 
@@ -105,9 +105,9 @@ export function PackMetadataPanel({
       setPackOverviews(overviews);
       setMetaEditing(false);
       setMetaDraft(null);
-      onNotice("success", td("pack.metadata.saved.title", "Metadata Saved"), td("pack.metadata.saved.detail", "Pack metadata has been updated."));
+      onNotice("success", t("pack.metadata.saved.title"), t("pack.metadata.saved.detail"));
     } catch (err) {
-      onNotice("error", td("pack.metadata.saveFailed", "Failed to save metadata"), formatError(err));
+      onNotice("error", t("pack.metadata.saveFailed"), formatError(err));
     } finally {
       setMetaSaving(false);
     }
@@ -118,9 +118,9 @@ export function PackMetadataPanel({
     const deletePackId = packId;
     openDialog({
       kind: "confirm",
-      title: td("pack.delete.title", "Delete pack"),
-      message: td("pack.delete.message", 'Delete pack "{name}"? This cannot be undone.', { name: metadata.name }),
-      confirmLabel: td("pack.delete.confirm", "Delete Pack"),
+      title: t("pack.delete.title"),
+      message: t("pack.delete.message", { name: metadata.name }),
+      confirmLabel: t("pack.delete.confirm"),
       cancelLabel: t("action.cancel"),
       danger: true,
       onConfirm: async () => {
@@ -129,7 +129,7 @@ export function PackMetadataPanel({
           closeDialog();
           onPackDeleted(deletePackId);
         } catch (err) {
-          onNotice("error", td("pack.delete.failed", "Failed to delete pack"), formatError(err));
+          onNotice("error", t("pack.delete.failed"), formatError(err));
         }
       },
     });
@@ -150,7 +150,7 @@ export function PackMetadataPanel({
           type="button"
           className={styles.metaToggle}
           onClick={() => setMetaExpanded(!metaExpanded)}
-          aria-label={metaExpanded ? td("pack.metadata.collapse", "Collapse metadata") : td("pack.metadata.expand", "Expand metadata")}
+          aria-label={metaExpanded ? t("pack.metadata.collapse") : t("pack.metadata.expand")}
         >
           <svg
             width="12"
@@ -180,7 +180,7 @@ export function PackMetadataPanel({
                 <>
                   <div className={styles.metaGrid}>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.name", "Name")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.name")}</span>
                       <input
                         className={styles.metaEditInput}
                         value={metaDraft.name}
@@ -188,7 +188,7 @@ export function PackMetadataPanel({
                       />
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.author", "Author")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.author")}</span>
                       <input
                         className={styles.metaEditInput}
                         value={metaDraft.author}
@@ -196,7 +196,7 @@ export function PackMetadataPanel({
                       />
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.version", "Version")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.version")}</span>
                       <input
                         className={styles.metaEditInput}
                         value={metaDraft.version}
@@ -204,7 +204,7 @@ export function PackMetadataPanel({
                       />
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.preferredTextLanguages", "Preferred Text Languages")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.preferredTextLanguages")}</span>
                       <LanguageOrderEditor
                         catalog={config.text_language_catalog}
                         value={metaDraft.displayLanguageOrder}
@@ -218,7 +218,7 @@ export function PackMetadataPanel({
                       />
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.defaultExportLanguage", "Default Export Language")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.defaultExportLanguage")}</span>
                       <TextLanguagePicker
                         catalog={config.text_language_catalog}
                         value={metaDraft.defaultExportLanguage}
@@ -227,15 +227,15 @@ export function PackMetadataPanel({
                       />
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.created", "Created")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.created")}</span>
                       <span className={styles.metaFieldValue}>{formatTimestamp(metadata.created_at)}</span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.updated", "Updated")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.updated")}</span>
                       <span className={styles.metaFieldValue}>{formatTimestamp(metadata.updated_at)}</span>
                     </div>
                     <div className={`${styles.metaField} ${styles.metaFieldWide}`}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.description", "Description")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.description")}</span>
                       <textarea
                         className={styles.metaEditInput}
                         value={metaDraft.description}
@@ -246,7 +246,7 @@ export function PackMetadataPanel({
                   </div>
                   <div className={styles.metaActions}>
                     <button type="button" className={shared.primaryButton} onClick={() => void handleSave()} disabled={metaSaving}>
-                      {metaSaving ? td("pack.metadata.saving", "Saving...") : t("action.save")}
+                      {metaSaving ? t("pack.metadata.saving") : t("action.save")}
                     </button>
                     <button type="button" className={shared.ghostButton} onClick={handleCancelEdit} disabled={metaSaving}>
                       {t("action.cancel")}
@@ -257,31 +257,31 @@ export function PackMetadataPanel({
                 <>
                   <div className={styles.metaGrid}>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.name", "Name")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.name")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.name}>
                         {metadata.name}
                       </span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.author", "Author")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.author")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.author}>
                         {metadata.author}
                       </span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.version", "Version")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.version")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.version}>
                         {metadata.version}
                       </span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.preferredTextLanguages", "Preferred Text Languages")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.preferredTextLanguages")}</span>
                       <span className={styles.metaFieldValue} title={preferredTextLanguages}>
                         {preferredTextLanguages}
                       </span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.defaultExportLanguage", "Default Export Language")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.defaultExportLanguage")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.default_export_language || t("common.none")}>
                         {metadata.default_export_language
                           ? languageLabel(config.text_language_catalog, metadata.default_export_language)
@@ -289,15 +289,15 @@ export function PackMetadataPanel({
                       </span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.created", "Created")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.created")}</span>
                       <span className={styles.metaFieldValue}>{formatTimestamp(metadata.created_at)}</span>
                     </div>
                     <div className={styles.metaField}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.updated", "Updated")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.updated")}</span>
                       <span className={styles.metaFieldValue}>{formatTimestamp(metadata.updated_at)}</span>
                     </div>
                     <div className={`${styles.metaField} ${styles.metaFieldWide}`}>
-                      <span className={styles.metaFieldLabel}>{td("pack.metadata.description", "Description")}</span>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.description")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueDescription}`} title={metadata.description || t("common.none")}>
                         {metadata.description || t("common.none")}
                       </span>
@@ -305,10 +305,10 @@ export function PackMetadataPanel({
                   </div>
                   <div className={styles.metaActions}>
                     <button type="button" className={shared.ghostButton} onClick={handleStartEdit}>
-                      {td("pack.metadata.edit", "Edit")}
+                      {t("pack.metadata.edit")}
                     </button>
                     <button type="button" className={shared.dangerButton} onClick={handleRequestDelete}>
-                      {td("pack.delete.confirm", "Delete Pack")}
+                      {t("pack.delete.confirm")}
                     </button>
                   </div>
                 </>

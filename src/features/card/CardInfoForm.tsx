@@ -100,7 +100,7 @@ function formatSetcodePackedHex(slots: number[]): string {
 }
 
 export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries = [] }: CardInfoFormProps) {
-  const { td } = useAppI18n();
+  const { t } = useAppI18n();
   const [categoryRawInput, setCategoryRawInput] = useState("");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [setcodePickerOpen, setSetcodePickerOpen] = useState(false);
@@ -242,7 +242,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       {/* Code / Alias / OT - compact triple row */}
       <div className={styles.tripleRow}>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>{td("card.info.code", "Code")}</label>
+          <label className={styles.cardInfoLabel}>{t("card.info.code")}</label>
           <input
             className={styles.cardInfoInput}
             type="text"
@@ -253,7 +253,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           />
         </div>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>{td("card.info.alias", "Alias")}</label>
+          <label className={styles.cardInfoLabel}>{t("card.info.alias")}</label>
           <input
             className={styles.cardInfoInput}
             type="text"
@@ -264,7 +264,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           />
         </div>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>{td("card.info.ot", "OT")}</label>
+          <label className={styles.cardInfoLabel}>{t("card.info.ot")}</label>
           <select
             className={styles.cardInfoSelect}
             value={draft.ot}
@@ -282,16 +282,16 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       <div className={styles.setcodeCategoryRow}>
         <div className={styles.cardInfoField}>
           <div className={styles.tagFieldHeader}>
-            <label className={styles.cardInfoLabel}>{td("card.info.setcodes", "Setcodes")}</label>
+            <label className={styles.cardInfoLabel}>{t("card.info.setcodes")}</label>
             {draft.setcodes.length > 0 && (
               <span className={styles.tagFieldRaw}>
-                {td("card.info.rawValue", "Raw: {value}", { value: formatSetcodePackedHex(draft.setcodes) })}
+                {t("card.info.rawValue", { value: formatSetcodePackedHex(draft.setcodes) })}
               </span>
             )}
           </div>
           <div className={styles.setcodeTags}>
             {draft.setcodes.length === 0 ? (
-              <span className={styles.setcodeEmptyTag}>{td("card.info.noArchetypes", "No archetypes")}</span>
+              <span className={styles.setcodeEmptyTag}>{t("card.info.noArchetypes")}</span>
             ) : (
               draft.setcodes.map((code) => {
                 const entry = setnameMap.get(code);
@@ -308,7 +308,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                       emitChange({ setcodes: draft.setcodes.filter((c) => c !== code) });
                     }}
                     disabled={readonly}
-                    title={td("card.info.removeTag", "Remove {target}", { target: tooltip })}
+                    title={t("card.info.removeTag", { target: tooltip })}
                   >
                     {label} &times;
                   </button>
@@ -334,14 +334,14 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
         <div className={styles.cardInfoField}>
           <div className={styles.tagFieldHeader}>
-            <label className={styles.cardInfoLabel}>{td("card.info.effectCategories", "Effect Categories")}</label>
+            <label className={styles.cardInfoLabel}>{t("card.info.effectCategories")}</label>
             {normalizedCategory > 0 && (
-              <span className={styles.tagFieldRaw}>{td("card.info.rawValue", "Raw: {value}", { value: categoryRawDisplay })}</span>
+              <span className={styles.tagFieldRaw}>{t("card.info.rawValue", { value: categoryRawDisplay })}</span>
             )}
           </div>
           <div className={styles.categoryTags}>
             {selectedCategoryOptions.length === 0 ? (
-              <span className={styles.categoryEmptyTag}>{td("card.info.noCategories", "No categories")}</span>
+              <span className={styles.categoryEmptyTag}>{t("card.info.noCategories")}</span>
             ) : (
               selectedCategoryOptions.map((option) => (
                 <button
@@ -350,7 +350,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                   className={styles.categoryTag}
                   onClick={() => toggleCategoryMask(option.mask)}
                   disabled={readonly}
-                  title={td("card.info.removeTag", "Remove {target}", { target: formatCardCategory(option) })}
+                  title={t("card.info.removeTag", { target: formatCardCategory(option) })}
                 >
                   {formatCardCategory(option)}
                 </button>
@@ -406,7 +406,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               })}
             </div>
             <details className={styles.categoryAdvanced}>
-              <summary>{td("card.info.advancedRawMask", "Advanced raw mask")}</summary>
+              <summary>{t("card.info.advancedRawMask")}</summary>
               <input
                 className={styles.cardInfoInput}
                 type="text"
@@ -420,7 +420,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
         )}
       </div>
       <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>{td("card.info.primaryType", "Primary Type")}</label>
+        <label className={styles.cardInfoLabel}>{t("card.info.primaryType")}</label>
         <div className={styles.cardTypeRadioGroup}>
           {(["monster", "spell", "trap"] as PrimaryType[]).map((pt) => (
             <button
@@ -442,7 +442,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("monster")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-              <label className={styles.cardInfoLabel}>{td("card.info.monsterFlags", "Monster Flags")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.monsterFlags")}</label>
               <div className={styles.monsterFlagsGroup}>
                 {ALL_MONSTER_FLAGS.map((flag) => (
                   <button
@@ -459,7 +459,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             </div>
 
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>{td("card.info.attribute", "Attribute")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.attribute")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.attribute ?? ""}
@@ -475,7 +475,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               </select>
             </div>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>{td("card.info.race", "Race")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.race")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.race ?? ""}
@@ -492,25 +492,25 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             </div>
 
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>{td("card.info.atk", "ATK")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.atk")}</label>
               <input
                 className={styles.cardInfoInput}
                 type="text"
                 value={formatStatValue(draft.atk)}
                 onChange={(e) => handleNumberInput("atk", e.target.value)}
-                placeholder={td("card.info.atkPlaceholder", "e.g. 2500 or ?")}
+                placeholder={t("card.info.atkPlaceholder")}
                 readOnly={readonly}
               />
             </div>
             {!isLink && (
               <div className={styles.cardInfoField}>
-                <label className={styles.cardInfoLabel}>{td("card.info.def", "DEF")}</label>
+                <label className={styles.cardInfoLabel}>{t("card.info.def")}</label>
                 <input
                   className={styles.cardInfoInput}
                   type="text"
                   value={formatStatValue(draft.def)}
                   onChange={(e) => handleNumberInput("def", e.target.value)}
-                  placeholder={td("card.info.defPlaceholder", "e.g. 2000 or ?")}
+                  placeholder={t("card.info.defPlaceholder")}
                   readOnly={readonly}
                 />
               </div>
@@ -518,7 +518,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             {!isLink && (
               <div className={styles.cardInfoField}>
                 <label className={styles.cardInfoLabel}>
-                  {flags.includes("xyz") ? td("card.info.rank", "Rank") : td("card.info.level", "Level")}
+                  {flags.includes("xyz") ? t("card.info.rank") : t("card.info.level")}
                 </label>
                 <input
                   className={styles.cardInfoInput}
@@ -534,7 +534,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             {isPendulum && (
               <>
                 <div className={styles.cardInfoField}>
-                  <label className={styles.cardInfoLabel}>{td("card.info.leftScale", "Left Scale")}</label>
+                  <label className={styles.cardInfoLabel}>{t("card.info.leftScale")}</label>
                   <input
                     className={styles.cardInfoInput}
                     type="text"
@@ -553,7 +553,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                   />
                 </div>
                 <div className={styles.cardInfoField}>
-                  <label className={styles.cardInfoLabel}>{td("card.info.rightScale", "Right Scale")}</label>
+                  <label className={styles.cardInfoLabel}>{t("card.info.rightScale")}</label>
                   <input
                     className={styles.cardInfoInput}
                     type="text"
@@ -576,7 +576,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
             {isLink && (
               <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-                <label className={styles.cardInfoLabel}>{td("card.info.linkMarkers", "Link Markers")}</label>
+                <label className={styles.cardInfoLabel}>{t("card.info.linkMarkers")}</label>
                 <div className={styles.linkMarkerGrid}>
                   {LINK_MARKER_POSITIONS.flat().map((marker, i) => {
                     if (marker === null) {
@@ -609,7 +609,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("spell")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>{td("card.info.spellSubtype", "Spell Subtype")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.spellSubtype")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.spell_subtype ?? ""}
@@ -634,7 +634,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("trap")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>{td("card.info.trapSubtype", "Trap Subtype")}</label>
+              <label className={styles.cardInfoLabel}>{t("card.info.trapSubtype")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.trap_subtype ?? ""}
@@ -671,7 +671,7 @@ function SetcodePicker({
   onSelect: (code: number) => void;
   readonly: boolean;
 }) {
-  const { td } = useAppI18n();
+  const { t } = useAppI18n();
   const query = search.trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -707,7 +707,7 @@ function SetcodePicker({
         type="text"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={td("card.info.searchSetcode", "Search by name or hex...")}
+        placeholder={t("card.info.searchSetcode")}
         autoFocus
         readOnly={readonly}
       />
@@ -722,7 +722,7 @@ function SetcodePicker({
             onClick={() => onSelect(parsedCustomHex)}
           >
             <span className={styles.setcodePickerName}>
-              {td("card.info.addCustomSetcode", "Add custom {code}", { code: formatSetcodeHex(parsedCustomHex) })}
+              {t("card.info.addCustomSetcode", { code: formatSetcodeHex(parsedCustomHex) })}
             </span>
           </button>
         )}
@@ -749,7 +749,7 @@ function SetcodePicker({
           );
         })}
         {sorted.length === 0 && parsedCustomHex === null && (
-          <div className={styles.setcodePickerEmpty}>{td("card.info.noMatches", "No matches")}</div>
+          <div className={styles.setcodePickerEmpty}>{t("card.info.noMatches")}</div>
         )}
       </div>
     </div>

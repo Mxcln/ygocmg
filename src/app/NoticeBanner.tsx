@@ -41,7 +41,7 @@ function NoticeToast({
   notice: Notice;
   onDismiss: (id: number) => void;
 }) {
-  const { td } = useAppI18n();
+  const { t } = useAppI18n();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -65,7 +65,7 @@ function NoticeToast({
         type="button"
         className={styles.noticeClose}
         onClick={() => onDismiss(notice.id)}
-        aria-label={td("notice.dismiss", "Dismiss notification")}
+        aria-label={t("notice.dismiss")}
       >
         ×
       </button>

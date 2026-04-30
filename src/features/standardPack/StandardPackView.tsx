@@ -10,7 +10,8 @@ import type { CardListRow } from "../../shared/contracts/card";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import type { StandardCardSortField } from "../../shared/contracts/standardPack";
 import { languageLabel } from "../../shared/utils/language";
-import { useAppI18n } from "../../shared/i18n";
+import type { PrimitiveType } from "react-intl";
+import { useAppI18n, type AppMessageId } from "../../shared/i18n";
 import { CardBrowserPanel } from "../card/CardBrowserPanel";
 import type { CardBrowserQuery } from "../card/CardBrowserPanel";
 import { StringsBrowserPanel } from "../strings/StringsBrowserPanel";
@@ -22,22 +23,25 @@ import styles from "./StandardPackView.module.css";
 
 type StandardTab = "cards" | "strings";
 
-function stateLabel(state: string, td: (id: string, defaultMessage: string) => string): string {
+function stateLabel(
+  state: string,
+  t: (id: AppMessageId, values?: Record<string, PrimitiveType>) => string,
+): string {
   switch (state) {
     case "ready":
-      return td("standard.state.ready", "Ready");
+      return t("standard.state.ready");
     case "stale":
-      return td("standard.state.stale", "Stale");
+      return t("standard.state.stale");
     case "missing_index":
-      return td("standard.state.missingIndex", "Missing Index");
+      return t("standard.state.missingIndex");
     case "missing_language":
-      return td("standard.state.missingLanguage", "Missing Language");
+      return t("standard.state.missingLanguage");
     case "missing_source":
-      return td("standard.state.missingSource", "Missing Source");
+      return t("standard.state.missingSource");
     case "not_configured":
-      return td("standard.state.notConfigured", "Not Configured");
+      return t("standard.state.notConfigured");
     default:
-      return td("standard.state.error", "Error");
+      return t("standard.state.error");
   }
 }
 
@@ -46,7 +50,7 @@ function isTerminalJob(job: JobSnapshot): boolean {
 }
 
 export function StandardPackView({ config }: { config: GlobalConfig }) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const [activeTab, setActiveTab] = useState<StandardTab>("cards");
   const [selectedCode, setSelectedCode] = useState<number | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -85,8 +89,8 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
     { field: "code" as const, direction: "desc" as const, label: t("card.sort.codeDesc") },
     { field: "name" as const, direction: "asc" as const, label: t("card.sort.nameAsc") },
     { field: "name" as const, direction: "desc" as const, label: t("card.sort.nameDesc") },
-    { field: "type" as const, direction: "asc" as const, label: td("card.sort.typeAsc", "Type Asc") },
-    { field: "type" as const, direction: "desc" as const, label: td("card.sort.typeDesc", "Type Desc") },
+    { field: "type" as const, direction: "asc" as const, label: t("card.sort.typeAsc") },
+    { field: "type" as const, direction: "desc" as const, label: t("card.sort.typeDesc") },
   ];
 
   async function handleRebuild() {
@@ -142,11 +146,11 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
           <strong>{t("sidebar.standardPack")}</strong>
           <span>
             {status
-              ? td("standard.summary", "{state} · {count} cards", {
-                  state: stateLabel(status.state, td),
+              ? t("standard.summary", {
+                  state: stateLabel(status.state, t),
                   count: status.card_count,
                 })
-              : td("standard.loadingStatus", "Loading status...")}
+              : t("standard.loadingStatus")}
           </span>
         </div>
         <div className={styles.standardPackActions}>
@@ -166,7 +170,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
             disabled={rebuilding || !canRebuild}
             onClick={() => void handleRebuild()}
           >
-            {rebuilding ? td("standard.rebuilding", "Rebuilding...") : td("standard.rebuildIndex", "Rebuild Index")}
+            {rebuilding ? t("standard.rebuilding") : t("standard.rebuildIndex")}
           </button>
         </div>
       </div>
@@ -176,24 +180,24 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
         data-status={status?.state ?? "loading"}
       >
         {statusQuery.isLoading ? (
-          <span>{td("standard.checkingStatus", "Checking standard pack status...")}</span>
+          <span>{t("standard.checkingStatus")}</span>
         ) : status ? (
           <>
-            <span className={styles.statusPill}>{stateLabel(status.state, td)}</span>
-            <span title={status.ygopro_path ?? undefined}>{status.ygopro_path ?? td("standard.ygoproNotConfigured", "YGOPro path is not configured")}</span>
+            <span className={styles.statusPill}>{stateLabel(status.state, t)}</span>
+            <span title={status.ygopro_path ?? undefined}>{status.ygopro_path ?? t("standard.ygoproNotConfigured")}</span>
             <span>
-              {td("standard.sourcePrefix", "Source:")} {status.source_language
+              {t("standard.sourcePrefix")} {status.source_language
                 ? languageLabel(config.text_language_catalog, status.source_language)
                 : config.standard_pack_source_language
                   ? languageLabel(config.text_language_catalog, config.standard_pack_source_language)
-                  : td("standard.notConfigured", "Not configured")}
+                  : t("standard.notConfigured")}
             </span>
-            {status.cdb_path && <span title={status.cdb_path}>{td("standard.cdbPath", "CDB: {path}", { path: status.cdb_path })}</span>}
-            <span>{td("standard.indexedPrefix", "Indexed:")} {formatTimestamp(status.indexed_at)}</span>
+            {status.cdb_path && <span title={status.cdb_path}>{t("standard.cdbPath", { path: status.cdb_path })}</span>}
+            <span>{t("standard.indexedPrefix")} {formatTimestamp(status.indexed_at)}</span>
             {status.message && <span className={styles.statusMessage}>{status.message}</span>}
           </>
         ) : (
-          <span>{td("standard.statusUnavailable", "Standard pack status is unavailable.")}</span>
+          <span>{t("standard.statusUnavailable")}</span>
         )}
       </div>
 
@@ -216,14 +220,14 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
           className={`${shared.tabBtn} ${activeTab === "cards" ? "active" : ""}`}
           onClick={() => setActiveTab("cards")}
         >
-          {td("pack.tabs.cards", "Cards")}
+          {t("pack.tabs.cards")}
         </button>
         <button
           type="button"
           className={`${shared.tabBtn} ${activeTab === "strings" ? "active" : ""}`}
           onClick={() => setActiveTab("strings")}
         >
-          {td("pack.tabs.strings", "Strings")}
+          {t("pack.tabs.strings")}
         </button>
       </div>
 
@@ -236,13 +240,13 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               loadPage={loadStandardPage}
               onOpenCard={handleOpenCard}
               sortOptions={standardSortOptions}
-              emptyTitle={td("standard.noCards", "No standard cards found.")}
-              emptyHint={td("standard.tryAnotherSearch", "Try another search term.")}
+              emptyTitle={t("standard.noCards")}
+              emptyHint={t("standard.tryAnotherSearch")}
             />
           ) : (
             <div className={shared.cardListEmpty}>
-              <p>{td("standard.noIndex", "No standard index yet.")}</p>
-              <p>{td("standard.configureToBrowseCards", "Configure YGOPro path and rebuild the index to browse standard cards.")}</p>
+              <p>{t("standard.noIndex")}</p>
+              <p>{t("standard.configureToBrowseCards")}</p>
             </div>
           )
         ) : (
@@ -253,13 +257,13 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               languages={status?.source_language ? [status.source_language] : []}
               catalog={config.text_language_catalog}
               loadPage={loadStandardStringsPage}
-              emptyTitle={td("standard.noStrings", "No standard strings found.")}
-              emptyHint={td("standard.noStringsHint", "strings.conf is missing or no entries match the current filter.")}
+              emptyTitle={t("standard.noStrings")}
+              emptyHint={t("standard.noStringsHint")}
             />
           ) : (
             <div className={shared.cardListEmpty}>
-              <p>{td("standard.noIndex", "No standard index yet.")}</p>
-              <p>{td("standard.configureToBrowseStrings", "Configure YGOPro path and rebuild the index to browse standard strings.")}</p>
+              <p>{t("standard.noIndex")}</p>
+              <p>{t("standard.configureToBrowseStrings")}</p>
             </div>
           )
         )}

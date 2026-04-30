@@ -24,7 +24,7 @@ function textLanguages(card: CardEntity, available: string[]): string[] {
 }
 
 export function StandardCardInspector({ code, onClose }: StandardCardInspectorProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const [activeTab, setActiveTab] = useState<InspectorTab>("text");
 
   const { data: detail, isLoading, error } = useQuery({
@@ -53,35 +53,35 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
               {t("action.close")}
             </button>
             <div className={styles.inspectorTitle}>
-              <strong>{card?.texts[titleLanguage]?.name || td("card.titleWithCode", "Card {code}", { code })}</strong>
+              <strong>{card?.texts[titleLanguage]?.name || t("card.titleWithCode", { code })}</strong>
               <span>{code}</span>
             </div>
           </div>
           <div className={drawerStyles.cardEditHeaderSpacer} />
-          <span className={styles.readonlyChip}>{td("standard.card.readOnly", "Read-only")}</span>
+          <span className={styles.readonlyChip}>{t("standard.card.readOnly")}</span>
         </div>
 
         {error && (
-          <div className={drawerStyles.cardEditError}>{td("standard.card.failed", "Failed to load standard card.")}</div>
+          <div className={drawerStyles.cardEditError}>{t("standard.card.failed")}</div>
         )}
 
         {isLoading && !card ? (
           <div className={shared.cardListEmpty}>
-            <p>{td("card.loading", "Loading card...")}</p>
+            <p>{t("card.loading")}</p>
           </div>
         ) : card && detail ? (
           <div className={drawerStyles.cardEditBody}>
             <div className={assetStyles.cardAssetBar}>
               <div className={assetStyles.cardPicPreview}>
-                {imageSrc ? <img src={imageSrc} alt={td("card.asset.cardImageAlt", "Card")} /> : td("card.asset.noImage", "No Image")}
+                {imageSrc ? <img src={imageSrc} alt={t("card.asset.cardImageAlt")} /> : t("card.asset.noImage")}
               </div>
               <div className={styles.assetReadonlyGrid}>
-                <span>{td("card.asset.image", "Image")}</span>
-                <strong>{detail.asset_state.has_image ? td("common.present", "Present") : td("common.missing", "Missing")}</strong>
-                <span>{td("card.asset.script", "Script")}</span>
-                <strong>{detail.asset_state.has_script ? td("common.present", "Present") : td("common.missing", "Missing")}</strong>
-                <span>{td("card.asset.field", "Field")}</span>
-                <strong>{detail.asset_state.has_field_image ? td("common.present", "Present") : td("common.missing", "Missing")}</strong>
+                <span>{t("card.asset.image")}</span>
+                <strong>{detail.asset_state.has_image ? t("common.present") : t("common.missing")}</strong>
+                <span>{t("card.asset.script")}</span>
+                <strong>{detail.asset_state.has_script ? t("common.present") : t("common.missing")}</strong>
+                <span>{t("card.asset.field")}</span>
+                <strong>{detail.asset_state.has_field_image ? t("common.present") : t("common.missing")}</strong>
               </div>
             </div>
 
@@ -92,14 +92,14 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
                   className={`${drawerStyles.cardFormTab} ${activeTab === "text" ? "active" : ""}`}
                   onClick={() => setActiveTab("text")}
                 >
-                  {td("card.tab.text", "Text")}
+                  {t("card.tab.text")}
                 </button>
                 <button
                   type="button"
                   className={`${drawerStyles.cardFormTab} ${activeTab === "info" ? "active" : ""}`}
                   onClick={() => setActiveTab("info")}
                 >
-                  {td("card.tab.info", "Info")}
+                  {t("card.tab.info")}
                 </button>
               </div>
 

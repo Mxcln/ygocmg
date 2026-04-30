@@ -43,7 +43,7 @@ export function CardAssetBar({
   onAssetChanged,
   onError,
 }: CardAssetBarProps) {
-  const { t, td } = useAppI18n();
+  const { t } = useAppI18n();
   const isFieldSpell = primaryType === "spell" && spellSubtype === "field";
   const isCreate = cardId === null;
   const [busy, setBusy] = useState(false);
@@ -191,14 +191,14 @@ export function CardAssetBar({
     <div className={styles.cardAssetBar}>
       <div className={styles.cardPicPreview}>
         {imageSrc ? (
-          <img key={imgKey} src={imageSrc} alt={td("card.asset.cardImageAlt", "Card")} />
+          <img key={imgKey} src={imageSrc} alt={t("card.asset.cardImageAlt")} />
         ) : (
-          td("card.asset.noImage", "No Image")
+          t("card.asset.noImage")
         )}
       </div>
 
       <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>{td("card.asset.image", "Image")}</span>
+        <span className={styles.assetBtnGroupLabel}>{t("card.asset.image")}</span>
         <button
           type="button"
           className={styles.assetSegBtn}
@@ -220,7 +220,7 @@ export function CardAssetBar({
       </div>
 
       <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>{td("card.asset.script", "Script")}</span>
+        <span className={styles.assetBtnGroupLabel}>{t("card.asset.script")}</span>
         {assetState.has_script ? (
           <>
             <button
@@ -237,7 +237,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleEditScript()}
             >
-              {td("action.edit", "Edit")}
+              {t("action.edit")}
             </button>
             <button
               type="button"
@@ -272,7 +272,7 @@ export function CardAssetBar({
 
       {isFieldSpell && (
         <div className={styles.assetBtnGroup}>
-          <span className={styles.assetBtnGroupLabel}>{td("card.asset.field", "Field")}</span>
+          <span className={styles.assetBtnGroupLabel}>{t("card.asset.field")}</span>
           <button
             type="button"
             className={styles.assetSegBtn}

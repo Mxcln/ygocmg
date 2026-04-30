@@ -22,7 +22,7 @@ import { AppSidebar } from "./AppSidebar";
 import { NoticeBanner } from "./NoticeBanner";
 import type { Notice, NoticeTone } from "./NoticeBanner";
 import { PackWorkArea } from "./PackWorkArea";
-import { AppI18nProvider, formatAppMessageByDefault, useAppI18n } from "../shared/i18n";
+import { AppI18nProvider, formatAppMessageById, useAppI18n } from "../shared/i18n";
 import shared from "../shared/styles/shared.module.css";
 import styles from "./App.module.css";
 
@@ -71,7 +71,7 @@ export function App() {
     } catch (err) {
       handleNotice(
         "error",
-        formatAppMessageByDefault("app.notice.switchPackFailed", "Failed to switch pack"),
+        formatAppMessageById("app.notice.switchPackFailed"),
         formatError(err),
       );
     }
@@ -150,7 +150,7 @@ export function App() {
     return (
       <AppI18nProvider locale={null}>
         <main className={styles.launchShell}>
-          <p className={styles.launchText}>{formatAppMessageByDefault("app.loading", "Loading...")}</p>
+          <p className={styles.launchText}>{formatAppMessageById("app.loading")}</p>
         </main>
       </AppI18nProvider>
     );
@@ -161,9 +161,9 @@ export function App() {
       <AppI18nProvider locale={config?.app_language ?? null}>
         <main className={styles.launchShell}>
           <div className={styles.launchError}>
-            <p>{error ?? formatAppMessageByDefault("app.initializationFailed", "Initialization failed.")}</p>
+            <p>{error ?? formatAppMessageById("app.initializationFailed")}</p>
             <button className={shared.primaryButton} type="button" onClick={() => window.location.reload()}>
-              {formatAppMessageByDefault("app.reload", "Reload")}
+              {formatAppMessageById("app.reload")}
             </button>
           </div>
         </main>

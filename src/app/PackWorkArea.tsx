@@ -19,7 +19,7 @@ interface PackWorkAreaProps {
 }
 
 export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaProps) {
-  const { td } = useAppI18n();
+  const { t } = useAppI18n();
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
   const workspaceId = useShellStore((s) => s.workspaceId);
@@ -75,14 +75,14 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
             className={`${shared.tabBtn} ${activeTab === "cards" ? "active" : ""}`}
             onClick={() => setActiveTab("cards")}
           >
-            {td("pack.tabs.cards", "Cards")}
+            {t("pack.tabs.cards")}
           </button>
           <button
             type="button"
             className={`${shared.tabBtn} ${activeTab === "strings" ? "active" : ""}`}
             onClick={() => setActiveTab("strings")}
           >
-            {td("pack.tabs.strings", "Strings")}
+            {t("pack.tabs.strings")}
           </button>
         </div>
 

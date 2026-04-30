@@ -13,7 +13,6 @@ interface AppI18nContextValue {
   locale: AppLocale;
   intl: IntlShape;
   t: (id: AppMessageId, values?: MessageValues) => string;
-  td: (id: string, defaultMessage: string, values?: MessageValues) => string;
   formatDescriptor: (descriptor: MessageDescriptor, values?: MessageValues) => string;
 }
 
@@ -56,14 +55,6 @@ export function formatAppMessageById(
   return formatAppMessage({ id, defaultMessage: APP_MESSAGES[DEFAULT_APP_LOCALE][id] }, values);
 }
 
-export function formatAppMessageByDefault(
-  id: string,
-  defaultMessage: string,
-  values?: MessageValues,
-): string {
-  return formatAppMessage({ id, defaultMessage }, values);
-}
-
 export function getActiveAppLocale(): AppLocale {
   return activeLocale;
 }
@@ -72,7 +63,6 @@ const AppI18nContext = createContext<AppI18nContextValue>({
   locale: DEFAULT_APP_LOCALE,
   intl: fallbackIntl,
   t: (id, values) => formatWithIntl(fallbackIntl, DEFAULT_APP_LOCALE, { id, defaultMessage: APP_MESSAGES[DEFAULT_APP_LOCALE][id] }, values),
-  td: (id, defaultMessage, values) => formatWithIntl(fallbackIntl, DEFAULT_APP_LOCALE, { id, defaultMessage }, values),
   formatDescriptor: (descriptor, values) => formatWithIntl(fallbackIntl, DEFAULT_APP_LOCALE, descriptor, values),
 });
 
@@ -102,7 +92,6 @@ export function AppI18nProvider({
       locale: appLocale,
       intl,
       t: (id, values) => formatWithIntl(intl, appLocale, { id, defaultMessage: APP_MESSAGES[DEFAULT_APP_LOCALE][id] }, values),
-      td: (id, defaultMessage, values) => formatWithIntl(intl, appLocale, { id, defaultMessage }, values),
       formatDescriptor: (descriptor, values) => formatWithIntl(intl, appLocale, descriptor, values),
     }),
     [appLocale, intl],
