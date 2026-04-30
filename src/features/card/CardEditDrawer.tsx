@@ -10,6 +10,7 @@ import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardEntity, CardAssetState } from "../../shared/contracts/card";
 import type { CardDetail } from "../../shared/contracts/card";
 import type { ValidationIssue } from "../../shared/contracts/common";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardEditDrawer.module.css";
 import { CardAssetBar } from "./CardAssetBar";
@@ -70,6 +71,7 @@ export function CardEditDrawer({
   onClose,
   onSaved,
 }: CardEditDrawerProps) {
+  const { t, td } = useAppI18n();
   const isCreate = cardId === null;
   const [draft, setDraft] = useState<CardEntity | null>(null);
   const [assetState, setAssetState] = useState<CardAssetState>(EMPTY_ASSET_STATE);
@@ -250,10 +252,10 @@ export function CardEditDrawer({
         setErrorMsg(null);
         openDialog({
           kind: "warning",
-          title: isCreate ? "Review card warnings" : "Review save warnings",
-          message: "This write produced warnings. Continue to apply the change?",
-          confirmLabel: "Continue",
-          cancelLabel: "Cancel",
+          title: isCreate ? td("card.warning.createTitle", "Review card warnings") : td("card.warning.saveTitle", "Review save warnings"),
+          message: td("card.warning.message", "This write produced warnings. Continue to apply the change?"),
+          confirmLabel: td("card.warning.continue", "Continue"),
+          cancelLabel: t("action.cancel"),
           warnings: result.warnings,
           onConfirm: async () => {
             try {
@@ -286,10 +288,10 @@ export function CardEditDrawer({
     setErrorMsg(null);
     openDialog({
       kind: "confirm",
-      title: "Delete card",
-      message: "This card will be permanently removed from the pack.",
-      confirmLabel: "Delete",
-      cancelLabel: "Cancel",
+      title: td("card.delete.title", "Delete card"),
+      message: td("card.delete.message", "This card will be permanently removed from the pack."),
+      confirmLabel: t("action.delete"),
+      cancelLabel: t("action.cancel"),
       danger: true,
       onConfirm: async () => {
         setDeleting(true);
@@ -297,7 +299,7 @@ export function CardEditDrawer({
         try {
           const result = await cardApi.deleteCard({ workspaceId, packId, cardId: deleteCardId });
           if (result.status !== "ok") {
-            throw new Error("Delete card returned an unsupported confirmation state.");
+            throw new Error(td("card.delete.unsupportedState", "Delete card returned an unsupported confirmation state."));
           }
           closeDialog();
           onSaved();
@@ -327,7 +329,7 @@ export function CardEditDrawer({
               className={shared.ghostButton}
               onClick={handleAnimatedClose}
             >
-              Close
+              {t("action.close")}
             </button>
             {!isCreate && (
               <button
@@ -336,7 +338,7 @@ export function CardEditDrawer({
                 onClick={() => void handleDelete()}
                 disabled={deleting}
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting ? td("card.deleting", "Deleting...") : t("action.delete")}
               </button>
             )}
           </div>
@@ -347,7 +349,7 @@ export function CardEditDrawer({
             onClick={() => void handleSave()}
             disabled={saving || !draft}
           >
-            {saving ? "Saving..." : isCreate ? "Create" : "Save"}
+            {saving ? td("pack.metadata.saving", "Saving...") : isCreate ? t("action.create") : t("action.save")}
           </button>
         </div>
 
@@ -370,7 +372,7 @@ export function CardEditDrawer({
 
         {showLoading ? (
           <div className={shared.cardListEmpty}>
-            <p>Loading card...</p>
+            <p>{td("card.loading", "Loading card...")}</p>
           </div>
         ) : draft ? (
           <div className={styles.cardEditBody}>
@@ -393,14 +395,14 @@ export function CardEditDrawer({
                   className={`${styles.cardFormTab} ${activeTab === "text" ? "active" : ""}`}
                   onClick={() => setActiveTab("text")}
                 >
-                  Text
+                  {td("card.tab.text", "Text")}
                 </button>
                 <button
                   type="button"
                   className={`${styles.cardFormTab} ${activeTab === "info" ? "active" : ""}`}
                   onClick={() => setActiveTab("info")}
                 >
-                  Info
+                  {td("card.tab.info", "Info")}
                 </button>
               </div>
               <div className={styles.cardFormContent}>
@@ -413,10 +415,10 @@ export function CardEditDrawer({
                     onConfirmDeleteLanguage={(language, onConfirm) => {
                       openDialog({
                         kind: "confirm",
-                        title: "Delete language text",
-                        message: `Delete card text for ${language}? This cannot be undone.`,
-                        confirmLabel: "Delete",
-                        cancelLabel: "Cancel",
+                        title: td("card.text.deleteLanguageTitle", "Delete language text"),
+                        message: td("card.text.deleteLanguageMessage", "Delete card text for {language}? This cannot be undone.", { language }),
+                        confirmLabel: t("action.delete"),
+                        cancelLabel: t("action.cancel"),
                         danger: true,
                         onConfirm: () => {
                           onConfirm();

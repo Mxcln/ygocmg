@@ -1,6 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useShellStore } from "../shared/stores/shellStore";
 import type { ModalType } from "../shared/stores/shellStore";
+import { useAppI18n } from "../shared/i18n";
 import styles from "./AppSidebar.module.css";
 
 interface AppSidebarProps {
@@ -20,6 +21,7 @@ export function AppSidebar({
   onOpenStandardPack,
   onBeginResize,
 }: AppSidebarProps) {
+  const { t } = useAppI18n();
   const modal = useShellStore((s) => s.modal);
   const openModal = useShellStore((s) => s.openModal);
   const openPackIds = useShellStore((s) => s.openPackIds);
@@ -33,20 +35,20 @@ export function AppSidebar({
   return (
     <aside className={styles.sidebar}>
       <div className={styles.sidebarActions}>
-        <button type="button" className={actionBtnClass("workspace")} title="Workspace" onClick={() => openModal("workspace")}>
+        <button type="button" className={actionBtnClass("workspace")} title={t("sidebar.workspace")} onClick={() => openModal("workspace")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <rect x="1" y="2" width="14" height="12" rx="1.5" />
             <line x1="1" y1="6" x2="15" y2="6" />
           </svg>
         </button>
-        <button type="button" className={actionBtnClass("export")} title="Export Expansions" disabled={!hasWorkspace} onClick={() => openModal("export")}>
+        <button type="button" className={actionBtnClass("export")} title={t("sidebar.export")} disabled={!hasWorkspace} onClick={() => openModal("export")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <path d="M2 11v3h12v-3" />
             <path d="M8 2v8" />
             <path d="M5 7l3 3 3-3" />
           </svg>
         </button>
-        <button type="button" className={actionBtnClass("settings")} title="Global Settings" onClick={() => openModal("settings")}>
+        <button type="button" className={actionBtnClass("settings")} title={t("sidebar.settings")} onClick={() => openModal("settings")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <circle cx="8" cy="8" r="2.5" />
             <path d="M8 1v2m0 10v2M1 8h2m10 0h2M2.9 2.9l1.5 1.5m7.2 7.2l1.5 1.5M13.1 2.9l-1.5 1.5M4.4 11.6l-1.5 1.5" />
@@ -71,7 +73,7 @@ export function AppSidebar({
               <button
                 type="button"
                 className={styles.packCloseBtn}
-                title="Close pack"
+                title={t("sidebar.closePack")}
                 onClick={(event) => {
                   event.stopPropagation();
                   onClosePack(packId);
@@ -91,7 +93,7 @@ export function AppSidebar({
           className={`${styles.packItem} ${styles.packAdd}`}
           onClick={() => openModal("addPack")}
           disabled={!hasWorkspace}
-          title={hasWorkspace ? "Open or create a pack" : "Open a workspace first"}
+          title={hasWorkspace ? t("sidebar.openOrCreatePack") : t("sidebar.openWorkspaceFirst")}
         >
           +
         </button>
@@ -103,7 +105,7 @@ export function AppSidebar({
           className={`${styles.packItem} ${styles.packStandard} ${isStandardView ? "active" : ""}`}
           onClick={onOpenStandardPack}
         >
-          Standard Pack
+          {t("sidebar.standardPack")}
         </button>
       </div>
 
@@ -111,7 +113,7 @@ export function AppSidebar({
         className={styles.sidebarResizeHandle}
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize sidebar"
+        aria-label={t("sidebar.resize")}
         onPointerDown={onBeginResize}
       />
     </aside>

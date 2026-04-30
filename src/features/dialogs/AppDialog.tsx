@@ -2,10 +2,12 @@ import { useEffect } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatValidationIssue } from "../../shared/utils/format";
 import { formatIssueDetail } from "../../shared/utils/messages";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./AppDialog.module.css";
 
 export function AppDialog() {
+  const { t } = useAppI18n();
   const dialogState = useShellStore((s) => s.dialog);
   const busy = useShellStore((s) => s.dialogBusy);
   const closeDialog = useShellStore((s) => s.closeDialog);
@@ -105,7 +107,7 @@ export function AppDialog() {
             onClick={() => void handleConfirm()}
             disabled={busy}
           >
-            {busy ? "Working..." : dialog.confirmLabel}
+            {busy ? t("action.working") : dialog.confirmLabel}
           </button>
         </div>
       </section>

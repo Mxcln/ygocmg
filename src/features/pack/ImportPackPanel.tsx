@@ -17,6 +17,7 @@ import type { PackMetadata } from "../../shared/contracts/pack";
 import type { ImportPreviewResult } from "../../shared/contracts/import";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import { preferredImportSourceLanguage } from "../../shared/utils/language";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./ImportPackPanel.module.css";
 import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
@@ -96,6 +97,7 @@ export function ImportPackPanel({
   onNotice,
   closeModal,
 }: ImportPackPanelProps) {
+  const { t, td } = useAppI18n();
   const [step, setStep] = useState<WizardStep>(1);
   const [sourceForm, setSourceForm] = useState<SourceForm>(() => emptySource(config));
   const [metadataForm, setMetadataForm] = useState<MetadataForm>(EMPTY_METADATA);
@@ -182,7 +184,7 @@ export function ImportPackPanel({
     const author = metadataForm.author.trim();
     const version = metadataForm.version.trim();
     if (!name || !author || !version) {
-      onNotice("warning", "Missing fields", "Pack name, author, and version are required.");
+      onNotice("warning", td("pack.missingFields.title", "Missing fields"), td("import.missingFields.detail", "Pack name, author, and version are required."));
       return;
     }
 
@@ -229,7 +231,7 @@ export function ImportPackPanel({
       });
       setActiveJobId(job.job_id);
     } catch (err) {
-      onNotice("error", "Import failed", formatError(err));
+      onNotice("error", td("import.failed", "Import failed"), formatError(err));
     } finally {
       setBusy(null);
     }
@@ -241,10 +243,10 @@ export function ImportPackPanel({
     try {
       const metadata = await packApi.openPack({ packId: previewResult.data.target_pack_id });
       onPackOpened(previewResult.data.target_pack_id, metadata);
-      onNotice("success", "Pack imported", `"${previewResult.data.target_pack_name}" has been imported and opened.`);
+      onNotice("success", td("import.imported.title", "Pack imported"), td("import.imported.detail", '"{name}" has been imported and opened.', { name: previewResult.data.target_pack_name }));
       closeModal();
     } catch (err) {
-      onNotice("error", "Failed to open pack", formatError(err));
+      onNotice("error", td("pack.openFailed", "Failed to open pack"), formatError(err));
     } finally {
       setOpeningPack(false);
     }
@@ -268,33 +270,33 @@ export function ImportPackPanel({
     <section className={styles.importPanel}>
       <div className={shared.panelHeader}>
         <div className={shared.importWizardSteps}>
-          <span className={`${shared.wizardStep} ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. Source</span>
+          <span className={`${shared.wizardStep} ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>1. {td("import.step.source", "Source")}</span>
           <span className={shared.wizardStepSep}>&rsaquo;</span>
-          <span className={`${shared.wizardStep} ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>2. Metadata</span>
+          <span className={`${shared.wizardStep} ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>2. {td("import.step.metadata", "Metadata")}</span>
           <span className={shared.wizardStepSep}>&rsaquo;</span>
-          <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>3. Confirm</span>
+          <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>3. {td("import.step.confirm", "Confirm")}</span>
         </div>
       </div>
 
       {step === 1 && (
         <div className={shared.formStack}>
           <div className={shared.field}>
-            <span>CDB file (required)</span>
+            <span>{td("import.cdbFile", "CDB file (required)")}</span>
             <div className={shared.filePickerRow}>
               <input
                 readOnly
                 value={sourceForm.cdbPath}
-                placeholder="Select a .cdb file..."
+                placeholder={td("import.selectCdb", "Select a .cdb file...")}
                 title={sourceForm.cdbPath || undefined}
               />
               <button type="button" className={shared.ghostButton} onClick={() => void handleSelectCdb()}>
-                Browse
+                {t("action.browse")}
               </button>
             </div>
           </div>
 
           <div className={shared.field}>
-            <span>Source language (required)</span>
+            <span>{td("import.sourceLanguage", "Source language (required)")}</span>
             <TextLanguagePicker
               catalog={config.text_language_catalog}
               value={sourceForm.sourceLanguage}
@@ -302,35 +304,35 @@ export function ImportPackPanel({
             />
           </div>
 
-          <div className={styles.importSourceDivider}>Optional resource paths</div>
+          <div className={styles.importSourceDivider}>{td("import.optionalResourcePaths", "Optional resource paths")}</div>
 
           <FilePickerField
             label="pics/ directory"
             value={sourceForm.picsDir}
             onBrowse={() => void handleBrowseDir("picsDir")}
             onClear={() => setSourceForm({ ...sourceForm, picsDir: "" })}
-            placeholder="Card images directory"
+            placeholder={td("import.cardImagesDir", "Card images directory")}
           />
           <FilePickerField
             label="pics/field/ directory"
             value={sourceForm.fieldPicsDir}
             onBrowse={() => void handleBrowseDir("fieldPicsDir")}
             onClear={() => setSourceForm({ ...sourceForm, fieldPicsDir: "" })}
-            placeholder="Field images directory"
+            placeholder={td("import.fieldImagesDir", "Field images directory")}
           />
           <FilePickerField
             label="script/ directory"
             value={sourceForm.scriptDir}
             onBrowse={() => void handleBrowseDir("scriptDir")}
             onClear={() => setSourceForm({ ...sourceForm, scriptDir: "" })}
-            placeholder="Lua scripts directory"
+            placeholder={td("import.luaScriptsDir", "Lua scripts directory")}
           />
           <FilePickerField
             label="strings.conf"
             value={sourceForm.stringsConfPath}
             onBrowse={() => void handleBrowseFile("stringsConfPath")}
             onClear={() => setSourceForm({ ...sourceForm, stringsConfPath: "" })}
-            placeholder="strings.conf file"
+            placeholder={td("import.stringsConfFile", "strings.conf file")}
           />
 
           <div className={shared.formActions}>
@@ -340,7 +342,7 @@ export function ImportPackPanel({
               disabled={!canGoNext}
               onClick={handleGoToStep2}
             >
-              Next
+              {td("import.next", "Next")}
             </button>
           </div>
         </div>
@@ -349,7 +351,7 @@ export function ImportPackPanel({
       {step === 2 && (
         <div className={shared.formStack}>
           <div className={shared.field}>
-            <span>Pack name (required)</span>
+            <span>{td("import.packNameRequired", "Pack name (required)")}</span>
             <input
               value={metadataForm.name}
               onChange={(e) => setMetadataForm({ ...metadataForm, name: e.target.value })}
@@ -359,7 +361,7 @@ export function ImportPackPanel({
 
           <div className={shared.packFormRow}>
             <div className={shared.field}>
-              <span>Author (required)</span>
+              <span>{td("import.authorRequired", "Author (required)")}</span>
               <input
                 value={metadataForm.author}
                 onChange={(e) => setMetadataForm({ ...metadataForm, author: e.target.value })}
@@ -367,7 +369,7 @@ export function ImportPackPanel({
               />
             </div>
             <div className={shared.field}>
-              <span>Version (required)</span>
+              <span>{td("import.versionRequired", "Version (required)")}</span>
               <input
                 value={metadataForm.version}
                 onChange={(e) => setMetadataForm({ ...metadataForm, version: e.target.value })}
@@ -377,18 +379,18 @@ export function ImportPackPanel({
           </div>
 
           <div className={shared.field}>
-            <span>Description</span>
+            <span>{td("pack.form.description", "Description")}</span>
             <textarea
               rows={2}
               value={metadataForm.description}
               onChange={(e) => setMetadataForm({ ...metadataForm, description: e.target.value })}
-              placeholder="Optional description"
+              placeholder={td("import.optionalDescription", "Optional description")}
             />
           </div>
 
           <div className={`${shared.packFormRow} ${shared.packFormRowLanguage}`}>
             <div className={shared.field}>
-              <span>Display languages</span>
+              <span>{td("pack.form.displayLanguages", "Display languages")}</span>
               <LanguageOrderEditor
                 catalog={config.text_language_catalog}
                 value={metadataForm.displayLanguageOrder}
@@ -401,7 +403,7 @@ export function ImportPackPanel({
               />
             </div>
             <div className={shared.field}>
-              <span>Default export language</span>
+              <span>{td("pack.form.defaultExportLanguage", "Default export language")}</span>
               <TextLanguagePicker
                 catalog={config.text_language_catalog}
                 value={metadataForm.defaultExportLanguage}
@@ -417,7 +419,7 @@ export function ImportPackPanel({
 
           <div className={shared.formActions}>
             <button type="button" className={shared.ghostButton} onClick={() => setStep(1)}>
-              Back
+              {td("import.back", "Back")}
             </button>
             <button
               type="button"
@@ -425,7 +427,7 @@ export function ImportPackPanel({
               disabled={busy !== null}
               onClick={() => void handlePreview()}
             >
-              {busy === "preview" ? "Previewing..." : "Preview Import"}
+              {busy === "preview" ? td("import.previewing", "Previewing...") : td("import.preview", "Preview Import")}
             </button>
           </div>
         </div>
@@ -436,7 +438,7 @@ export function ImportPackPanel({
           <div className={shared.importPreviewSummary}>
             <div className={shared.importStat}>
               <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
-              <span className={shared.importStatLabel}>Cards</span>
+              <span className={shared.importStatLabel}>{td("pack.tabs.cards", "Cards")}</span>
             </div>
             <div className={shared.importStat}>
               <span
@@ -445,7 +447,7 @@ export function ImportPackPanel({
               >
                 {previewResult.data.error_count}
               </span>
-              <span className={shared.importStatLabel}>Errors</span>
+              <span className={shared.importStatLabel}>{td("import.errors", "Errors")}</span>
             </div>
             <div className={shared.importStat}>
               <span
@@ -454,38 +456,41 @@ export function ImportPackPanel({
               >
                 {previewResult.data.warning_count}
               </span>
-              <span className={shared.importStatLabel}>Warnings</span>
+              <span className={shared.importStatLabel}>{td("import.warnings", "Warnings")}</span>
             </div>
             <div className={shared.importStat}>
               <span className={shared.importStatValue}>
                 {previewResult.data.missing_main_image_count}
               </span>
-              <span className={shared.importStatLabel}>Missing Images</span>
+              <span className={shared.importStatLabel}>{td("import.missingImages", "Missing Images")}</span>
             </div>
             <div className={shared.importStat}>
               <span className={shared.importStatValue}>
                 {previewResult.data.missing_script_count}
               </span>
-              <span className={shared.importStatLabel}>Missing Scripts</span>
+              <span className={shared.importStatLabel}>{td("import.missingScripts", "Missing Scripts")}</span>
             </div>
             <div className={shared.importStat}>
               <span className={shared.importStatValue}>
                 {previewResult.data.missing_field_image_count}
               </span>
-              <span className={shared.importStatLabel}>Missing Field Imgs</span>
+              <span className={shared.importStatLabel}>{td("import.missingFieldImages", "Missing Field Imgs")}</span>
             </div>
           </div>
 
           {previewResult.data.error_count > 0 && (
             <div className={shared.importErrorBanner}>
-              Import has {previewResult.data.error_count} blocking error{previewResult.data.error_count > 1 ? "s" : ""}. Fix the source and try again.
+              {td("import.blockingErrors", "Import has {count} blocking error{plural}. Fix the source and try again.", {
+                count: previewResult.data.error_count,
+                plural: previewResult.data.error_count > 1 ? "s" : "",
+              })}
             </div>
           )}
 
           {previewResult.data.issues.length > 0 && (
             <div className={shared.importIssuesList}>
               <strong className={shared.importIssuesHeader}>
-                Issues ({previewResult.data.issues.length})
+                {td("import.issuesCount", "Issues ({count})", { count: previewResult.data.issues.length })}
               </strong>
               <ul>
                 {previewResult.data.issues.map((issue, idx) => (
@@ -516,7 +521,7 @@ export function ImportPackPanel({
 
           {jobSucceeded && (
             <div className={shared.importSuccessBanner}>
-              Import completed successfully.
+              {td("import.completed", "Import completed successfully.")}
             </div>
           )}
 
@@ -524,7 +529,7 @@ export function ImportPackPanel({
             {!jobDone && !importing && (
               <>
                 <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
-                  Back
+                  {td("import.back", "Back")}
                 </button>
                 <button
                   type="button"
@@ -532,14 +537,14 @@ export function ImportPackPanel({
                   disabled={previewResult.data.error_count > 0 || busy !== null}
                   onClick={() => void handleExecute()}
                 >
-                  {busy === "execute" ? "Submitting..." : "Import"}
+                  {busy === "execute" ? td("import.submitting", "Submitting...") : t("action.import")}
                 </button>
               </>
             )}
 
             {importing && (
               <button type="button" className={shared.ghostButton} disabled>
-                Importing...
+                {td("import.importing", "Importing...")}
               </button>
             )}
 
@@ -550,16 +555,16 @@ export function ImportPackPanel({
                 disabled={openingPack}
                 onClick={() => void handleOpenImportedPack()}
               >
-                {openingPack ? "Opening..." : "Open Imported Pack"}
+                {openingPack ? td("pack.opening", "Opening...") : td("import.openImportedPack", "Open Imported Pack")}
               </button>
             )}
 
             {jobFailed && (
               <>
                 <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
-                  Back
+                  {td("import.back", "Back")}
                 </button>
-                <span className={shared.importFailHint}>Import job failed. Check errors above and try again.</span>
+                <span className={shared.importFailHint}>{td("import.jobFailed", "Import job failed. Check errors above and try again.")}</span>
               </>
             )}
           </div>
@@ -582,17 +587,19 @@ function FilePickerField({
   onClear: () => void;
   placeholder: string;
 }) {
+  const { t } = useAppI18n();
+
   return (
     <div className={shared.field}>
       <span>{label}</span>
       <div className={shared.filePickerRow}>
         <input readOnly value={value} placeholder={placeholder} title={value || undefined} />
         <button type="button" className={shared.ghostButton} onClick={onBrowse}>
-          Browse
+          {t("action.browse")}
         </button>
         {value && (
           <button type="button" className={shared.ghostButton} onClick={onClear}>
-            Clear
+            {t("action.clear")}
           </button>
         )}
       </div>

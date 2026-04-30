@@ -7,9 +7,12 @@ use crate::domain::language::rules::{
     normalize_language_id, normalize_text_language_catalog, validate_language_id,
 };
 
+pub const DEFAULT_APP_LANGUAGE: &str = "en-US";
+pub const SUPPORTED_APP_LANGUAGES: [&str; 2] = ["en-US", "zh-CN"];
+
 pub fn default_global_config() -> GlobalConfig {
     GlobalConfig {
-        app_language: "zh-CN".to_string(),
+        app_language: DEFAULT_APP_LANGUAGE.to_string(),
         ygopro_path: None,
         external_text_editor_path: None,
         custom_code_recommended_min: 100_000_000,
@@ -61,6 +64,14 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
             "config.app_language_required",
             target.clone().with_field("app_language"),
         ));
+    } else if !SUPPORTED_APP_LANGUAGES.contains(&config.app_language.as_str()) {
+        issues.push(
+            ValidationIssue::error(
+                "config.app_language_unsupported",
+                target.clone().with_field("app_language"),
+            )
+            .with_param("language", &config.app_language),
+        );
     }
 
     issues.extend(validate_text_language_catalog(config));
@@ -145,7 +156,7 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
 
 pub fn normalize_global_config(config: &GlobalConfig) -> GlobalConfig {
     let mut next = config.clone();
-    next.app_language = next.app_language.trim().to_string();
+    next.app_language = normalize_app_language(&next.app_language);
     next.text_language_catalog = normalize_text_language_catalog(&next.text_language_catalog);
     next.standard_pack_source_language = next
         .standard_pack_source_language
@@ -154,6 +165,15 @@ pub fn normalize_global_config(config: &GlobalConfig) -> GlobalConfig {
         .filter(|value| !value.is_empty())
         .map(str::to_string);
     next
+}
+
+fn normalize_app_language(language: &str) -> String {
+    let normalized = language.trim();
+    if SUPPORTED_APP_LANGUAGES.contains(&normalized) {
+        normalized.to_string()
+    } else {
+        DEFAULT_APP_LANGUAGE.to_string()
+    }
 }
 
 fn validate_text_language_catalog(config: &GlobalConfig) -> Vec<ValidationIssue> {

@@ -4,6 +4,7 @@ import { useShellStore } from "../../shared/stores/shellStore";
 import { configApi } from "../../shared/api/configApi";
 import type { GlobalConfig, TextLanguageProfile } from "../../shared/contracts/config";
 import { normalizeNullablePath, parseNumberInput, formatError } from "../../shared/utils/format";
+import { APP_LOCALE_OPTIONS, useAppI18n } from "../../shared/i18n";
 import {
   languageExists,
   languageLabel,
@@ -30,6 +31,7 @@ export interface SettingsModalProps {
 }
 
 export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModalProps) {
+  const { t, td } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -49,9 +51,9 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
     try {
       const next = await configApi.saveConfig(draft);
       onConfigSaved(next);
-      onNotice("success", "Settings saved", "Program-level configuration has been written successfully.");
+      onNotice("success", td("settings.notice.saved.title", "Settings saved"), td("settings.notice.saved.detail", "Program-level configuration has been written successfully."));
     } catch (err) {
-      onNotice("error", "Failed to save settings", formatError(err));
+      onNotice("error", td("settings.notice.saveFailed", "Failed to save settings"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -66,11 +68,11 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
       return;
     }
     if (!label) {
-      setCustomLanguage({ ...customLanguage, id, error: "Language label is required." });
+      setCustomLanguage({ ...customLanguage, id, error: td("settings.language.labelRequired", "Language label is required.") });
       return;
     }
     if (languageExists(draft.text_language_catalog, id) || draft.text_language_catalog.some((language) => language.id === id)) {
-      setCustomLanguage({ ...customLanguage, id, error: "Language id already exists." });
+      setCustomLanguage({ ...customLanguage, id, error: td("settings.language.idExists", "Language id already exists.") });
       return;
     }
 
@@ -111,10 +113,10 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>Global Settings</h2>
+        <h2>{td("settings.title", "Global Settings")}</h2>
         <div className={styles.settingsHeaderRight}>
           <span className={`${shared.hintChip} ${dirty ? "dirty" : ""}`}>
-            {dirty ? "Unsaved changes" : "Synced"}
+            {dirty ? t("common.unsavedChanges") : t("common.synced")}
           </span>
           <button
             className={shared.primaryButton}
@@ -122,10 +124,10 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
             disabled={busyAction !== null || !dirty}
             onClick={() => void handleSave()}
           >
-            {busyAction === "save" ? "Saving..." : "Save Settings"}
+            {busyAction === "save" ? td("settings.saving", "Saving...") : td("settings.save", "Save Settings")}
           </button>
           <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
-            Close
+            {t("action.close")}
           </button>
         </div>
       </header>
@@ -133,16 +135,16 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
       <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
         <aside className={shared.modalTabs}>
           <button type="button" className={activeTab === "general" ? "active" : ""} onClick={() => setActiveTab("general")}>
-            General
+            {td("settings.tab.general", "General")}
           </button>
           <button type="button" className={activeTab === "languages" ? "active" : ""} onClick={() => setActiveTab("languages")}>
-            Text Languages
+            {td("settings.tab.textLanguages", "Text Languages")}
           </button>
           <button type="button" className={activeTab === "standardPack" ? "active" : ""} onClick={() => setActiveTab("standardPack")}>
-            Standard Pack
+            {td("settings.tab.standardPack", "Standard Pack")}
           </button>
           <button type="button" className={activeTab === "codePolicy" ? "active" : ""} onClick={() => setActiveTab("codePolicy")}>
-            Code Policy
+            {td("settings.tab.codePolicy", "Code Policy")}
           </button>
         </aside>
 
@@ -150,23 +152,28 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "general" && (
             <div className={styles.settingsTabContent}>
               <section className={styles.settingsGroup}>
-                <h4 className={styles.groupTitle}>Language</h4>
+                <h4 className={styles.groupTitle}>{td("settings.group.language", "Language")}</h4>
 
                 <label className={shared.field}>
-                  <span>App language</span>
-                  <TextLanguagePicker
-                    catalog={draft.text_language_catalog}
+                  <span>{td("settings.appLanguage", "App language")}</span>
+                  <select
                     value={draft.app_language}
-                    onChange={(appLanguage) => setDraft({ ...draft, app_language: appLanguage })}
-                  />
+                    onChange={(event) => setDraft({ ...draft, app_language: event.target.value })}
+                  >
+                    {APP_LOCALE_OPTIONS.map((locale) => (
+                      <option key={locale.id} value={locale.id}>
+                        {locale.label} ({locale.id})
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </section>
 
               <section className={styles.settingsGroup}>
-                <h4 className={styles.groupTitle}>External Paths</h4>
+                <h4 className={styles.groupTitle}>{td("settings.group.externalPaths", "External Paths")}</h4>
 
                 <div className={shared.field}>
-                  <span>YGOPro path</span>
+                  <span>{td("settings.ygoproPath", "YGOPro path")}</span>
                   <div className={shared.filePickerRow}>
                     <input
                       value={draft.ygopro_path ?? ""}
@@ -177,11 +184,11 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                       type="button"
                       className={shared.ghostButton}
                       onClick={async () => {
-                        const selected = await open({ directory: true, title: "Select YGOPro Directory" });
+                        const selected = await open({ directory: true, title: td("settings.selectYgoproDirectory", "Select YGOPro Directory") });
                         if (typeof selected === "string") setDraft({ ...draft, ygopro_path: selected || null });
                       }}
                     >
-                      Browse
+                      {t("action.browse")}
                     </button>
                     {draft.ygopro_path && (
                       <button
@@ -189,14 +196,14 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                         className={shared.ghostButton}
                         onClick={() => setDraft({ ...draft, ygopro_path: null })}
                       >
-                        Clear
+                        {t("action.clear")}
                       </button>
                     )}
                   </div>
                 </div>
 
                 <div className={shared.field}>
-                  <span>External text editor path</span>
+                  <span>{td("settings.externalEditorPath", "External text editor path")}</span>
                   <div className={shared.filePickerRow}>
                     <input
                       value={draft.external_text_editor_path ?? ""}
@@ -210,14 +217,14 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                       className={shared.ghostButton}
                       onClick={async () => {
                         const selected = await open({
-                          title: "Select Text Editor",
-                          filters: [{ name: "Executable", extensions: ["exe"] }],
+                          title: td("settings.selectTextEditor", "Select Text Editor"),
+                          filters: [{ name: td("settings.fileFilter.executable", "Executable"), extensions: ["exe"] }],
                         });
                         if (typeof selected === "string")
                           setDraft({ ...draft, external_text_editor_path: selected || null });
                       }}
                     >
-                      Browse
+                      {t("action.browse")}
                     </button>
                     {draft.external_text_editor_path && (
                       <button
@@ -225,7 +232,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                         className={shared.ghostButton}
                         onClick={() => setDraft({ ...draft, external_text_editor_path: null })}
                       >
-                        Clear
+                        {t("action.clear")}
                       </button>
                     )}
                   </div>
@@ -255,7 +262,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                           className={shared.ghostButton}
                           onClick={() => toggleCustomLanguageHidden(language.id)}
                         >
-                          {language.hidden ? "Show" : "Hide"}
+                          {language.hidden ? td("settings.language.show", "Show") : td("settings.language.hide", "Hide")}
                         </button>
                       )}
                     </div>
@@ -275,10 +282,10 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                     onChange={(event) =>
                       setCustomLanguage({ ...customLanguage, label: event.target.value, error: null })
                     }
-                    placeholder="Label"
+                    placeholder={td("settings.language.labelPlaceholder", "Label")}
                   />
                   <button type="button" className={shared.ghostButton} onClick={handleAddCustomLanguage}>
-                    Add
+                    {t("action.add")}
                   </button>
                 </div>
                 {customLanguage.error && <div className={styles.settingsInlineError}>{customLanguage.error}</div>}
@@ -289,22 +296,25 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "standardPack" && (
             <div className={styles.settingsTabContent}>
               <section className={styles.settingsGroup}>
-                <h4 className={styles.groupTitle}>Source Language</h4>
+                <h4 className={styles.groupTitle}>{td("settings.group.sourceLanguage", "Source Language")}</h4>
 
                 <label className={shared.field}>
-                  <span>Imported text language</span>
+                  <span>{td("settings.importedTextLanguage", "Imported text language")}</span>
                   <TextLanguagePicker
                     catalog={draft.text_language_catalog}
                     value={draft.standard_pack_source_language ?? ""}
                     allowEmpty
-                    placeholder="Select source language"
+                    placeholder={t("language.selectSource")}
                     onChange={(sourceLanguage) =>
                       setDraft({ ...draft, standard_pack_source_language: sourceLanguage || null })
                     }
                   />
                 </label>
                 <span className={shared.fieldHint}>
-                  {visibleLanguages.length} visible language{visibleLanguages.length === 1 ? "" : "s"}
+                  {td("settings.visibleLanguageCount", "{count} visible language{plural}", {
+                    count: visibleLanguages.length,
+                    plural: visibleLanguages.length === 1 ? "" : "s",
+                  })}
                 </span>
               </section>
             </div>
@@ -313,10 +323,10 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           {activeTab === "codePolicy" && (
             <div className={styles.settingsTabContent}>
               <section className={styles.settingsGroup}>
-                <h4 className={styles.groupTitle}>Custom Card Numbering</h4>
+                <h4 className={styles.groupTitle}>{td("settings.group.customCardNumbering", "Custom Card Numbering")}</h4>
 
                 <label className={shared.field}>
-                  <span>Recommended code minimum</span>
+                  <span>{td("settings.recommendedCodeMinimum", "Recommended code minimum")}</span>
                   <input
                     type="number"
                     min={0}
@@ -331,7 +341,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                 </label>
 
                 <label className={shared.field}>
-                  <span>Recommended code maximum</span>
+                  <span>{td("settings.recommendedCodeMaximum", "Recommended code maximum")}</span>
                   <input
                     type="number"
                     min={0}
@@ -346,7 +356,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
                 </label>
 
                 <label className={shared.field}>
-                  <span>Minimum gap</span>
+                  <span>{td("settings.minimumGap", "Minimum gap")}</span>
                   <input
                     type="number"
                     min={1}

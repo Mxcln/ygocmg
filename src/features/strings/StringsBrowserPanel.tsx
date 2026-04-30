@@ -8,18 +8,11 @@ import type {
   PackStringsPage,
 } from "../../shared/contracts/strings";
 import { languageLabel } from "../../shared/utils/language";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StringsBrowserPanel.module.css";
 
 const PAGE_SIZE = 50;
-
-const KIND_OPTIONS: { value: PackStringKind | ""; label: string }[] = [
-  { value: "", label: "All Kinds" },
-  { value: "system", label: "System" },
-  { value: "counter", label: "Counter" },
-  { value: "victory", label: "Victory" },
-  { value: "setname", label: "Setname" },
-];
 
 interface EditingCell {
   kind: PackStringKind;
@@ -81,6 +74,7 @@ export function StringsBrowserPanel({
   onClearTranslation,
   onDelete,
 }: StringsBrowserPanelProps) {
+  const { t, td } = useAppI18n();
   const [language, setLanguage] = useState(languages[0] ?? "");
   const [kindFilter, setKindFilter] = useState<PackStringKind | "">("");
   const [keyword, setKeyword] = useState("");
@@ -128,6 +122,13 @@ export function StringsBrowserPanel({
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const shownError = errorMessage ?? localError;
+  const kindOptions: { value: PackStringKind | ""; label: string }[] = [
+    { value: "", label: td("strings.kind.all", "All Kinds") },
+    { value: "system", label: td("common.stringKind.system", "System") },
+    { value: "counter", label: td("common.stringKind.counter", "Counter") },
+    { value: "victory", label: td("common.stringKind.victory", "Victory") },
+    { value: "setname", label: td("common.stringKind.setname", "Setname") },
+  ];
 
   function entryKey(entry: Pick<PackStringEntry, "kind" | "key">): string {
     return `${entry.kind}:${entry.key}`;
@@ -177,11 +178,11 @@ export function StringsBrowserPanel({
     if (!editable || !newRow || saving || !onCreate) return;
     const parsedKey = parseHexInput(newRow.key);
     if (isNaN(parsedKey) || parsedKey < 0) {
-      setLocalError("Key must be a non-negative hexadecimal value.");
+      setLocalError(td("strings.error.invalidKey", "Key must be a non-negative hexadecimal value."));
       return;
     }
     if (!newRow.value.trim()) {
-      setLocalError("Value cannot be empty.");
+      setLocalError(td("strings.error.emptyValue", "Value cannot be empty."));
       return;
     }
     await onCreate({ kind: newRow.kind, key: parsedKey, value: newRow.value }, language);
@@ -202,7 +203,7 @@ export function StringsBrowserPanel({
   if (!language && languages.length === 0) {
     return (
       <div className={shared.cardListEmpty}>
-        <p>No languages available.</p>
+        <p>{td("strings.noLanguages", "No languages available.")}</p>
       </div>
     );
   }
@@ -235,7 +236,7 @@ export function StringsBrowserPanel({
             setPage(1);
           }}
         >
-          {KIND_OPTIONS.map((opt) => (
+          {kindOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
@@ -244,7 +245,7 @@ export function StringsBrowserPanel({
         <input
           className={styles.stringsSearchInput}
           type="text"
-          placeholder="Search value..."
+          placeholder={td("strings.searchValue", "Search value...")}
           value={keyword}
           onChange={(e) => {
             setKeyword(e.target.value);
@@ -261,7 +262,7 @@ export function StringsBrowserPanel({
               setLocalError(null);
             }}
           >
-            + New String
+            {td("strings.newString", "+ New String")}
           </button>
         )}
       </div>
@@ -270,11 +271,11 @@ export function StringsBrowserPanel({
 
       {isLoading && items.length === 0 ? (
         <div className={shared.cardListEmpty}>
-          <p>Loading strings...</p>
+          <p>{td("strings.loading", "Loading strings...")}</p>
         </div>
       ) : queryError ? (
         <div className={shared.cardListEmpty}>
-          <p>Failed to load strings.</p>
+          <p>{td("strings.failed", "Failed to load strings.")}</p>
         </div>
       ) : items.length === 0 && !newRow ? (
         <div className={shared.cardListEmpty}>
@@ -284,9 +285,9 @@ export function StringsBrowserPanel({
       ) : (
         <>
           <div className={styles.stringsTableHeader}>
-            <span>Kind</span>
-            <span>Key</span>
-            <span>Value</span>
+            <span>{td("strings.kind", "Kind")}</span>
+            <span>{td("strings.key", "Key")}</span>
+            <span>{td("strings.value", "Value")}</span>
             <span />
           </div>
           <div className={styles.stringsTableBody}>
@@ -299,17 +300,17 @@ export function StringsBrowserPanel({
                     setNewRow({ ...newRow, kind: e.target.value as PackStringKind })
                   }
                 >
-                  <option value="system">System</option>
-                  <option value="counter">Counter</option>
-                  <option value="victory">Victory</option>
-                  <option value="setname">Setname</option>
+                  <option value="system">{td("common.stringKind.system", "System")}</option>
+                  <option value="counter">{td("common.stringKind.counter", "Counter")}</option>
+                  <option value="victory">{td("common.stringKind.victory", "Victory")}</option>
+                  <option value="setname">{td("common.stringKind.setname", "Setname")}</option>
                 </select>
                 <input
                   ref={newKeyRef}
                   className={`${styles.stringsCellInput} ${styles.stringsCellKey}`}
                   type="text"
                   inputMode="text"
-                  placeholder="Hex key"
+                  placeholder={td("strings.hexKey", "Hex key")}
                   value={newRow.key}
                   onChange={(e) =>
                     setNewRow({ ...newRow, key: normalizeHexDraft(e.target.value) })
@@ -319,7 +320,7 @@ export function StringsBrowserPanel({
                 <input
                   className={`${styles.stringsCellInput} ${styles.stringsCellValue}`}
                   type="text"
-                  placeholder="Value"
+                  placeholder={td("strings.value", "Value")}
                   value={newRow.value}
                   onChange={(e) => setNewRow({ ...newRow, value: e.target.value })}
                   onKeyDown={handleNewKeyDown}
@@ -330,7 +331,7 @@ export function StringsBrowserPanel({
                     className={`${styles.stringsActionBtn} ${styles.stringsSaveBtn}`}
                     onClick={() => void handleCommitNew()}
                     disabled={saving}
-                    title="Save"
+                    title={t("action.save")}
                   >
                     OK
                   </button>
@@ -338,7 +339,7 @@ export function StringsBrowserPanel({
                     type="button"
                     className={styles.stringsActionBtn}
                     onClick={() => setNewRow(null)}
-                    title="Cancel"
+                    title={t("action.cancel")}
                   >
                     X
                   </button>
@@ -389,7 +390,7 @@ export function StringsBrowserPanel({
                         className={`${styles.stringsActionBtn} ${styles.stringsDeleteBtn}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onDelete(entry)}
-                        title="Delete string"
+                        title={td("strings.deleteString", "Delete string")}
                       >
                         Del
                       </button>
@@ -407,7 +408,7 @@ export function StringsBrowserPanel({
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Prev
+                {t("card.list.prev")}
               </button>
               <span>
                 {page} / {totalPages}
@@ -417,7 +418,7 @@ export function StringsBrowserPanel({
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                Next
+                {t("card.list.next")}
               </button>
             </div>
           )}

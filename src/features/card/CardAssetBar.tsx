@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { resourceApi } from "../../shared/api/resourceApi";
 import { formatError } from "../../shared/utils/format";
 import type { CardAssetState, PrimaryType, SpellSubtype } from "../../shared/contracts/card";
+import { useAppI18n } from "../../shared/i18n";
 import styles from "./CardAssetBar.module.css";
 
 interface CardAssetBarProps {
@@ -42,6 +43,7 @@ export function CardAssetBar({
   onAssetChanged,
   onError,
 }: CardAssetBarProps) {
+  const { t, td } = useAppI18n();
   const isFieldSpell = primaryType === "spell" && spellSubtype === "field";
   const isCreate = cardId === null;
   const [busy, setBusy] = useState(false);
@@ -189,21 +191,21 @@ export function CardAssetBar({
     <div className={styles.cardAssetBar}>
       <div className={styles.cardPicPreview}>
         {imageSrc ? (
-          <img key={imgKey} src={imageSrc} alt="Card" />
+          <img key={imgKey} src={imageSrc} alt={td("card.asset.cardImageAlt", "Card")} />
         ) : (
-          "No Image"
+          td("card.asset.noImage", "No Image")
         )}
       </div>
 
       <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>Image</span>
+        <span className={styles.assetBtnGroupLabel}>{td("card.asset.image", "Image")}</span>
         <button
           type="button"
           className={styles.assetSegBtn}
           disabled={isCreate || busy}
           onClick={() => void handleImportMainImage()}
         >
-          Import
+          {t("action.import")}
         </button>
         {assetState.has_image && (
           <button
@@ -212,13 +214,13 @@ export function CardAssetBar({
             disabled={isCreate || busy}
             onClick={() => void handleDeleteMainImage()}
           >
-            Delete
+            {t("action.delete")}
           </button>
         )}
       </div>
 
       <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>Script</span>
+        <span className={styles.assetBtnGroupLabel}>{td("card.asset.script", "Script")}</span>
         {assetState.has_script ? (
           <>
             <button
@@ -227,7 +229,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleImportScript()}
             >
-              Import
+              {t("action.import")}
             </button>
             <button
               type="button"
@@ -235,7 +237,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleEditScript()}
             >
-              Edit
+              {td("action.edit", "Edit")}
             </button>
             <button
               type="button"
@@ -243,7 +245,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleDeleteScript()}
             >
-              Delete
+              {t("action.delete")}
             </button>
           </>
         ) : (
@@ -254,7 +256,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleCreateScript()}
             >
-              Create
+              {t("action.create")}
             </button>
             <button
               type="button"
@@ -262,7 +264,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleImportScript()}
             >
-              Import
+              {t("action.import")}
             </button>
           </>
         )}
@@ -270,14 +272,14 @@ export function CardAssetBar({
 
       {isFieldSpell && (
         <div className={styles.assetBtnGroup}>
-          <span className={styles.assetBtnGroupLabel}>Field</span>
+          <span className={styles.assetBtnGroupLabel}>{td("card.asset.field", "Field")}</span>
           <button
             type="button"
             className={styles.assetSegBtn}
             disabled={isCreate || busy}
             onClick={() => void handleImportFieldImage()}
           >
-            Import
+            {t("action.import")}
           </button>
           {assetState.has_field_image && (
             <button
@@ -286,7 +288,7 @@ export function CardAssetBar({
               disabled={isCreate || busy}
               onClick={() => void handleDeleteFieldImage()}
             >
-              Delete
+              {t("action.delete")}
             </button>
           )}
         </div>

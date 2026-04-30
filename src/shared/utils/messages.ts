@@ -1,6 +1,7 @@
 import type { AppError } from "../api/invoke";
 import type { ValidationIssue } from "../contracts/common";
 import type { JobSnapshot, JobStatus } from "../contracts/job";
+import { formatAppMessage, formatAppMessageById } from "../i18n";
 
 type MessageValues = Record<string, string | number | null | undefined>;
 
@@ -464,7 +465,13 @@ const JOB_STAGE_MESSAGES: Record<string, MessageDefinition> = {
 };
 
 export function formatUiMessage(descriptor: UiMessageDescriptor): string {
-  return interpolate(descriptor.defaultMessage, descriptor.values ?? {});
+  return formatAppMessage(
+    {
+      id: descriptor.id,
+      defaultMessage: descriptor.defaultMessage,
+    },
+    sanitizeValues(descriptor.values ?? {}),
+  );
 }
 
 export function formatUserError(error: unknown): string {
@@ -489,7 +496,7 @@ export function formatIssueDetail(issue: ValidationIssue): string | null {
 }
 
 export function formatIssueLevel(level: ValidationIssue["level"]): string {
-  return level === "error" ? "Error" : "Warning";
+  return level === "error" ? formatAppMessageById("common.error") : formatAppMessageById("common.warning");
 }
 
 export function formatJobStatus(status: JobStatus): string {
@@ -620,13 +627,6 @@ function messageToDescriptor(
   };
 }
 
-function interpolate(template: string, values: MessageValues): string {
-  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key: string) => {
-    const value = values[key];
-    return value === null || value === undefined ? "" : String(value);
-  });
-}
-
 function isAppError(value: unknown): value is AppError {
   return typeof value === "object" && value !== null && "code" in value && "message" in value;
 }
@@ -641,7 +641,7 @@ function valuesFromDetails(details: AppError["details"]): MessageValues {
 function formatCardCodeDetail(issue: ValidationIssue): string | null {
   const value = issue.params.code;
   if (value === undefined) return null;
-  return `Card code ${formatGeneralValue(value)}`;
+  return formatAppMessageById("common.cardCode", { code: formatGeneralValue(value) });
 }
 
 function formatStringKeyDetail(issue: ValidationIssue): string | null {
@@ -652,40 +652,42 @@ function formatStringKeyDetail(issue: ValidationIssue): string | null {
   if (kind !== undefined && key !== undefined) {
     return `${formatStringKind(kind)} ${formatHexValue(key)}`;
   }
-  if (key !== undefined) return `Key ${formatHexValue(key)}`;
-  if (base !== undefined) return `Base ${formatHexValue(base)}`;
+  if (key !== undefined) return formatAppMessageById("common.key", { key: formatHexValue(key) });
+  if (base !== undefined) return formatAppMessageById("common.base", { base: formatHexValue(base) });
   return null;
 }
 
 function formatLanguageDetail(issue: ValidationIssue): string | null {
   const language = issue.params.language ?? issue.params.source_language;
   if (language === undefined) return null;
-  return `Language ${formatGeneralValue(language)}`;
+  return formatAppMessageById("common.language", { language: formatGeneralValue(language) });
 }
 
 function formatCountDetail(issue: ValidationIssue): string | null {
   if (issue.params.count === undefined) return null;
-  return `Count ${formatGeneralValue(issue.params.count)}`;
+  return formatAppMessageById("common.count", { count: formatGeneralValue(issue.params.count) });
 }
 
 function formatPathDetail(issue: ValidationIssue): string | null {
   if (issue.params.path === undefined) return null;
-  return `Path ${formatGeneralValue(issue.params.path)}`;
+  return formatAppMessageById("common.path", { path: formatGeneralValue(issue.params.path) });
 }
 
 function formatPackListDetail(issue: ValidationIssue): string | null {
   const packIds = issue.params.pack_ids;
   if (!Array.isArray(packIds) || packIds.length === 0) return null;
-  return `Packs ${packIds.map((value) => formatGeneralValue(value)).join(", ")}`;
+  return formatAppMessageById("common.packs", {
+    packs: packIds.map((value) => formatGeneralValue(value)).join(", "),
+  });
 }
 
 function formatStringKind(value: unknown): string {
   const normalized = String(value).toLowerCase();
-  if (normalized.includes("setname")) return "Setname";
-  if (normalized.includes("counter")) return "Counter";
-  if (normalized.includes("victory")) return "Victory";
-  if (normalized.includes("system")) return "System";
-  return "String";
+  if (normalized.includes("setname")) return formatAppMessageById("common.stringKind.setname");
+  if (normalized.includes("counter")) return formatAppMessageById("common.stringKind.counter");
+  if (normalized.includes("victory")) return formatAppMessageById("common.stringKind.victory");
+  if (normalized.includes("system")) return formatAppMessageById("common.stringKind.system");
+  return formatAppMessageById("common.stringKind.string");
 }
 
 function formatGeneralValue(value: unknown): string {
@@ -705,4 +707,13 @@ function formatHexValue(value: unknown): string {
     return `0x${Number.parseInt(value, 10).toString(16).toUpperCase()}`;
   }
   return formatGeneralValue(value);
+}
+
+function sanitizeValues(values: MessageValues): Record<string, string | number> {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      value === null || value === undefined ? "" : value,
+    ]),
+  );
 }

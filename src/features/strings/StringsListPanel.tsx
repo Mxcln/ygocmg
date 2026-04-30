@@ -6,11 +6,13 @@ import { formatError, formatStringKeyHex } from "../../shared/utils/format";
 import type { TextLanguageProfile } from "../../shared/contracts/config";
 import type { PackStringEntry, PackStringsPage } from "../../shared/contracts/strings";
 import type { ValidationIssue } from "../../shared/contracts/common";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import { StringsBrowserPanel } from "./StringsBrowserPanel";
 import type { StringsBrowserQuery } from "./StringsBrowserPanel";
 
 export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }) {
+  const { t, td } = useAppI18n();
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeMeta = useShellStore((s) =>
@@ -35,10 +37,10 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
   ) {
     openDialog({
       kind: "warning",
-      title: "Review string warnings",
-      message: "This string change produced warnings. Continue to apply it?",
-      confirmLabel: "Apply",
-      cancelLabel: "Cancel",
+      title: td("strings.warning.title", "Review string warnings"),
+      message: td("strings.warning.message", "This string change produced warnings. Continue to apply it?"),
+      confirmLabel: td("action.apply", "Apply"),
+      cancelLabel: t("action.cancel"),
       warnings,
       onConfirm,
     });
@@ -115,10 +117,13 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
     if (!workspaceId || !activePackId) return;
     openDialog({
       kind: "confirm",
-      title: "Delete string entry",
-      message: `Delete ${entry.kind}[${formatStringKeyHex(entry.key)}]? This cannot be undone.`,
-      confirmLabel: "Delete",
-      cancelLabel: "Cancel",
+      title: td("strings.delete.title", "Delete string entry"),
+      message: td("strings.delete.message", "Delete {kind}[{key}]? This cannot be undone.", {
+        kind: entry.kind,
+        key: formatStringKeyHex(entry.key),
+      }),
+      confirmLabel: t("action.delete"),
+      cancelLabel: t("action.cancel"),
       danger: true,
       onConfirm: async () => {
         try {
@@ -139,8 +144,8 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
   if (languages.length === 0) {
     return (
       <div className={shared.cardListEmpty}>
-        <p>No languages configured for this pack.</p>
-        <p>Edit pack metadata to add display languages.</p>
+        <p>{td("strings.noConfiguredLanguages", "No languages configured for this pack.")}</p>
+        <p>{td("strings.addDisplayLanguagesHint", "Edit pack metadata to add display languages.")}</p>
       </div>
     );
   }
@@ -159,8 +164,8 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
       onUpdate={commitEntry}
       onClearTranslation={clearTranslation}
       onDelete={handleDeleteEntry}
-      emptyTitle="No string entries yet."
-      emptyHint={'Click "+ New String" to create one.'}
+      emptyTitle={td("strings.emptyTitle", "No string entries yet.")}
+      emptyHint={td("strings.emptyHint", "Click \"+ New String\" to create one.")}
     />
   );
 }

@@ -8,6 +8,7 @@ import {
   uniqueLanguageOrder,
   visibleTextLanguages,
 } from "../../shared/utils/language";
+import { useAppI18n } from "../../shared/i18n";
 
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardTextForm.module.css";
@@ -46,6 +47,7 @@ export function CardTextForm({
   onConfirmDeleteLanguage,
   readonly = false,
 }: CardTextFormProps) {
+  const { td, t } = useAppI18n();
   const expectedLanguages = useMemo(
     () => uniqueLanguageOrder(displayLanguageOrder),
     [displayLanguageOrder],
@@ -118,7 +120,7 @@ export function CardTextForm({
   if (allLangs.length === 0 && readonly) {
     return (
       <div className={shared.cardListEmpty}>
-        <p>No languages available.</p>
+        <p>{td("card.text.noLanguages", "No languages available.")}</p>
       </div>
     );
   }
@@ -127,7 +129,7 @@ export function CardTextForm({
     <div>
       {!activeLang ? (
         <div className={shared.cardListEmpty}>
-          <p>No language selected.</p>
+          <p>{td("card.text.noLanguageSelected", "No language selected.")}</p>
         </div>
       ) : (
         <>
@@ -147,7 +149,7 @@ export function CardTextForm({
                         setCurrentLang(lang);
                       }
                     }}
-                    title={missing ? "Create empty text for this language" : languageLabel(catalog, lang)}
+                    title={missing ? td("card.text.createEmptyLanguage", "Create empty text for this language") : languageLabel(catalog, lang)}
                   >
                     {compactLanguageLabel(catalog, lang)}
                   </button>
@@ -163,7 +165,7 @@ export function CardTextForm({
                       onBlur={() => setAddingLanguage(false)}
                       onChange={(event) => addLanguage(event.target.value)}
                     >
-                      <option value="">{addableLanguages.length === 0 ? "No languages" : "Add language"}</option>
+                      <option value="">{addableLanguages.length === 0 ? td("language.noMoreLanguages", "No more languages") : t("language.addLanguage")}</option>
                       {addableLanguages.map((language) => (
                         <option key={language.id} value={language.id}>
                           {languageLabel(catalog, language.id)}
@@ -176,7 +178,7 @@ export function CardTextForm({
                       className={styles.cardTextLangAdd}
                       disabled={addableLanguages.length === 0}
                       onClick={() => setAddingLanguage(true)}
-                      title="Add language"
+                      title={t("language.addLanguage")}
                     >
                       +
                     </button>
@@ -186,13 +188,13 @@ export function CardTextForm({
             </div>
             {!readonly && draft.texts[activeLang] && (
               <button type="button" className={styles.cardTextLangDelete} onClick={() => deleteLanguage(activeLang)}>
-                Delete
+                {t("action.delete")}
               </button>
             )}
           </div>
 
           <div className={styles.cardTextField}>
-            <label className={styles.cardTextLabel}>Name</label>
+            <label className={styles.cardTextLabel}>{td("card.text.name", "Name")}</label>
             <input
               className={styles.cardTextInput}
               type="text"
@@ -203,7 +205,7 @@ export function CardTextForm({
           </div>
 
           <div className={styles.cardTextField}>
-            <label className={styles.cardTextLabel}>Effect</label>
+            <label className={styles.cardTextLabel}>{td("card.text.effect", "Effect")}</label>
             <textarea
               className={styles.cardTextInput}
               rows={6}
@@ -231,7 +233,7 @@ export function CardTextForm({
             >
               <path d="M3 1l4 4-4 4" />
             </svg>
-            Strings (16)
+            {td("card.text.stringsCount", "Strings (16)")}
           </button>
 
           {stringsExpanded && (

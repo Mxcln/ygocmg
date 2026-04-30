@@ -12,6 +12,18 @@ import type {
   LinkMarker,
 } from "../../shared/contracts/card";
 import {
+  formatCardCategory,
+  formatAttribute,
+  formatLinkMarker,
+  formatMonsterFlag,
+  formatOt,
+  formatPrimaryType,
+  formatRace,
+  formatSpellSubtype,
+  formatTrapSubtype,
+} from "../../shared/utils/cardLabels";
+import { useAppI18n } from "../../shared/i18n";
+import {
   CARD_CATEGORY_MAX_MASK,
   CARD_CATEGORY_OPTIONS,
   formatCardCategoryMask,
@@ -74,10 +86,6 @@ const LINK_MARKER_ARROWS: Record<LinkMarker, string> = {
   bottom_left: "\u2199", bottom: "\u2193", bottom_right: "\u2198",
 };
 
-function displayLabel(value: string): string {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 function formatSetcodeHex(value: number): string {
   return `0x${value.toString(16).toUpperCase()}`;
 }
@@ -92,6 +100,7 @@ function formatSetcodePackedHex(slots: number[]): string {
 }
 
 export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries = [] }: CardInfoFormProps) {
+  const { td } = useAppI18n();
   const [categoryRawInput, setCategoryRawInput] = useState("");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [setcodePickerOpen, setSetcodePickerOpen] = useState(false);
@@ -230,10 +239,10 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
   return (
     <div className={styles.cardInfoGrid}>
-      {/* Code / Alias / OT — compact triple row */}
+      {/* Code / Alias / OT - compact triple row */}
       <div className={styles.tripleRow}>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>Code</label>
+          <label className={styles.cardInfoLabel}>{td("card.info.code", "Code")}</label>
           <input
             className={styles.cardInfoInput}
             type="text"
@@ -244,7 +253,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           />
         </div>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>Alias</label>
+          <label className={styles.cardInfoLabel}>{td("card.info.alias", "Alias")}</label>
           <input
             className={styles.cardInfoInput}
             type="text"
@@ -255,7 +264,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
           />
         </div>
         <div className={styles.cardInfoField}>
-          <label className={styles.cardInfoLabel}>OT</label>
+          <label className={styles.cardInfoLabel}>{td("card.info.ot", "OT")}</label>
           <select
             className={styles.cardInfoSelect}
             value={draft.ot}
@@ -263,26 +272,26 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             disabled={readonly}
           >
             {ALL_OT.map((o) => (
-              <option key={o} value={o}>{displayLabel(o)}</option>
+              <option key={o} value={o}>{formatOt(o)}</option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Setcodes + Categories — same row */}
+      {/* Setcodes + Categories - same row */}
       <div className={styles.setcodeCategoryRow}>
         <div className={styles.cardInfoField}>
           <div className={styles.tagFieldHeader}>
-            <label className={styles.cardInfoLabel}>Setcodes</label>
+            <label className={styles.cardInfoLabel}>{td("card.info.setcodes", "Setcodes")}</label>
             {draft.setcodes.length > 0 && (
               <span className={styles.tagFieldRaw}>
-                Raw: {formatSetcodePackedHex(draft.setcodes)}
+                {td("card.info.rawValue", "Raw: {value}", { value: formatSetcodePackedHex(draft.setcodes) })}
               </span>
             )}
           </div>
           <div className={styles.setcodeTags}>
             {draft.setcodes.length === 0 ? (
-              <span className={styles.setcodeEmptyTag}>No archetypes</span>
+              <span className={styles.setcodeEmptyTag}>{td("card.info.noArchetypes", "No archetypes")}</span>
             ) : (
               draft.setcodes.map((code) => {
                 const entry = setnameMap.get(code);
@@ -299,7 +308,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                       emitChange({ setcodes: draft.setcodes.filter((c) => c !== code) });
                     }}
                     disabled={readonly}
-                    title={`Remove ${tooltip}`}
+                    title={td("card.info.removeTag", "Remove {target}", { target: tooltip })}
                   >
                     {label} &times;
                   </button>
@@ -325,14 +334,14 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
         <div className={styles.cardInfoField}>
           <div className={styles.tagFieldHeader}>
-            <label className={styles.cardInfoLabel}>Effect Categories</label>
+            <label className={styles.cardInfoLabel}>{td("card.info.effectCategories", "Effect Categories")}</label>
             {normalizedCategory > 0 && (
-              <span className={styles.tagFieldRaw}>Raw: {categoryRawDisplay}</span>
+              <span className={styles.tagFieldRaw}>{td("card.info.rawValue", "Raw: {value}", { value: categoryRawDisplay })}</span>
             )}
           </div>
           <div className={styles.categoryTags}>
             {selectedCategoryOptions.length === 0 ? (
-              <span className={styles.categoryEmptyTag}>No categories</span>
+              <span className={styles.categoryEmptyTag}>{td("card.info.noCategories", "No categories")}</span>
             ) : (
               selectedCategoryOptions.map((option) => (
                 <button
@@ -341,9 +350,9 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                   className={styles.categoryTag}
                   onClick={() => toggleCategoryMask(option.mask)}
                   disabled={readonly}
-                  title={`Remove ${option.label}`}
+                  title={td("card.info.removeTag", "Remove {target}", { target: formatCardCategory(option) })}
                 >
-                  {option.label}
+                  {formatCardCategory(option)}
                 </button>
               ))
             )}
@@ -391,13 +400,13 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                       onChange={() => toggleCategoryMask(option.mask)}
                       disabled={readonly}
                     />
-                    <span>{option.label}</span>
+                    <span>{formatCardCategory(option)}</span>
                   </label>
                 );
               })}
             </div>
             <details className={styles.categoryAdvanced}>
-              <summary>Advanced raw mask</summary>
+              <summary>{td("card.info.advancedRawMask", "Advanced raw mask")}</summary>
               <input
                 className={styles.cardInfoInput}
                 type="text"
@@ -411,7 +420,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
         )}
       </div>
       <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>Primary Type</label>
+        <label className={styles.cardInfoLabel}>{td("card.info.primaryType", "Primary Type")}</label>
         <div className={styles.cardTypeRadioGroup}>
           {(["monster", "spell", "trap"] as PrimaryType[]).map((pt) => (
             <button
@@ -421,7 +430,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               onClick={() => handlePrimaryTypeChange(pt)}
               disabled={readonly}
             >
-              {displayLabel(pt)}
+              {formatPrimaryType(pt)}
             </button>
           ))}
         </div>
@@ -430,10 +439,10 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       {/* Monster-specific fields */}
       {isMonster && (
         <div className={styles.cardInfoSection}>
-          <h4 className={styles.cardInfoSectionTitle}>Monster</h4>
+          <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("monster")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-              <label className={styles.cardInfoLabel}>Monster Flags</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.monsterFlags", "Monster Flags")}</label>
               <div className={styles.monsterFlagsGroup}>
                 {ALL_MONSTER_FLAGS.map((flag) => (
                   <button
@@ -443,14 +452,14 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                     onClick={() => toggleMonsterFlag(flag)}
                     disabled={readonly}
                   >
-                    {displayLabel(flag)}
+                    {formatMonsterFlag(flag)}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>Attribute</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.attribute", "Attribute")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.attribute ?? ""}
@@ -461,12 +470,12 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               >
                 <option value="">—</option>
                 {ALL_ATTRIBUTES.map((a) => (
-                  <option key={a} value={a}>{displayLabel(a)}</option>
+                  <option key={a} value={a}>{formatAttribute(a)}</option>
                 ))}
               </select>
             </div>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>Race</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.race", "Race")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.race ?? ""}
@@ -477,31 +486,31 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               >
                 <option value="">—</option>
                 {ALL_RACES.map((r) => (
-                  <option key={r} value={r}>{displayLabel(r)}</option>
+                  <option key={r} value={r}>{formatRace(r)}</option>
                 ))}
               </select>
             </div>
 
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>ATK</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.atk", "ATK")}</label>
               <input
                 className={styles.cardInfoInput}
                 type="text"
                 value={formatStatValue(draft.atk)}
                 onChange={(e) => handleNumberInput("atk", e.target.value)}
-                placeholder="e.g. 2500 or ?"
+                placeholder={td("card.info.atkPlaceholder", "e.g. 2500 or ?")}
                 readOnly={readonly}
               />
             </div>
             {!isLink && (
               <div className={styles.cardInfoField}>
-                <label className={styles.cardInfoLabel}>DEF</label>
+                <label className={styles.cardInfoLabel}>{td("card.info.def", "DEF")}</label>
                 <input
                   className={styles.cardInfoInput}
                   type="text"
                   value={formatStatValue(draft.def)}
                   onChange={(e) => handleNumberInput("def", e.target.value)}
-                  placeholder="e.g. 2000 or ?"
+                  placeholder={td("card.info.defPlaceholder", "e.g. 2000 or ?")}
                   readOnly={readonly}
                 />
               </div>
@@ -509,7 +518,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             {!isLink && (
               <div className={styles.cardInfoField}>
                 <label className={styles.cardInfoLabel}>
-                  {flags.includes("xyz") ? "Rank" : "Level"}
+                  {flags.includes("xyz") ? td("card.info.rank", "Rank") : td("card.info.level", "Level")}
                 </label>
                 <input
                   className={styles.cardInfoInput}
@@ -525,7 +534,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
             {isPendulum && (
               <>
                 <div className={styles.cardInfoField}>
-                  <label className={styles.cardInfoLabel}>Left Scale</label>
+                  <label className={styles.cardInfoLabel}>{td("card.info.leftScale", "Left Scale")}</label>
                   <input
                     className={styles.cardInfoInput}
                     type="text"
@@ -544,7 +553,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                   />
                 </div>
                 <div className={styles.cardInfoField}>
-                  <label className={styles.cardInfoLabel}>Right Scale</label>
+                  <label className={styles.cardInfoLabel}>{td("card.info.rightScale", "Right Scale")}</label>
                   <input
                     className={styles.cardInfoInput}
                     type="text"
@@ -567,7 +576,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
 
             {isLink && (
               <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
-                <label className={styles.cardInfoLabel}>Link Markers</label>
+                <label className={styles.cardInfoLabel}>{td("card.info.linkMarkers", "Link Markers")}</label>
                 <div className={styles.linkMarkerGrid}>
                   {LINK_MARKER_POSITIONS.flat().map((marker, i) => {
                     if (marker === null) {
@@ -580,7 +589,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
                         type="button"
                         className={`${styles.linkMarkerCell} ${selected ? "selected" : ""}`}
                         onClick={() => toggleLinkMarker(marker)}
-                        title={displayLabel(marker)}
+                        title={formatLinkMarker(marker)}
                         disabled={readonly}
                       >
                         {LINK_MARKER_ARROWS[marker]}
@@ -597,10 +606,10 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       {/* Spell-specific fields */}
       {isSpell && (
         <div className={styles.cardInfoSection}>
-          <h4 className={styles.cardInfoSectionTitle}>Spell</h4>
+          <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("spell")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>Spell Subtype</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.spellSubtype", "Spell Subtype")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.spell_subtype ?? ""}
@@ -611,7 +620,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               >
                 <option value="">—</option>
                 {ALL_SPELL_SUBTYPES.map((s) => (
-                  <option key={s} value={s}>{displayLabel(s)}</option>
+                  <option key={s} value={s}>{formatSpellSubtype(s)}</option>
                 ))}
               </select>
             </div>
@@ -622,10 +631,10 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       {/* Trap-specific fields */}
       {isTrap && (
         <div className={styles.cardInfoSection}>
-          <h4 className={styles.cardInfoSectionTitle}>Trap</h4>
+          <h4 className={styles.cardInfoSectionTitle}>{formatPrimaryType("trap")}</h4>
           <div className={styles.cardInfoGrid}>
             <div className={styles.cardInfoField}>
-              <label className={styles.cardInfoLabel}>Trap Subtype</label>
+              <label className={styles.cardInfoLabel}>{td("card.info.trapSubtype", "Trap Subtype")}</label>
               <select
                 className={styles.cardInfoSelect}
                 value={draft.trap_subtype ?? ""}
@@ -636,7 +645,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
               >
                 <option value="">—</option>
                 {ALL_TRAP_SUBTYPES.map((t) => (
-                  <option key={t} value={t}>{displayLabel(t)}</option>
+                  <option key={t} value={t}>{formatTrapSubtype(t)}</option>
                 ))}
               </select>
             </div>
@@ -662,6 +671,7 @@ function SetcodePicker({
   onSelect: (code: number) => void;
   readonly: boolean;
 }) {
+  const { td } = useAppI18n();
   const query = search.trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -697,7 +707,7 @@ function SetcodePicker({
         type="text"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search by name or hex..."
+        placeholder={td("card.info.searchSetcode", "Search by name or hex...")}
         autoFocus
         readOnly={readonly}
       />
@@ -712,7 +722,7 @@ function SetcodePicker({
             onClick={() => onSelect(parsedCustomHex)}
           >
             <span className={styles.setcodePickerName}>
-              Add custom {formatSetcodeHex(parsedCustomHex)}
+              {td("card.info.addCustomSetcode", "Add custom {code}", { code: formatSetcodeHex(parsedCustomHex) })}
             </span>
           </button>
         )}
@@ -739,10 +749,9 @@ function SetcodePicker({
           );
         })}
         {sorted.length === 0 && parsedCustomHex === null && (
-          <div className={styles.setcodePickerEmpty}>No matches</div>
+          <div className={styles.setcodePickerEmpty}>{td("card.info.noMatches", "No matches")}</div>
         )}
       </div>
     </div>
   );
 }
-

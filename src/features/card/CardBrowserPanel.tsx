@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CardListRow, SortDirection } from "../../shared/contracts/card";
+import { useAppI18n } from "../../shared/i18n";
+import { formatPrimaryType, formatSubtypeDisplayPart } from "../../shared/utils/cardLabels";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardBrowserPanel.module.css";
 
@@ -45,13 +47,6 @@ interface CardBrowserPanelProps {
   loadingText?: string;
   errorText?: string;
 }
-
-const DEFAULT_SORT_OPTIONS: CardBrowserSortOption[] = [
-  { field: "code", direction: "asc", label: "Code Asc" },
-  { field: "code", direction: "desc", label: "Code Desc" },
-  { field: "name", direction: "asc", label: "Name A-Z" },
-  { field: "name", direction: "desc", label: "Name Z-A" },
-];
 
 function formatStat(val: number | null): string {
   if (val === null) return "";
@@ -106,13 +101,14 @@ export function CardBrowserPanel({
   loadPage,
   onOpenCard,
   onNewCard,
-  newCardLabel = "+ New Card",
-  sortOptions = DEFAULT_SORT_OPTIONS,
+  newCardLabel,
+  sortOptions,
   emptyTitle,
   emptyHint,
-  loadingText = "Loading cards...",
-  errorText = "Failed to load cards.",
+  loadingText,
+  errorText,
 }: CardBrowserPanelProps) {
+  const { t, td } = useAppI18n();
   const [keyword, setKeyword] = useState("");
   const [sortBy, setSortBy] = useState<BrowserSortField>("code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -137,6 +133,13 @@ export function CardBrowserPanel({
   const imageBasePath = data?.image_base_path ?? null;
   const revision = data?.revision ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const displaySortOptions: CardBrowserSortOption[] =
+    sortOptions ?? [
+      { field: "code", direction: "asc", label: t("card.sort.codeAsc") },
+      { field: "code", direction: "desc", label: t("card.sort.codeDesc") },
+      { field: "name", direction: "asc", label: t("card.sort.nameAsc") },
+      { field: "name", direction: "desc", label: t("card.sort.nameDesc") },
+    ];
 
   function handleSearchChange(value: string) {
     setKeyword(value);
@@ -156,7 +159,7 @@ export function CardBrowserPanel({
         <input
           className={styles.cardSearchInput}
           type="text"
-          placeholder="Search cards..."
+          placeholder={t("card.list.search")}
           value={keyword}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
@@ -165,7 +168,7 @@ export function CardBrowserPanel({
           value={sortValue(sortBy, sortDirection)}
           onChange={(e) => handleSortChange(e.target.value)}
         >
-          {sortOptions.map((option) => (
+          {displaySortOptions.map((option) => (
             <option
               key={sortValue(option.field, option.direction)}
               value={sortValue(option.field, option.direction)}
@@ -176,18 +179,18 @@ export function CardBrowserPanel({
         </select>
         {onNewCard && (
           <button type="button" className={shared.primaryButton} onClick={onNewCard}>
-            {newCardLabel}
+            {newCardLabel ?? t("card.list.newCard")}
           </button>
         )}
       </div>
 
       {isLoading && items.length === 0 ? (
         <div className={shared.cardListEmpty}>
-          <p>{loadingText}</p>
+          <p>{loadingText ?? t("card.list.loading")}</p>
         </div>
       ) : error ? (
         <div className={shared.cardListEmpty}>
-          <p>{errorText}</p>
+          <p>{errorText ?? t("card.list.failed")}</p>
         </div>
       ) : items.length === 0 ? (
         <div className={shared.cardListEmpty}>
@@ -198,13 +201,13 @@ export function CardBrowserPanel({
         <>
           <div className={styles.cardListHeader}>
             <span />
-            <span>Code</span>
-            <span>Name</span>
-            <span>Type</span>
-            <span>Subtype</span>
-            <span>ATK</span>
-            <span>DEF</span>
-            <span>Lv</span>
+            <span>{t("card.list.code")}</span>
+            <span>{t("card.list.name")}</span>
+            <span>{t("card.list.type")}</span>
+            <span>{t("card.list.subtype")}</span>
+            <span>{td("card.list.atk", "ATK")}</span>
+            <span>{td("card.list.def", "DEF")}</span>
+            <span>{td("card.list.levelShort", "Lv")}</span>
             <span />
           </div>
           <div className={styles.cardListBody}>
@@ -231,10 +234,10 @@ export function CardBrowserPanel({
                 </div>
                 <span className={styles.cardListCode}>{card.code}</span>
                 <span className={styles.cardListName} title={card.name}>
-                  {card.name || "(no name)"}
+                  {card.name || t("card.noName")}
                 </span>
                 <span className={styles.cardTypeBadge} data-type={card.primary_type}>
-                  {card.primary_type}
+                  {formatPrimaryType(card.primary_type)}
                 </span>
                 <span className={styles.cardListSubtype}>
                   {card.subtype_display.split(" / ").map((tag) => (
@@ -243,7 +246,7 @@ export function CardBrowserPanel({
                       className={styles.subtypeTag}
                       data-flag={subtypeTagDataFlag(tag, card.primary_type)}
                     >
-                      {tag}
+                      {formatSubtypeDisplayPart(tag)}
                     </span>
                   ))}
                 </span>
@@ -272,7 +275,7 @@ export function CardBrowserPanel({
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Prev
+                {t("card.list.prev")}
               </button>
               {buildPageNumbers(page, totalPages).map((item, idx) =>
                 item === "..." ? (
@@ -293,7 +296,7 @@ export function CardBrowserPanel({
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                Next
+                {t("card.list.next")}
               </button>
             </div>
           )}

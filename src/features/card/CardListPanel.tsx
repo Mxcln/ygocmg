@@ -1,6 +1,7 @@
 import { useShellStore } from "../../shared/stores/shellStore";
 import { cardApi } from "../../shared/api/cardApi";
 import type { CardListRow, CardSortField } from "../../shared/contracts/card";
+import { useAppI18n } from "../../shared/i18n";
 import { CardBrowserPanel } from "./CardBrowserPanel";
 import type { BrowserSortField, CardBrowserQuery } from "./CardBrowserPanel";
 
@@ -14,6 +15,7 @@ function toCustomSortField(field: BrowserSortField): CardSortField {
 }
 
 export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
+  const { t } = useAppI18n();
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeMeta = useShellStore((s) =>
@@ -54,8 +56,8 @@ export function CardListPanel({ onEditCard, onNewCard }: CardListPanelProps) {
       loadPage={loadPage}
       onOpenCard={handleRowClick}
       onNewCard={onNewCard}
-      emptyTitle="No cards yet."
-      emptyHint={'Click "+ New Card" to create one.'}
+      emptyTitle={t("card.list.noCards")}
+      emptyHint={t("card.list.createHint")}
     />
   );
 }

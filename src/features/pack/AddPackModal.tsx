@@ -5,6 +5,7 @@ import type { GlobalConfig } from "../../shared/contracts/config";
 import type { PackMetadata, PackOverview } from "../../shared/contracts/pack";
 import { formatTimestamp, formatError } from "../../shared/utils/format";
 import { preferredAuthoringLanguage } from "../../shared/utils/language";
+import { useAppI18n } from "../../shared/i18n";
 import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
 import shared from "../../shared/styles/shared.module.css";
 import addPackStyles from "./AddPackModal.module.css";
@@ -51,6 +52,7 @@ export function AddPackModal({
   onOverviewsRefreshed,
   onNotice,
 }: AddPackModalProps) {
+  const { t, td } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
   const addPackTab = useShellStore((s) => s.modal?.addPackTab ?? "openPack");
   const setAddPackTab = useShellStore((s) => s.setAddPackTab);
@@ -87,10 +89,10 @@ export function AddPackModal({
     try {
       const metadata = await packApi.openPack({ packId });
       onPackOpened(packId, metadata);
-      onNotice("success", "Pack opened", `Pack is now active in the sidebar.`);
+      onNotice("success", td("pack.opened.title", "Pack opened"), td("pack.opened.detail", "Pack is now active in the sidebar."));
       closeModal();
     } catch (err) {
-      onNotice("error", "Failed to open pack", formatError(err));
+      onNotice("error", td("pack.openFailed", "Failed to open pack"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -102,7 +104,7 @@ export function AddPackModal({
     const author = createForm.author.trim();
     const version = createForm.version.trim();
     if (!name || !author || !version) {
-      onNotice("warning", "Missing fields", "Name, author, and version are required.");
+      onNotice("warning", td("pack.missingFields.title", "Missing fields"), td("pack.missingFields.detail", "Name, author, and version are required."));
       return;
     }
 
@@ -124,10 +126,10 @@ export function AddPackModal({
       const openedMeta = await packApi.openPack({ packId: createdMeta.id });
       onPackCreated(createdMeta.id, openedMeta);
       setCreateForm(emptyCreateForm(config));
-      onNotice("success", "Pack created", `${createdMeta.name} has been created.`);
+      onNotice("success", td("pack.created.title", "Pack created"), td("pack.created.detail", "{name} has been created.", { name: createdMeta.name }));
       closeModal();
     } catch (err) {
-      onNotice("error", "Failed to create pack", formatError(err));
+      onNotice("error", td("pack.createFailed", "Failed to create pack"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -136,9 +138,9 @@ export function AddPackModal({
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>Add Pack</h2>
+        <h2>{td("pack.addTitle", "Add Pack")}</h2>
         <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
-          Close
+          {t("action.close")}
         </button>
       </header>
 
@@ -149,28 +151,28 @@ export function AddPackModal({
             className={addPackTab === "openPack" ? "active" : ""}
             onClick={() => setAddPackTab("openPack")}
           >
-            Open Pack
+            {td("pack.tab.open", "Open Pack")}
           </button>
           <button
             type="button"
             className={addPackTab === "createPack" ? "active" : ""}
             onClick={() => setAddPackTab("createPack")}
           >
-            Create Pack
+            {td("pack.tab.create", "Create Pack")}
           </button>
           <button
             type="button"
             className={addPackTab === "importPack" ? "active" : ""}
             onClick={() => setAddPackTab("importPack")}
           >
-            Import Pack
+            {td("pack.tab.import", "Import Pack")}
           </button>
         </aside>
 
         <div className={shared.modalPanel}>
           {!hasWorkspace ? (
             <p className={shared.emptyStateText}>
-              Open a workspace first before managing packs.
+              {td("pack.openWorkspaceFirst", "Open a workspace first before managing packs.")}
             </p>
           ) : addPackTab === "openPack" ? (
             <OpenPackPanel
@@ -178,6 +180,16 @@ export function AddPackModal({
               loading={loadingOverviews}
               busyAction={busyAction}
               onOpen={handleOpenPack}
+              labels={{
+                loading: td("pack.loading", "Loading packs..."),
+                empty: td("pack.openEmpty", "All packs are already open, or no packs exist yet. Create one using the Create Pack tab."),
+                opening: td("pack.opening", "Opening..."),
+                open: t("action.open"),
+                cardLabel: (count: number) => td("pack.cardCount", "{count} card{plural}", {
+                  count,
+                  plural: count !== 1 ? "s" : "",
+                }),
+              }}
             />
           ) : addPackTab === "createPack" ? (
             <CreatePackPanel
@@ -187,6 +199,18 @@ export function AddPackModal({
               onFormChange={setCreateForm}
               onReset={() => setCreateForm(emptyCreateForm(config))}
               onSubmit={handleCreatePack}
+              labels={{
+                packName: td("pack.form.name", "Pack name"),
+                author: td("pack.form.author", "Author"),
+                version: td("pack.form.version", "Version"),
+                description: td("pack.form.description", "Description"),
+                descriptionPlaceholder: td("pack.form.descriptionPlaceholder", "Optional description for the pack."),
+                displayLanguages: td("pack.form.displayLanguages", "Display languages"),
+                defaultExportLanguage: td("pack.form.defaultExportLanguage", "Default export language"),
+                creating: td("pack.creating", "Creating..."),
+                createPack: td("pack.createPack", "Create Pack"),
+                reset: td("workspace.reset", "Reset"),
+              }}
             />
           ) : workspaceId ? (
             <ImportPackPanel
@@ -208,19 +232,27 @@ function OpenPackPanel({
   loading,
   busyAction,
   onOpen,
+  labels,
 }: {
   overviews: PackOverview[];
   loading: boolean;
   busyAction: string | null;
   onOpen: (packId: string) => void;
+  labels: {
+    loading: string;
+    empty: string;
+    opening: string;
+    open: string;
+    cardLabel: (count: number) => string;
+  };
 }) {
   return (
     <section className={shared.workspaceRecentPanel}>
       {loading ? (
-        <p className={shared.emptyStateText}>Loading packs...</p>
+        <p className={shared.emptyStateText}>{labels.loading}</p>
       ) : overviews.length === 0 ? (
         <p className={shared.emptyStateText}>
-          All packs are already open, or no packs exist yet. Create one using the Create Pack tab.
+          {labels.empty}
         </p>
       ) : (
         <ul className={addPackStyles.packList}>
@@ -231,7 +263,7 @@ function OpenPackPanel({
                   <strong>{pack.name}</strong>
                   <p>
                     {pack.author} &middot; v{pack.version} &middot;{" "}
-                    {pack.card_count} card{pack.card_count !== 1 ? "s" : ""}
+                    {labels.cardLabel(pack.card_count)}
                   </p>
                 </div>
                 <div className={shared.listActions}>
@@ -241,7 +273,7 @@ function OpenPackPanel({
                     disabled={busyAction !== null}
                     onClick={() => onOpen(pack.id)}
                   >
-                    {busyAction === `open:${pack.id}` ? "Opening..." : "Open"}
+                    {busyAction === `open:${pack.id}` ? labels.opening : labels.open}
                   </button>
                 </div>
               </div>
@@ -261,6 +293,7 @@ function CreatePackPanel({
   onFormChange,
   onReset,
   onSubmit,
+  labels,
 }: {
   form: CreatePackForm;
   config: GlobalConfig;
@@ -268,6 +301,18 @@ function CreatePackPanel({
   onFormChange: (form: CreatePackForm) => void;
   onReset: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  labels: {
+    packName: string;
+    author: string;
+    version: string;
+    description: string;
+    descriptionPlaceholder: string;
+    displayLanguages: string;
+    defaultExportLanguage: string;
+    creating: string;
+    createPack: string;
+    reset: string;
+  };
 }) {
   const defaultExportValue = form.displayLanguageOrder.includes(form.defaultExportLanguage)
     ? form.defaultExportLanguage
@@ -277,7 +322,7 @@ function CreatePackPanel({
     <section className={shared.workspaceCreatePanel}>
       <form className={shared.formStack} onSubmit={onSubmit}>
         <label className={shared.field}>
-          <span>Pack name</span>
+          <span>{labels.packName}</span>
           <input
             value={form.name}
             onChange={(e) => onFormChange({ ...form, name: e.target.value })}
@@ -287,7 +332,7 @@ function CreatePackPanel({
 
         <div className={shared.packFormRow}>
           <label className={shared.field}>
-            <span>Author</span>
+            <span>{labels.author}</span>
             <input
               value={form.author}
               onChange={(e) => onFormChange({ ...form, author: e.target.value })}
@@ -295,7 +340,7 @@ function CreatePackPanel({
             />
           </label>
           <label className={shared.field}>
-            <span>Version</span>
+            <span>{labels.version}</span>
             <input
               value={form.version}
               onChange={(e) => onFormChange({ ...form, version: e.target.value })}
@@ -305,18 +350,18 @@ function CreatePackPanel({
         </div>
 
         <label className={shared.field}>
-          <span>Description</span>
+          <span>{labels.description}</span>
           <textarea
             rows={2}
             value={form.description}
             onChange={(e) => onFormChange({ ...form, description: e.target.value })}
-            placeholder="Optional description for the pack."
+            placeholder={labels.descriptionPlaceholder}
           />
         </label>
 
         <div className={`${shared.packFormRow} ${shared.packFormRowLanguage}`}>
           <div className={shared.field}>
-            <span>Display languages</span>
+            <span>{labels.displayLanguages}</span>
             <LanguageOrderEditor
               catalog={config.text_language_catalog}
               value={form.displayLanguageOrder}
@@ -329,7 +374,7 @@ function CreatePackPanel({
             />
           </div>
           <label className={shared.field}>
-            <span>Default export language</span>
+            <span>{labels.defaultExportLanguage}</span>
             <TextLanguagePicker
               catalog={config.text_language_catalog}
               value={defaultExportValue}
@@ -347,7 +392,7 @@ function CreatePackPanel({
             type="submit"
             disabled={busyAction !== null}
           >
-            {busyAction === "create" ? "Creating..." : "Create Pack"}
+            {busyAction === "create" ? labels.creating : labels.createPack}
           </button>
           <button
             className={shared.ghostButton}
@@ -355,7 +400,7 @@ function CreatePackPanel({
             disabled={busyAction !== null}
             onClick={onReset}
           >
-            Reset
+            {labels.reset}
           </button>
         </div>
       </form>

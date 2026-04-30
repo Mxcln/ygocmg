@@ -13,6 +13,7 @@ import {
   formatError,
   normalizeOptionalText,
 } from "../../shared/utils/format";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./WorkspaceModal.module.css";
 
@@ -41,6 +42,7 @@ export function WorkspaceModal({
   onRecentRefreshed,
   onNotice,
 }: WorkspaceModalProps) {
+  const { t, td } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
 
   const [view, setView] = useState<WorkspaceView>(currentWorkspace ? "recent" : "create");
@@ -61,7 +63,7 @@ export function WorkspaceModal({
   async function handleOpenWorkspace(path: string) {
     const trimmedPath = path.trim();
     if (!trimmedPath) {
-      onNotice("warning", "Workspace path required", "Enter a workspace path or choose from recent workspaces.");
+      onNotice("warning", td("workspace.notice.pathRequired.title", "Workspace path required"), td("workspace.notice.pathRequired.detail", "Enter a workspace path or choose from recent workspaces."));
       return;
     }
 
@@ -71,9 +73,9 @@ export function WorkspaceModal({
       await refreshRecent();
       onWorkspaceOpened(workspace, trimmedPath);
       closeModal();
-      onNotice("success", "Workspace opened", `Current workspace switched to ${workspace.name}.`);
+      onNotice("success", td("workspace.notice.opened.title", "Workspace opened"), td("workspace.notice.opened.detail", "Current workspace switched to {name}.", { name: workspace.name }));
     } catch (err) {
-      onNotice("error", "Failed to open workspace", formatError(err));
+      onNotice("error", td("workspace.notice.openFailed", "Failed to open workspace"), formatError(err));
     } finally {
       setBusyAction(null);
     }
@@ -89,7 +91,7 @@ export function WorkspaceModal({
       const path = createForm.path.trim();
 
       if (!name || !path) {
-        throw new Error("Workspace name and path are both required.");
+        throw new Error(td("workspace.error.nameAndPathRequired", "Workspace name and path are both required."));
       }
 
       await workspaceApi.createWorkspace({ name, description, path });
@@ -98,9 +100,9 @@ export function WorkspaceModal({
       onWorkspaceOpened(opened, path);
       setCreateForm({ name: "", description: "", path: "" });
       closeModal();
-      onNotice("success", "Workspace created", `${name} is now the current workspace.`);
+      onNotice("success", td("workspace.notice.created.title", "Workspace created"), td("workspace.notice.created.detail", "{name} is now the current workspace.", { name }));
     } catch (err) {
-      onNotice("error", "Failed to create workspace", formatError(err));
+      onNotice("error", td("workspace.notice.createFailed", "Failed to create workspace"), formatError(err));
       setView("create");
     } finally {
       setBusyAction(null);
@@ -110,19 +112,19 @@ export function WorkspaceModal({
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>Workspace</h2>
+        <h2>{td("workspace.title", "Workspace")}</h2>
         <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
-          Close
+          {t("action.close")}
         </button>
       </header>
 
       <div className={`${shared.modalBody} ${shared.workspaceModalBody}`}>
         <aside className={shared.modalTabs}>
           <button type="button" className={view === "recent" ? "active" : ""} onClick={() => setView("recent")}>
-            Open Workspace
+            {td("workspace.tab.open", "Open Workspace")}
           </button>
           <button type="button" className={view === "create" ? "active" : ""} onClick={() => setView("create")}>
-            Create Workspace
+            {td("workspace.tab.create", "Create Workspace")}
           </button>
         </aside>
 
@@ -135,6 +137,16 @@ export function WorkspaceModal({
               busyAction={busyAction}
               onOpenPathChange={setOpenPath}
               onOpen={handleOpenWorkspace}
+              labels={{
+                workspacePath: td("workspace.path", "Workspace path"),
+                browse: t("action.browse"),
+                open: t("action.open"),
+                opening: td("workspace.opening", "Opening..."),
+                noRecent: td("workspace.noRecent", "No recent workspaces have been recorded yet."),
+                unnamed: td("workspace.unnamed", "Unnamed Workspace"),
+                current: td("workspace.current", "CURRENT"),
+                selectDirectory: td("workspace.selectDirectory", "Select Workspace Directory"),
+              }}
             />
           )}
 
@@ -145,6 +157,17 @@ export function WorkspaceModal({
               onFormChange={setCreateForm}
               onReset={() => setCreateForm({ name: "", description: "", path: "" })}
               onSubmit={handleCreateWorkspace}
+              labels={{
+                workspaceName: td("workspace.name", "Workspace name"),
+                description: td("workspace.description", "Description"),
+                workspacePath: td("workspace.path", "Workspace path"),
+                descriptionPlaceholder: td("workspace.descriptionPlaceholder", "Optional notes for what this workspace is for."),
+                browse: t("action.browse"),
+                createAndOpen: td("workspace.createAndOpen", "Create and Open"),
+                creating: td("workspace.creating", "Creating..."),
+                reset: td("workspace.reset", "Reset"),
+                selectDirectory: td("workspace.selectDirectory", "Select Workspace Directory"),
+              }}
             />
           )}
         </div>
@@ -160,6 +183,7 @@ function RecentPanel({
   busyAction,
   onOpenPathChange,
   onOpen,
+  labels,
 }: {
   recentWorkspaces: WorkspaceRegistryEntry[];
   currentWorkspace: { meta: WorkspaceMeta; path: string } | null;
@@ -167,11 +191,21 @@ function RecentPanel({
   busyAction: string | null;
   onOpenPathChange: (value: string) => void;
   onOpen: (path: string) => Promise<void>;
+  labels: {
+    workspacePath: string;
+    browse: string;
+    open: string;
+    opening: string;
+    noRecent: string;
+    unnamed: string;
+    current: string;
+    selectDirectory: string;
+  };
 }) {
   return (
     <section className={shared.workspaceRecentPanel}>
       <div className={shared.field}>
-        <span>Workspace path</span>
+        <span>{labels.workspacePath}</span>
         <div className={shared.filePickerRow}>
           <input
             value={openPath}
@@ -182,11 +216,11 @@ function RecentPanel({
             type="button"
             className={shared.ghostButton}
             onClick={async () => {
-              const selected = await open({ directory: true, title: "Select Workspace Directory" });
+              const selected = await open({ directory: true, title: labels.selectDirectory });
               if (typeof selected === "string") onOpenPathChange(selected);
             }}
           >
-            Browse
+            {labels.browse}
           </button>
           <button
             className={shared.primaryButton}
@@ -194,13 +228,13 @@ function RecentPanel({
             disabled={busyAction !== null || !openPath.trim()}
             onClick={() => void onOpen(openPath)}
           >
-            {busyAction?.startsWith("open:") ? "Opening..." : "Open"}
+            {busyAction?.startsWith("open:") ? labels.opening : labels.open}
           </button>
         </div>
       </div>
 
       {recentWorkspaces.length === 0 ? (
-        <p className={shared.emptyStateText}>No recent workspaces have been recorded yet.</p>
+        <p className={shared.emptyStateText}>{labels.noRecent}</p>
       ) : (
         <ul className={styles.workspaceList}>
           {recentWorkspaces.map((ws) => {
@@ -210,17 +244,17 @@ function RecentPanel({
                 key={ws.workspace_id}
                 className={`${styles.workspaceListItem} ${isCurrent ? "current-workspace" : ""}`}
               >
-                <strong className={styles.wsName}>{ws.name_cache ?? "Unnamed Workspace"}</strong>
+                <strong className={styles.wsName}>{ws.name_cache ?? labels.unnamed}</strong>
                 <code className={styles.wsPath}>{ws.path}</code>
                 <span className={styles.wsTime}>{formatTimestamp(ws.last_opened_at)}</span>
-                {isCurrent && <span className={shared.livePill}>CURRENT</span>}
+                {isCurrent && <span className={shared.livePill}>{labels.current}</span>}
                 <button
                   className={`${shared.ghostButton} ${styles.wsOpenBtn}`}
                   type="button"
                   disabled={busyAction !== null}
                   onClick={() => void onOpen(ws.path)}
                 >
-                  Open
+                  {labels.open}
                 </button>
               </li>
             );
@@ -237,18 +271,30 @@ function CreatePanel({
   onFormChange,
   onReset,
   onSubmit,
+  labels,
 }: {
   createForm: CreateWorkspaceForm;
   busyAction: string | null;
   onFormChange: (updater: (prev: CreateWorkspaceForm) => CreateWorkspaceForm) => void;
   onReset: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  labels: {
+    workspaceName: string;
+    description: string;
+    workspacePath: string;
+    descriptionPlaceholder: string;
+    browse: string;
+    createAndOpen: string;
+    creating: string;
+    reset: string;
+    selectDirectory: string;
+  };
 }) {
   return (
     <section className={shared.workspaceCreatePanel}>
       <form className={shared.formStack} onSubmit={onSubmit}>
         <label className={shared.field}>
-          <span>Workspace name</span>
+          <span>{labels.workspaceName}</span>
           <input
             value={createForm.name}
             onChange={(e) => onFormChange((c) => ({ ...c, name: e.target.value }))}
@@ -257,17 +303,17 @@ function CreatePanel({
         </label>
 
         <label className={shared.field}>
-          <span>Description</span>
+          <span>{labels.description}</span>
           <textarea
             rows={3}
             value={createForm.description}
             onChange={(e) => onFormChange((c) => ({ ...c, description: e.target.value }))}
-            placeholder="Optional notes for what this workspace is for."
+            placeholder={labels.descriptionPlaceholder}
           />
         </label>
 
         <div className={shared.field}>
-          <span>Workspace path</span>
+          <span>{labels.workspacePath}</span>
           <div className={shared.filePickerRow}>
             <input
               value={createForm.path}
@@ -278,21 +324,21 @@ function CreatePanel({
               type="button"
               className={shared.ghostButton}
               onClick={async () => {
-                const selected = await open({ directory: true, title: "Select Workspace Directory" });
+                const selected = await open({ directory: true, title: labels.selectDirectory });
                 if (typeof selected === "string") onFormChange((c) => ({ ...c, path: selected }));
               }}
             >
-              Browse
+              {labels.browse}
             </button>
           </div>
         </div>
 
         <div className={shared.formActions}>
           <button className={shared.primaryButton} type="submit" disabled={busyAction !== null}>
-            {busyAction === "create" ? "Creating..." : "Create and Open"}
+            {busyAction === "create" ? labels.creating : labels.createAndOpen}
           </button>
           <button className={shared.ghostButton} type="button" disabled={busyAction !== null} onClick={onReset}>
-            Reset
+            {labels.reset}
           </button>
         </div>
       </form>

@@ -22,8 +22,7 @@ impl<'a> ConfigService<'a> {
     }
 
     pub fn save(&self, config: &GlobalConfig) -> AppResult<(GlobalConfig, Vec<ValidationIssue>)> {
-        let normalized = normalize_global_config(config);
-        let issues = validate_global_config(&normalized);
+        let issues = validate_global_config(config);
         if issues
             .iter()
             .any(|issue| matches!(issue.level, crate::domain::common::issue::IssueLevel::Error))
@@ -34,6 +33,7 @@ impl<'a> ConfigService<'a> {
             ));
         }
 
+        let normalized = normalize_global_config(config);
         json_store::save_global_config(self.state.app_data_dir(), &normalized)?;
         Ok((normalized, issues))
     }

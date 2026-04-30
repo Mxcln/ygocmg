@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { TextLanguageProfile } from "../../shared/contracts/config";
+import { useAppI18n } from "../../shared/i18n";
 import {
   compactLanguageLabel,
   languageLabel,
@@ -25,6 +26,7 @@ export function LanguageOrderEditor({
   disabled = false,
   existingLanguages = [],
 }: LanguageOrderEditorProps) {
+  const { t } = useAppI18n();
   const languages = useMemo(() => uniqueLanguageOrder(value), [value]);
   const visible = visibleTextLanguages(catalog);
   const [pendingLanguage, setPendingLanguage] = useState("");
@@ -66,7 +68,7 @@ export function LanguageOrderEditor({
               className={styles.languageChipButton}
               disabled={disabled || index === 0}
               onClick={() => move(index, index - 1)}
-              title="Move earlier"
+              title={t("language.moveEarlier")}
             >
               ^
             </button>
@@ -75,7 +77,7 @@ export function LanguageOrderEditor({
               className={styles.languageChipButton}
               disabled={disabled || index === languages.length - 1}
               onClick={() => move(index, index + 1)}
-              title="Move later"
+              title={t("language.moveLater")}
             >
               v
             </button>
@@ -84,13 +86,13 @@ export function LanguageOrderEditor({
               className={styles.languageChipButton}
               disabled={disabled}
               onClick={() => remove(language)}
-              title="Remove"
+              title={t("language.remove")}
             >
               x
             </button>
           </span>
         ))}
-        {languages.length === 0 && <span className={styles.languageOrderEmpty}>No languages selected</span>}
+        {languages.length === 0 && <span className={styles.languageOrderEmpty}>{t("language.noLanguagesSelected")}</span>}
       </div>
       <select
         className={pickerStyles.textLanguagePicker}
@@ -98,7 +100,7 @@ export function LanguageOrderEditor({
         disabled={disabled || addable.length === 0}
         onChange={(event) => add(event.target.value)}
       >
-        <option value="">{addable.length === 0 ? "No more languages" : "Add language"}</option>
+        <option value="">{addable.length === 0 ? t("language.noMoreLanguages") : t("language.addLanguage")}</option>
         {addable.map((language) => (
           <option key={language.id} value={language.id}>
             {languageLabel(catalog, language.id)}

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShellStore } from "../shared/stores/shellStore";
 import type { GlobalConfig } from "../shared/contracts/config";
+import { useAppI18n } from "../shared/i18n";
 import { PackMetadataPanel } from "../features/pack/PackMetadataPanel";
 import { CardListPanel } from "../features/card/CardListPanel";
 import { CardEditDrawer } from "../features/card/CardEditDrawer";
@@ -18,6 +19,7 @@ interface PackWorkAreaProps {
 }
 
 export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaProps) {
+  const { td } = useAppI18n();
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
   const workspaceId = useShellStore((s) => s.workspaceId);
@@ -73,14 +75,14 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
             className={`${shared.tabBtn} ${activeTab === "cards" ? "active" : ""}`}
             onClick={() => setActiveTab("cards")}
           >
-            Cards
+            {td("pack.tabs.cards", "Cards")}
           </button>
           <button
             type="button"
             className={`${shared.tabBtn} ${activeTab === "strings" ? "active" : ""}`}
             onClick={() => setActiveTab("strings")}
           >
-            Strings
+            {td("pack.tabs.strings", "Strings")}
           </button>
         </div>
 

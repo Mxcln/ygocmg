@@ -20,7 +20,7 @@ use ygocmg_core::bootstrap::wiring::build_app_state;
 use ygocmg_core::domain::card::model::{
     Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race, SpellSubtype,
 };
-use ygocmg_core::domain::config::rules::default_global_config;
+use ygocmg_core::domain::config::rules::{default_global_config, normalize_global_config};
 use ygocmg_core::domain::language::model::{TextLanguageKind, TextLanguageProfile};
 use ygocmg_core::domain::resource::path_rules::{card_image_path, field_image_path, script_path};
 use ygocmg_core::domain::strings::model::PackStringKind;
@@ -1485,6 +1485,7 @@ fn config_injects_and_validates_text_language_catalog() {
     let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
 
     let initialized = app_commands::initialize(&state).unwrap();
+    assert_eq!(initialized.app_language, "en-US");
     assert!(
         initialized
             .text_language_catalog
@@ -1542,6 +1543,34 @@ fn config_injects_and_validates_text_language_catalog() {
         saved.standard_pack_source_language.as_deref(),
         Some("x-test")
     );
+}
+
+#[test]
+fn config_validates_and_normalizes_app_language() {
+    let app_dir = tempdir().unwrap();
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let initialized = app_commands::initialize(&state).unwrap();
+    assert_eq!(initialized.app_language, "en-US");
+
+    let mut zh = initialized.clone();
+    zh.app_language = "zh-CN".to_string();
+    let saved = app_commands::save_config(&state, &zh).unwrap();
+    assert_eq!(saved.app_language, "zh-CN");
+
+    let mut unsupported = initialized.clone();
+    unsupported.app_language = "ja-JP".to_string();
+    let err = app_commands::save_config(&state, &unsupported).unwrap_err();
+    assert_eq!(err.code, "config.validation_failed");
+    let normalized = normalize_global_config(&unsupported);
+    assert_eq!(normalized.app_language, "en-US");
+
+    let mut blank = initialized;
+    blank.app_language = "  ".to_string();
+    let err = app_commands::save_config(&state, &blank).unwrap_err();
+    assert_eq!(err.code, "config.validation_failed");
+    let normalized_blank = normalize_global_config(&blank);
+    assert_eq!(normalized_blank.app_language, "en-US");
 }
 
 #[test]

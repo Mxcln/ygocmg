@@ -1,3 +1,4 @@
+import { useAppI18n } from "../shared/i18n";
 import styles from "./TitleBar.module.css";
 
 type WindowAction = "minimize" | "toggle-maximize" | "close";
@@ -9,6 +10,8 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarProps) {
+  const { t } = useAppI18n();
+
   return (
     <header
       className={styles.titlebar}
@@ -21,12 +24,12 @@ export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarP
       </div>
       <div className={styles.titlebarSpacer} data-tauri-drag-region />
       <div className={styles.windowControls}>
-        <button type="button" className={styles.winBtn} aria-label="Minimize" onClick={() => void onWindowAction("minimize")}>
+        <button type="button" className={styles.winBtn} aria-label={t("window.minimize")} onClick={() => void onWindowAction("minimize")}>
           <svg width="10" height="1" viewBox="0 0 10 1">
             <rect width="10" height="1" fill="currentColor" />
           </svg>
         </button>
-        <button type="button" className={styles.winBtn} aria-label={maximized ? "Restore" : "Maximize"} onClick={() => void onWindowAction("toggle-maximize")}>
+        <button type="button" className={styles.winBtn} aria-label={maximized ? t("window.restore") : t("window.maximize")} onClick={() => void onWindowAction("toggle-maximize")}>
           {maximized ? (
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
               <rect x="2" y="0" width="8" height="8" rx="0.5" />
@@ -38,7 +41,7 @@ export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarP
             </svg>
           )}
         </button>
-        <button type="button" className={`${styles.winBtn} ${styles.winClose}`} aria-label="Close" onClick={() => void onWindowAction("close")}>
+        <button type="button" className={`${styles.winBtn} ${styles.winClose}`} aria-label={t("window.close")} onClick={() => void onWindowAction("close")}>
           <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.2">
             <line x1="0" y1="0" x2="10" y2="10" />
             <line x1="10" y1="0" x2="0" y2="10" />

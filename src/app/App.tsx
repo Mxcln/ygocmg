@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useShellStore } from "../shared/stores/shellStore";
 import { configApi } from "../shared/api/configApi";
 import { workspaceApi } from "../shared/api/workspaceApi";
@@ -22,6 +22,7 @@ import { AppSidebar } from "./AppSidebar";
 import { NoticeBanner } from "./NoticeBanner";
 import type { Notice, NoticeTone } from "./NoticeBanner";
 import { PackWorkArea } from "./PackWorkArea";
+import { AppI18nProvider, formatAppMessageByDefault, useAppI18n } from "../shared/i18n";
 import shared from "../shared/styles/shared.module.css";
 import styles from "./App.module.css";
 
@@ -44,15 +45,8 @@ export function App() {
   const { maximized, shellReady, handleWindowAction } = useAppWindow(configRef, setConfig);
   const { sidebarWidth, setSidebarWidth, beginSidebarResize } = useSidebarResize(configRef, setConfig);
 
-  const modal = useShellStore((s) => s.modal);
-  const dialog = useShellStore((s) => s.dialog);
-  const closeModal = useShellStore((s) => s.closeModal);
-  const activePackId = useShellStore((s) => s.activePackId);
-  const activeView = useShellStore((s) => s.activeView);
   const setActivePack = useShellStore((s) => s.setActivePack);
-  const setActiveStandardPack = useShellStore((s) => s.setActiveStandardPack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
-  const removeOpenPack = useShellStore((s) => s.removeOpenPack);
   const setPackOverviews = useShellStore((s) => s.setPackOverviews);
   const setWorkspace = useShellStore((s) => s.setWorkspace);
 
@@ -70,26 +64,18 @@ export function App() {
     setNotices((current) => current.filter((notice) => notice.id !== id));
   }, []);
 
-  function handleConfigSaved(nextConfig: GlobalConfig) {
-    configRef.current = nextConfig;
-    setConfig(nextConfig);
-    void queryClient.invalidateQueries({ queryKey: ["standard-pack-status"] });
-    void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
-  }
-
   async function persistActivePack(packId: string) {
     setActivePack(packId);
     try {
       await packApi.setActivePack({ packId });
     } catch (err) {
-      handleNotice("error", "Failed to switch pack", formatError(err));
+      handleNotice(
+        "error",
+        formatAppMessageByDefault("app.notice.switchPackFailed", "Failed to switch pack"),
+        formatError(err),
+      );
     }
   }
-
-  function handleOpenStandardPack() {
-    setActiveStandardPack();
-  }
-
 
   useEffect(() => {
     let active = true;
@@ -160,6 +146,132 @@ export function App() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <AppI18nProvider locale={null}>
+        <main className={styles.launchShell}>
+          <p className={styles.launchText}>{formatAppMessageByDefault("app.loading", "Loading...")}</p>
+        </main>
+      </AppI18nProvider>
+    );
+  }
+
+  if (error || !config || !recentWorkspaces) {
+    return (
+      <AppI18nProvider locale={config?.app_language ?? null}>
+        <main className={styles.launchShell}>
+          <div className={styles.launchError}>
+            <p>{error ?? formatAppMessageByDefault("app.initializationFailed", "Initialization failed.")}</p>
+            <button className={shared.primaryButton} type="button" onClick={() => window.location.reload()}>
+              {formatAppMessageByDefault("app.reload", "Reload")}
+            </button>
+          </div>
+        </main>
+      </AppI18nProvider>
+    );
+  }
+
+  return (
+    <AppI18nProvider locale={config.app_language}>
+      <AppShell
+        config={config}
+        configRef={configRef}
+        recentWorkspaces={recentWorkspaces}
+        currentWorkspace={currentWorkspace}
+        setConfig={setConfig}
+        setRecentWorkspaces={setRecentWorkspaces}
+        setCurrentWorkspace={setCurrentWorkspace}
+        notices={notices}
+        setNotices={setNotices}
+        nextNoticeId={nextNoticeId}
+        dismissNotice={dismissNotice}
+        queryClient={queryClient}
+        maximized={maximized}
+        shellReady={shellReady}
+        handleWindowAction={handleWindowAction}
+        sidebarWidth={sidebarWidth}
+        beginSidebarResize={beginSidebarResize}
+      />
+    </AppI18nProvider>
+  );
+}
+
+function AppShell({
+  config,
+  configRef,
+  recentWorkspaces,
+  currentWorkspace,
+  setConfig,
+  setRecentWorkspaces,
+  setCurrentWorkspace,
+  notices,
+  setNotices,
+  nextNoticeId,
+  dismissNotice,
+  queryClient,
+  maximized,
+  shellReady,
+  handleWindowAction,
+  sidebarWidth,
+  beginSidebarResize,
+}: {
+  config: GlobalConfig;
+  configRef: React.MutableRefObject<GlobalConfig | null>;
+  recentWorkspaces: WorkspaceRegistryFile;
+  currentWorkspace: CurrentWorkspaceRef | null;
+  setConfig: React.Dispatch<React.SetStateAction<GlobalConfig | null>>;
+  setRecentWorkspaces: React.Dispatch<React.SetStateAction<WorkspaceRegistryFile | null>>;
+  setCurrentWorkspace: React.Dispatch<React.SetStateAction<CurrentWorkspaceRef | null>>;
+  notices: Notice[];
+  setNotices: React.Dispatch<React.SetStateAction<Notice[]>>;
+  nextNoticeId: React.MutableRefObject<number>;
+  dismissNotice: (id: number) => void;
+  queryClient: ReturnType<typeof useQueryClient>;
+  maximized: boolean;
+  shellReady: boolean;
+  handleWindowAction: (action: "minimize" | "toggle-maximize" | "close") => void;
+  sidebarWidth: number;
+  beginSidebarResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
+}) {
+  const { t } = useAppI18n();
+  const modal = useShellStore((s) => s.modal);
+  const dialog = useShellStore((s) => s.dialog);
+  const closeModal = useShellStore((s) => s.closeModal);
+  const activePackId = useShellStore((s) => s.activePackId);
+  const activeView = useShellStore((s) => s.activeView);
+  const setActivePack = useShellStore((s) => s.setActivePack);
+  const setActiveStandardPack = useShellStore((s) => s.setActiveStandardPack);
+  const addOpenPack = useShellStore((s) => s.addOpenPack);
+  const removeOpenPack = useShellStore((s) => s.removeOpenPack);
+  const setPackOverviews = useShellStore((s) => s.setPackOverviews);
+  const setWorkspace = useShellStore((s) => s.setWorkspace);
+
+  function handleNotice(tone: NoticeTone, title: string, detail: string) {
+    const id = nextNoticeId.current;
+    nextNoticeId.current += 1;
+    setNotices((current) => [...current.slice(-3), { id, tone, title, detail }]);
+  }
+
+  function handleConfigSaved(nextConfig: GlobalConfig) {
+    configRef.current = nextConfig;
+    setConfig(nextConfig);
+    void queryClient.invalidateQueries({ queryKey: ["standard-pack-status"] });
+    void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
+  }
+
+  async function persistActivePack(packId: string) {
+    setActivePack(packId);
+    try {
+      await packApi.setActivePack({ packId });
+    } catch (err) {
+      handleNotice("error", t("app.notice.switchPackFailed"), formatError(err));
+    }
+  }
+
+  function handleOpenStandardPack() {
+    setActiveStandardPack();
+  }
+
   async function handleWorkspaceOpened(meta: WorkspaceMeta, path: string) {
     setCurrentWorkspace({ meta, path });
     setWorkspace(meta.id, meta.name, path);
@@ -209,7 +321,7 @@ export function App() {
       await packApi.closePack({ packId });
       removeOpenPack(packId);
     } catch (err) {
-      handleNotice("error", "Failed to close pack", formatError(err));
+      handleNotice("error", t("app.notice.closePackFailed"), formatError(err));
     }
   }
 
@@ -221,31 +333,10 @@ export function App() {
     } catch {
       // best-effort overview refresh
     }
-    handleNotice("success", "Pack deleted", "The pack has been removed from the workspace.");
+    handleNotice("success", t("app.notice.packDeleted.title"), t("app.notice.packDeleted.detail"));
   }
 
-  if (loading) {
-    return (
-      <main className={styles.launchShell}>
-        <p className={styles.launchText}>Loading...</p>
-      </main>
-    );
-  }
-
-  if (error || !config || !recentWorkspaces) {
-    return (
-      <main className={styles.launchShell}>
-        <div className={styles.launchError}>
-          <p>{error ?? "Initialization failed."}</p>
-          <button className={shared.primaryButton} type="button" onClick={() => window.location.reload()}>
-            Reload
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  const workspaceName = currentWorkspace?.meta.name ?? "No Workspace Open";
+  const workspaceName = currentWorkspace?.meta.name ?? t("app.noWorkspaceOpen");
   const activeCustomPackId =
     activeView?.type === "custom_pack" ? activeView.packId : activePackId;
   const isStandardView = activeView?.type === "standard_pack";
@@ -274,11 +365,11 @@ export function App() {
             <StandardPackView config={config} />
           ) : !activeCustomPackId ? (
             <div className={styles.emptyState}>
-              <p className={styles.emptyLabel}>No Pack Open</p>
+              <p className={styles.emptyLabel}>{t("app.noPackOpen")}</p>
               <p className={styles.emptyHint}>
                 {currentWorkspace
-                  ? "Use the + button in the sidebar to open or create a pack."
-                  : "Open a workspace first, then add packs from the sidebar."}
+                  ? t("app.empty.openOrCreatePack")
+                  : t("app.empty.openWorkspaceFirst")}
               </p>
             </div>
           ) : (

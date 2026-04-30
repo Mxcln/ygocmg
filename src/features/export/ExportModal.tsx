@@ -16,6 +16,7 @@ import type { GlobalConfig } from "../../shared/contracts/config";
 import type { ExportPreviewResult } from "../../shared/contracts/export";
 import type { JobSnapshot } from "../../shared/contracts/job";
 import { languageExists } from "../../shared/utils/language";
+import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import exportStyles from "./ExportModal.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
@@ -32,6 +33,7 @@ export interface ExportModalProps {
 }
 
 export function ExportModal({ config, onNotice }: ExportModalProps) {
+  const { t, td } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
   const workspaceId = useShellStore((s) => s.workspaceId);
   const openPackIds = useShellStore((s) => s.openPackIds);
@@ -140,7 +142,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
       setActiveJobId(job.job_id);
       setStep(3);
     } catch (err) {
-      onNotice("error", "Export failed", formatError(err));
+      onNotice("error", td("export.failed", "Export failed"), formatError(err));
     } finally {
       setBusy(null);
     }
@@ -169,23 +171,23 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
   return (
     <>
       <header className={shared.modalHeader}>
-        <h2>Export Expansions</h2>
+        <h2>{td("export.title", "Export Expansions")}</h2>
         <div className={exportStyles.exportHeaderRight}>
           <div className={shared.importWizardSteps}>
             <span className={`${shared.wizardStep} ${step >= 1 ? "active" : ""} ${step === 1 ? "current" : ""}`}>
-              1. Configure
+              1. {td("export.step.configure", "Configure")}
             </span>
             <span className={shared.wizardStepSep}>&rsaquo;</span>
             <span className={`${shared.wizardStep} ${step >= 2 ? "active" : ""} ${step === 2 ? "current" : ""}`}>
-              2. Preview
+              2. {td("export.step.preview", "Preview")}
             </span>
             <span className={shared.wizardStepSep}>&rsaquo;</span>
             <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>
-              3. Export
+              3. {t("action.export")}
             </span>
           </div>
           <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
-            Close
+            {t("action.close")}
           </button>
         </div>
       </header>
@@ -195,19 +197,19 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
           <div className={`${shared.formStack} ${exportStyles.exportForm}`}>
             <div className={shared.field}>
               <span>
-                Select packs to export
+                {td("export.selectPacks", "Select packs to export")}
                 {openPackIds.length > 0 && (
                   <button
                     type="button"
                     className={`${shared.ghostButton} ${exportStyles.exportSelectAllBtn}`}
                     onClick={handleSelectAll}
                   >
-                    {selectedPackIds.length === openPackIds.length ? "Deselect All" : "Select All"}
+                    {selectedPackIds.length === openPackIds.length ? td("export.deselectAll", "Deselect All") : td("export.selectAll", "Select All")}
                   </button>
                 )}
               </span>
               {openPackIds.length === 0 ? (
-                <div className={exportStyles.exportEmptyPacks}>No packs are currently open.</div>
+                <div className={exportStyles.exportEmptyPacks}>{td("export.noOpenPacks", "No packs are currently open.")}</div>
               ) : (
                 <div className={exportStyles.exportPackList}>
                   {openPackIds.map((packId) => {
@@ -234,23 +236,23 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
             </div>
 
             <div className={shared.field}>
-              <span>Export language (required)</span>
+              <span>{td("export.languageRequired", "Export language (required)")}</span>
               <TextLanguagePicker
                 catalog={config.text_language_catalog}
                 value={exportLanguage}
                 onChange={setExportLanguage}
                 allowEmpty
-                placeholder="Select export language"
+                placeholder={td("export.selectLanguage", "Select export language")}
               />
             </div>
 
             <div className={shared.field}>
-              <span>Output directory (required)</span>
+              <span>{td("export.outputDirectoryRequired", "Output directory (required)")}</span>
               <div className={shared.filePickerRow}>
                 <input
                   readOnly
                   value={outputDir}
-                  placeholder="Select output directory..."
+                  placeholder={td("export.selectOutputDirectory", "Select output directory...")}
                   title={outputDir || undefined}
                 />
                 <button
@@ -258,7 +260,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                   className={shared.ghostButton}
                   onClick={() => void handleBrowseOutputDir()}
                 >
-                  Browse
+                  {t("action.browse")}
                 </button>
                 {outputDir && (
                   <button
@@ -266,14 +268,14 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                     className={shared.ghostButton}
                     onClick={() => setOutputDir("")}
                   >
-                    Clear
+                    {t("action.clear")}
                   </button>
                 )}
               </div>
             </div>
 
             <div className={shared.field}>
-              <span>Output name (required)</span>
+              <span>{td("export.outputNameRequired", "Output name (required)")}</span>
               <input
                 value={outputName}
                 onChange={(e) => setOutputName(e.target.value)}
@@ -281,7 +283,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               />
               {outputDir && outputName.trim() && (
                 <span className={exportStyles.exportOutputPreview}>
-                  Output: {outputDir}
+                  {td("export.outputPrefix", "Output:")} {outputDir}
                   {outputDir.endsWith("\\") || outputDir.endsWith("/") ? "" : "\\"}
                   {outputName.trim()}
                 </span>
@@ -292,7 +294,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
 
             <div className={shared.formActions}>
               <button type="button" className={shared.ghostButton} onClick={closeModal}>
-                Cancel
+                {t("action.cancel")}
               </button>
               <button
                 type="button"
@@ -300,7 +302,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 disabled={!canPreview || busy !== null}
                 onClick={() => void handlePreview()}
               >
-                {busy === "preview" ? "Previewing..." : "Preview Export"}
+                {busy === "preview" ? td("export.previewing", "Previewing...") : td("export.preview", "Preview Export")}
               </button>
             </div>
           </div>
@@ -311,23 +313,23 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
             <div className={shared.importPreviewSummary}>
               <div className={shared.importStat}>
                 <span className={shared.importStatValue}>{previewResult.data.pack_count}</span>
-                <span className={shared.importStatLabel}>Packs</span>
+                <span className={shared.importStatLabel}>{td("export.packs", "Packs")}</span>
               </div>
               <div className={shared.importStat}>
                 <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
-                <span className={shared.importStatLabel}>Cards</span>
+                <span className={shared.importStatLabel}>{td("pack.tabs.cards", "Cards")}</span>
               </div>
               <div className={shared.importStat}>
                 <span className={shared.importStatValue}>{previewResult.data.main_image_count}</span>
-                <span className={shared.importStatLabel}>Images</span>
+                <span className={shared.importStatLabel}>{td("export.images", "Images")}</span>
               </div>
               <div className={shared.importStat}>
                 <span className={shared.importStatValue}>{previewResult.data.field_image_count}</span>
-                <span className={shared.importStatLabel}>Field Imgs</span>
+                <span className={shared.importStatLabel}>{td("export.fieldImages", "Field Imgs")}</span>
               </div>
               <div className={shared.importStat}>
                 <span className={shared.importStatValue}>{previewResult.data.script_count}</span>
-                <span className={shared.importStatLabel}>Scripts</span>
+                <span className={shared.importStatLabel}>{td("export.scripts", "Scripts")}</span>
               </div>
               <div className={shared.importStat}>
                 <span
@@ -336,7 +338,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 >
                   {previewResult.data.error_count}
                 </span>
-                <span className={shared.importStatLabel}>Errors</span>
+                <span className={shared.importStatLabel}>{td("import.errors", "Errors")}</span>
               </div>
               <div className={shared.importStat}>
                 <span
@@ -345,21 +347,23 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 >
                   {previewResult.data.warning_count}
                 </span>
-                <span className={shared.importStatLabel}>Warnings</span>
+                <span className={shared.importStatLabel}>{td("import.warnings", "Warnings")}</span>
               </div>
             </div>
 
             {previewResult.data.error_count > 0 && (
               <div className={shared.importErrorBanner}>
-                Export has {previewResult.data.error_count} blocking error
-                {previewResult.data.error_count > 1 ? "s" : ""}. Fix the issues and try again.
+                {td("export.blockingErrors", "Export has {count} blocking error{plural}. Fix the issues and try again.", {
+                  count: previewResult.data.error_count,
+                  plural: previewResult.data.error_count > 1 ? "s" : "",
+                })}
               </div>
             )}
 
             {previewResult.data.issues.length > 0 && (
               <div className={shared.importIssuesList}>
                 <strong className={shared.importIssuesHeader}>
-                  Issues ({previewResult.data.issues.length})
+                  {td("import.issuesCount", "Issues ({count})", { count: previewResult.data.issues.length })}
                 </strong>
                 <ul>
                   {previewResult.data.issues.map((issue, idx) => (
@@ -377,7 +381,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
 
             <div className={shared.formActions}>
               <button type="button" className={shared.ghostButton} onClick={handleBackFromStep2}>
-                Back
+                {td("import.back", "Back")}
               </button>
               <button
                 type="button"
@@ -385,7 +389,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
                 disabled={previewResult.data.error_count > 0 || busy !== null}
                 onClick={() => void handleExecute()}
               >
-                {busy === "execute" ? "Submitting..." : "Export"}
+                {busy === "execute" ? td("import.submitting", "Submitting...") : t("action.export")}
               </button>
             </div>
           </div>
@@ -397,23 +401,23 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               <div className={shared.importPreviewSummary}>
                 <div className={shared.importStat}>
                   <span className={shared.importStatValue}>{previewResult.data.pack_count}</span>
-                  <span className={shared.importStatLabel}>Packs</span>
+                  <span className={shared.importStatLabel}>{td("export.packs", "Packs")}</span>
                 </div>
                 <div className={shared.importStat}>
                   <span className={shared.importStatValue}>{previewResult.data.card_count}</span>
-                  <span className={shared.importStatLabel}>Cards</span>
+                  <span className={shared.importStatLabel}>{td("pack.tabs.cards", "Cards")}</span>
                 </div>
                 <div className={shared.importStat}>
                   <span className={shared.importStatValue}>{previewResult.data.main_image_count}</span>
-                  <span className={shared.importStatLabel}>Images</span>
+                  <span className={shared.importStatLabel}>{td("export.images", "Images")}</span>
                 </div>
                 <div className={shared.importStat}>
                   <span className={shared.importStatValue}>{previewResult.data.field_image_count}</span>
-                  <span className={shared.importStatLabel}>Field Imgs</span>
+                  <span className={shared.importStatLabel}>{td("export.fieldImages", "Field Imgs")}</span>
                 </div>
                 <div className={shared.importStat}>
                   <span className={shared.importStatValue}>{previewResult.data.script_count}</span>
-                  <span className={shared.importStatLabel}>Scripts</span>
+                  <span className={shared.importStatLabel}>{td("export.scripts", "Scripts")}</span>
                 </div>
               </div>
             )}
@@ -433,10 +437,10 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
 
             {jobSucceeded && (
               <div className={shared.importSuccessBanner}>
-                Export completed successfully.
+                {td("export.completed", "Export completed successfully.")}
                 {outputDir && outputName.trim() && (
                   <span className={exportStyles.exportOutputPath}>
-                    Output: {outputDir}
+                    {td("export.outputPrefix", "Output:")} {outputDir}
                     {outputDir.endsWith("\\") || outputDir.endsWith("/") ? "" : "\\"}
                     {outputName.trim()}
                   </span>
@@ -447,30 +451,30 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
             <div className={shared.formActions}>
               {exporting && (
                 <button type="button" className={shared.ghostButton} disabled>
-                  Exporting...
+                  {td("export.exporting", "Exporting...")}
                 </button>
               )}
 
               {jobSucceeded && (
                 <button type="button" className={shared.primaryButton} onClick={closeModal}>
-                  Done
+                  {td("job.status.succeeded", "Done")}
                 </button>
               )}
 
               {jobFailed && (
                 <>
                   <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
-                    Back
+                    {td("import.back", "Back")}
                   </button>
                   <span className={shared.importFailHint}>
-                    Export job failed. Check errors above and try again.
+                    {td("export.jobFailed", "Export job failed. Check errors above and try again.")}
                   </span>
                 </>
               )}
 
               {!exporting && !jobDone && (
                 <button type="button" className={shared.ghostButton} onClick={handleBackFromStep3}>
-                  Back
+                  {td("import.back", "Back")}
                 </button>
               )}
             </div>

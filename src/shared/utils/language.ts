@@ -1,5 +1,6 @@
 import type { LanguageCode } from "../contracts/common";
 import type { GlobalConfig, TextLanguageProfile } from "../contracts/config";
+import { formatAppMessageById } from "../i18n";
 
 export const LEGACY_DEFAULT_LANGUAGE = "default";
 
@@ -23,15 +24,15 @@ export function languageExists(catalog: TextLanguageProfile[], id: string): bool
 export function languageLabel(catalog: TextLanguageProfile[], id: string): string {
   const normalized = normalizeLanguageId(id);
   const profile = catalog.find((language) => language.id === normalized);
-  if (profile) return `${profile.label} (${profile.id})`;
-  if (isLegacyDefaultLanguage(normalized)) return "Legacy default";
-  return normalized || "Unselected";
+  if (profile) return `${displayLanguageProfileLabel(profile)} (${profile.id})`;
+  if (isLegacyDefaultLanguage(normalized)) return formatAppMessageById("common.legacyDefault");
+  return normalized || formatAppMessageById("common.unselected");
 }
 
 export function compactLanguageLabel(catalog: TextLanguageProfile[], id: string): string {
   const normalized = normalizeLanguageId(id);
   const profile = catalog.find((language) => language.id === normalized);
-  return profile?.label || normalized || "Unselected";
+  return profile ? displayLanguageProfileLabel(profile) : normalized || formatAppMessageById("common.unselected");
 }
 
 export function uniqueLanguageOrder(languages: string[]): LanguageCode[] {
@@ -68,13 +69,31 @@ export function preferredImportSourceLanguage(config: GlobalConfig): LanguageCod
 
 export function validateCustomLanguageId(id: string): string | null {
   const normalized = normalizeLanguageId(id);
-  if (!normalized) return "Language id is required.";
-  if (isLegacyDefaultLanguage(normalized)) return "default is reserved for legacy data.";
+  if (!normalized) return formatAppMessageById("language.validation.idRequired");
+  if (isLegacyDefaultLanguage(normalized)) return formatAppMessageById("language.validation.legacyDefaultReserved");
   if (!normalized.startsWith("x-") && !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(normalized)) {
-    return "Use a BCP-style id such as fr-FR, or a custom id beginning with x-.";
+    return formatAppMessageById("language.validation.invalidBcpOrCustom");
   }
   if (normalized.startsWith("x-") && !/^x-[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/.test(normalized)) {
-    return "Custom ids must begin with x- and use letters, numbers, and hyphens.";
+    return formatAppMessageById("language.validation.invalidCustomId");
   }
   return null;
+}
+
+function displayLanguageProfileLabel(profile: TextLanguageProfile): string {
+  if (profile.kind !== "builtin") return profile.label;
+  switch (profile.id) {
+    case "zh-CN":
+      return formatAppMessageById("language.builtin.zh-CN");
+    case "en-US":
+      return formatAppMessageById("language.builtin.en-US");
+    case "ja-JP":
+      return formatAppMessageById("language.builtin.ja-JP");
+    case "ko-KR":
+      return formatAppMessageById("language.builtin.ko-KR");
+    case "es-ES":
+      return formatAppMessageById("language.builtin.es-ES");
+    default:
+      return profile.label;
+  }
 }

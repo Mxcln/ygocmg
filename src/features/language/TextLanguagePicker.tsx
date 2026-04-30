@@ -1,5 +1,6 @@
 import type { TextLanguageProfile } from "../../shared/contracts/config";
 import styles from "./TextLanguagePicker.module.css";
+import { useAppI18n } from "../../shared/i18n";
 import { languageLabel, normalizeLanguageId, visibleTextLanguages } from "../../shared/utils/language";
 
 interface TextLanguagePickerProps {
@@ -19,12 +20,13 @@ export function TextLanguagePicker({
   value,
   onChange,
   disabled = false,
-  placeholder = "Select language",
+  placeholder,
   allowEmpty = false,
   existingLanguages = [],
   excludeLanguages = [],
   className,
 }: TextLanguagePickerProps) {
+  const { t } = useAppI18n();
   const excluded = new Set(excludeLanguages.map(normalizeLanguageId).filter(Boolean));
   const visible = visibleTextLanguages(catalog).filter((language) => !excluded.has(language.id));
   const normalized = normalizeLanguageId(value);
@@ -42,7 +44,7 @@ export function TextLanguagePicker({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
     >
-      {allowEmpty && <option value="">{placeholder}</option>}
+      {allowEmpty && <option value="">{placeholder ?? t("language.select")}</option>}
       {[...optionIds].map((id) => (
         <option key={id} value={id}>
           {languageLabel(catalog, id)}

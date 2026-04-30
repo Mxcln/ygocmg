@@ -1,4 +1,5 @@
 import type { ValidationIssue } from "../contracts/common";
+import { formatAppMessageById, getActiveAppLocale } from "../i18n";
 import { formatUserError, formatUserIssue } from "./messages";
 
 export function normalizeNullablePath(value: string): string | null {
@@ -49,12 +50,12 @@ export function slugifyWorkspaceName(value: string): string {
 }
 
 export function formatTimestamp(value: string | null): string {
-  if (!value) return "No recorded time";
+  if (!value) return formatAppMessageById("common.noRecordedTime");
 
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) return value;
 
-  return timestamp.toLocaleString("en-US", { hour12: false });
+  return timestamp.toLocaleString(getActiveAppLocale(), { hour12: false });
 }
 
 export function formatError(error: unknown): string {
