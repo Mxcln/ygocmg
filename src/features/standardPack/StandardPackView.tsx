@@ -4,6 +4,7 @@ import { standardPackApi } from "../../shared/api/standardPackApi";
 import { jobApi } from "../../shared/api/jobApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatTimestamp } from "../../shared/utils/format";
+import { formatJobError, formatJobStage, formatJobStatus } from "../../shared/utils/messages";
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardListRow } from "../../shared/contracts/card";
 import type { JobSnapshot } from "../../shared/contracts/job";
@@ -194,11 +195,10 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
 
       {activeJob && (
         <div className={styles.standardJobStrip} data-status={activeJob.status}>
-          <span>{activeJob.status}</span>
-          <strong>{activeJob.stage}</strong>
+          <span>{formatJobStatus(activeJob.status)}</span>
+          <strong>{formatJobStage(activeJob.stage)}</strong>
           <span>{activeJob.progress_percent ?? 0}%</span>
-          {activeJob.message && <span>{activeJob.message}</span>}
-          {activeJob.error && <span>{activeJob.error.code}: {activeJob.error.message}</span>}
+          {formatJobError(activeJob) && <span>{formatJobError(activeJob)}</span>}
         </div>
       )}
 

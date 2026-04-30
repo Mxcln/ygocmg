@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatValidationIssue } from "../../shared/utils/format";
+import { formatIssueDetail } from "../../shared/utils/messages";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./AppDialog.module.css";
 
@@ -77,8 +78,8 @@ export function AppDialog() {
             <ul>
               {dialog.warnings.map((warning, index) => (
                 <li key={`${warning.code}-${index}`}>
-                  <strong>{warning.code}</strong>
-                  <span>{formatValidationIssue(warning)}</span>
+                  <strong>{formatValidationIssue(warning)}</strong>
+                  {formatIssueDetail(warning) && <span>{formatIssueDetail(warning)}</span>}
                 </li>
               ))}
             </ul>

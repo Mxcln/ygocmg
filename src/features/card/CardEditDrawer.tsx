@@ -4,7 +4,8 @@ import { cardApi } from "../../shared/api/cardApi";
 import { stringsApi } from "../../shared/api/stringsApi";
 import { standardPackApi } from "../../shared/api/standardPackApi";
 import { useShellStore } from "../../shared/stores/shellStore";
-import { formatError } from "../../shared/utils/format";
+import { formatError, formatValidationIssue } from "../../shared/utils/format";
+import { formatIssueDetail } from "../../shared/utils/messages";
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardEntity, CardAssetState } from "../../shared/contracts/card";
 import type { CardDetail } from "../../shared/contracts/card";
@@ -354,7 +355,10 @@ export function CardEditDrawer({
           <div className={styles.cardEditWarnings}>
             <ul>
               {warnings.map((w, i) => (
-                <li key={i}>{w.code}: {JSON.stringify(w.params)}</li>
+                <li key={i}>
+                  <span>{formatValidationIssue(w)}</span>
+                  {formatIssueDetail(w) && <small>{formatIssueDetail(w)}</small>}
+                </li>
               ))}
             </ul>
           </div>

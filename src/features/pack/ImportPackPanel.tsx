@@ -4,7 +4,14 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { importApi } from "../../shared/api/importApi";
 import { packApi } from "../../shared/api/packApi";
 import { jobApi } from "../../shared/api/jobApi";
-import { formatError } from "../../shared/utils/format";
+import { formatError, formatValidationIssue } from "../../shared/utils/format";
+import {
+  formatIssueDetail,
+  formatIssueLevel,
+  formatJobError,
+  formatJobStage,
+  formatJobStatus,
+} from "../../shared/utils/messages";
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type { PackMetadata } from "../../shared/contracts/pack";
 import type { ImportPreviewResult } from "../../shared/contracts/import";
@@ -483,15 +490,10 @@ export function ImportPackPanel({
               <ul>
                 {previewResult.data.issues.map((issue, idx) => (
                   <li key={idx} className={shared.importIssue} data-level={issue.level}>
-                    <span className={shared.importIssueBadge}>{issue.level}</span>
-                    <span className={shared.importIssueCode}>{issue.code}</span>
-                    {issue.target.entity_id && (
-                      <span className={shared.importIssueEntity}>#{issue.target.entity_id}</span>
-                    )}
-                    {issue.params && Object.keys(issue.params).length > 0 && (
-                      <span className={shared.importIssueParams}>
-                        {Object.entries(issue.params).map(([k, v]) => `${k}=${v}`).join(", ")}
-                      </span>
+                    <span className={shared.importIssueBadge}>{formatIssueLevel(issue.level)}</span>
+                    <span className={shared.importIssueMessage}>{formatValidationIssue(issue)}</span>
+                    {formatIssueDetail(issue) && (
+                      <span className={shared.importIssueParams}>{formatIssueDetail(issue)}</span>
                     )}
                   </li>
                 ))}
@@ -501,14 +503,13 @@ export function ImportPackPanel({
 
           {displayJob && (
             <div className={shared.importJobStrip} data-status={displayJob.status}>
-              <span className={shared.importJobStatus}>{displayJob.status}</span>
-              <strong>{displayJob.stage}</strong>
+              <span className={shared.importJobStatus}>{formatJobStatus(displayJob.status)}</span>
+              <strong>{formatJobStage(displayJob.stage)}</strong>
               {displayJob.progress_percent != null && (
                 <span>{displayJob.progress_percent}%</span>
               )}
-              {displayJob.message && <span>{displayJob.message}</span>}
-              {displayJob.error && (
-                <span className={shared.importJobError}>{displayJob.error.code}: {displayJob.error.message}</span>
+              {formatJobError(displayJob) && (
+                <span className={shared.importJobError}>{formatJobError(displayJob)}</span>
               )}
             </div>
           )}

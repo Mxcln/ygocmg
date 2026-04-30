@@ -84,7 +84,14 @@
 }
 
 .cardEditWarnings li {
+  display: grid;
+  gap: 2px;
   margin: 2px 0;
+}
+
+.cardEditWarnings small {
+  color: rgba(106, 68, 17, 0.78);
+  font-size: 11px;
 }
 
 .cardEditError {

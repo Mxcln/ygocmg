@@ -164,13 +164,8 @@ export function CardAssetBar({
     setBusy(true);
     try {
       await resourceApi.openScriptExternal({ workspaceId, packId, cardId });
-    } catch (err: unknown) {
-      const appErr = err as { code?: string };
-      if (appErr.code === "resource.external_editor_not_configured") {
-        onError("External text editor is not configured. Set it in Global Settings.");
-      } else {
-        onError(formatError(err));
-      }
+    } catch (err) {
+      onError(formatError(err));
     } finally {
       setBusy(false);
     }

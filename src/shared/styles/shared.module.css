@@ -544,20 +544,17 @@
   color: #996216;
 }
 
-.importIssueCode {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-2);
-}
-
-.importIssueEntity {
-  color: var(--text-2);
-  font-size: 11px;
+.importIssueMessage {
+  min-width: 180px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
 }
 
 .importIssueParams {
   color: var(--text-2);
   font-size: 11px;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

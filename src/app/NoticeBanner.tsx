@@ -1,24 +1,69 @@
+import { useEffect } from "react";
 import styles from "./NoticeBanner.module.css";
 
 export type NoticeTone = "success" | "warning" | "error";
 
 export interface Notice {
+  id: number;
   tone: NoticeTone;
   title: string;
   detail: string;
 }
 
 interface NoticeBannerProps {
-  notice: Notice;
-  onDismiss: () => void;
+  notices: Notice[];
+  onDismiss: (id: number) => void;
 }
 
-export function NoticeBanner({ notice, onDismiss }: NoticeBannerProps) {
+const NOTICE_TIMEOUT_MS: Record<NoticeTone, number> = {
+  success: 3800,
+  warning: 5600,
+  error: 7000,
+};
+
+export function NoticeBanner({ notices, onDismiss }: NoticeBannerProps) {
+  if (notices.length === 0) return null;
+
   return (
-    <div className={styles.notice} data-tone={notice.tone}>
-      <strong>{notice.title}</strong>
-      <span>{notice.detail}</span>
-      <button type="button" className={styles.noticeClose} onClick={onDismiss}>
+    <div className={styles.noticeStack} aria-live="polite" aria-atomic="false">
+      {notices.map((notice) => (
+        <NoticeToast key={notice.id} notice={notice} onDismiss={onDismiss} />
+      ))}
+    </div>
+  );
+}
+
+function NoticeToast({
+  notice,
+  onDismiss,
+}: {
+  notice: Notice;
+  onDismiss: (id: number) => void;
+}) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      onDismiss(notice.id);
+    }, NOTICE_TIMEOUT_MS[notice.tone]);
+
+    return () => window.clearTimeout(timer);
+  }, [notice.id, notice.tone, onDismiss]);
+
+  return (
+    <div
+      className={styles.notice}
+      data-tone={notice.tone}
+      role={notice.tone === "error" ? "alert" : "status"}
+    >
+      <div className={styles.noticeBody}>
+        <strong>{notice.title}</strong>
+        <span>{notice.detail}</span>
+      </div>
+      <button
+        type="button"
+        className={styles.noticeClose}
+        onClick={() => onDismiss(notice.id)}
+        aria-label="Dismiss notification"
+      >
         ×
       </button>
     </div>

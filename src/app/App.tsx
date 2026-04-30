@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useShellStore } from "../shared/stores/shellStore";
 import { configApi } from "../shared/api/configApi";
@@ -36,7 +36,8 @@ export function App() {
   const [currentWorkspace, setCurrentWorkspace] = useState<CurrentWorkspaceRef | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const nextNoticeId = useRef(1);
   const configRef = useRef<GlobalConfig | null>(null);
   const queryClient = useQueryClient();
 
@@ -60,8 +61,14 @@ export function App() {
   }, [config]);
 
   function handleNotice(tone: NoticeTone, title: string, detail: string) {
-    setNotice({ tone, title, detail });
+    const id = nextNoticeId.current;
+    nextNoticeId.current += 1;
+    setNotices((current) => [...current.slice(-3), { id, tone, title, detail }]);
   }
+
+  const dismissNotice = useCallback((id: number) => {
+    setNotices((current) => current.filter((notice) => notice.id !== id));
+  }, []);
 
   function handleConfigSaved(nextConfig: GlobalConfig) {
     configRef.current = nextConfig;
@@ -263,8 +270,6 @@ export function App() {
         />
 
         <section className={styles.workArea}>
-          {notice && <NoticeBanner notice={notice} onDismiss={() => setNotice(null)} />}
-
           {isStandardView ? (
             <StandardPackView config={config} />
           ) : !activeCustomPackId ? (
@@ -322,6 +327,7 @@ export function App() {
       {dialog && (
         <AppDialog />
       )}
+      <NoticeBanner notices={notices} onDismiss={dismissNotice} />
     </div>
   );
 }
