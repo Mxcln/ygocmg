@@ -35,6 +35,13 @@ pub fn validate_card_update_input(input: &CardUpdateInput) -> Vec<ValidationIssu
         ));
     }
 
+    if input.category > u32::MAX as u64 {
+        issues.push(ValidationIssue::error(
+            "card.category_out_of_range",
+            target.clone().with_field("category"),
+        ));
+    }
+
     if input.texts.is_empty() {
         issues.push(ValidationIssue::error(
             "card.texts_required",
@@ -160,4 +167,69 @@ pub fn collect_card_warnings(
         .into_iter()
         .filter(|issue| issue.level == IssueLevel::Warning)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use crate::domain::card::model::{
+        Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race,
+    };
+
+    use super::validate_card_update_input;
+
+    #[test]
+    fn validates_maximum_u32_category_mask() {
+        let input = valid_monster_input(u32::MAX as u64);
+
+        let issues = validate_card_update_input(&input);
+
+        assert!(
+            issues
+                .iter()
+                .all(|issue| issue.code != "card.category_out_of_range")
+        );
+    }
+
+    #[test]
+    fn rejects_category_mask_above_u32_range() {
+        let input = valid_monster_input(u32::MAX as u64 + 1);
+
+        let issues = validate_card_update_input(&input);
+
+        assert!(issues.iter().any(|issue| {
+            issue.code == "card.category_out_of_range"
+                && issue.target.field.as_deref() == Some("category")
+        }));
+    }
+
+    fn valid_monster_input(category: u64) -> CardUpdateInput {
+        CardUpdateInput {
+            code: 100_000_000,
+            alias: 0,
+            setcode: 0,
+            ot: Ot::Custom,
+            category,
+            primary_type: PrimaryType::Monster,
+            texts: BTreeMap::from([(
+                "default".to_string(),
+                CardTexts {
+                    name: "Test Card".to_string(),
+                    desc: String::new(),
+                    strings: Vec::new(),
+                },
+            )]),
+            monster_flags: Some(vec![MonsterFlag::Normal]),
+            atk: Some(0),
+            def: Some(0),
+            race: Some(Race::Warrior),
+            attribute: Some(Attribute::Earth),
+            level: Some(4),
+            pendulum: None,
+            link: None,
+            spell_subtype: None,
+            trap_subtype: None,
+        }
+    }
 }

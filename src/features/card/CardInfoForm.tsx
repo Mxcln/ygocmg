@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import type {
   CardEntity,
   PrimaryType,
@@ -9,6 +11,13 @@ import type {
   TrapSubtype,
   LinkMarker,
 } from "../../shared/contracts/card";
+import {
+  CARD_CATEGORY_MAX_MASK,
+  CARD_CATEGORY_OPTIONS,
+  formatCardCategoryMask,
+  hasCardCategoryMask,
+  normalizeCardCategoryMask,
+} from "../../shared/constants/cardCategories";
 
 import styles from "./CardInfoForm.module.css";
 
@@ -63,12 +72,23 @@ function displayLabel(value: string): string {
 }
 
 export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoFormProps) {
+  const [categoryRawInput, setCategoryRawInput] = useState("");
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const isMonster = draft.primary_type === "monster";
   const isSpell = draft.primary_type === "spell";
   const isTrap = draft.primary_type === "trap";
   const flags = draft.monster_flags ?? [];
   const isLink = isMonster && flags.includes("link");
   const isPendulum = isMonster && flags.includes("pendulum");
+  const normalizedCategory = normalizeCardCategoryMask(draft.category);
+  const categoryRawDisplay = formatCardCategoryMask(normalizedCategory);
+  const selectedCategoryOptions = CARD_CATEGORY_OPTIONS.filter((option) =>
+    hasCardCategoryMask(normalizedCategory, option.mask),
+  );
+
+  useEffect(() => {
+    setCategoryRawInput(categoryRawDisplay);
+  }, [categoryRawDisplay]);
 
   function emitChange(patch: Partial<CardEntity>) {
     if (readonly || !onChange) return;
@@ -126,8 +146,32 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
     emitChange({ link: { markers: next } });
   }
 
+  function toggleCategoryMask(mask: number) {
+    const normalized = normalizeCardCategoryMask(draft.category);
+    const selected = hasCardCategoryMask(normalized, mask);
+    const next = selected ? normalized - mask : normalized + mask;
+    emitChange({ category: normalizeCardCategoryMask(next) });
+  }
+
+  function handleCategoryRawInput(value: string) {
+    setCategoryRawInput(value);
+    const raw = value.trim().replace(/^0x/i, "");
+    if (raw === "") {
+      emitChange({ category: 0 });
+      return;
+    }
+    if (!/^[0-9a-fA-F]+$/.test(raw)) return;
+    const parsed = Number.parseInt(raw, 16);
+    if (!Number.isFinite(parsed)) return;
+    const next = Math.min(parsed, CARD_CATEGORY_MAX_MASK);
+    if (next !== parsed) {
+      setCategoryRawInput(formatCardCategoryMask(next));
+    }
+    emitChange({ category: next });
+  }
+
   function handleNumberInput(
-    field: "code" | "alias" | "setcode" | "category" | "atk" | "def" | "level",
+    field: "code" | "alias" | "setcode" | "atk" | "def" | "level",
     value: string,
   ) {
     if (value === "" || value === "-") {
@@ -207,20 +251,71 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
         </select>
       </div>
 
-      <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>Category</label>
-        <input
-          className={styles.cardInfoInput}
-          type="text"
-          value={`0x${draft.category.toString(16).toUpperCase()}`}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/^0x/i, "");
-            const parsed = Number.parseInt(raw, 16);
-            if (Number.isFinite(parsed)) emitChange({ category: parsed });
-            else if (raw === "") emitChange({ category: 0 });
-          }}
-          readOnly={readonly}
-        />
+      <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
+        <div className={styles.categoryHeader}>
+          <label className={styles.cardInfoLabel}>Effect Categories</label>
+          <span className={styles.categoryRawValue}>Raw: {categoryRawDisplay}</span>
+        </div>
+        <div className={styles.categoryTagRow}>
+          <div className={styles.categoryTags}>
+            {selectedCategoryOptions.length === 0 ? (
+              <span className={styles.categoryEmptyTag}>No categories</span>
+            ) : (
+              selectedCategoryOptions.map((option) => (
+                <button
+                  key={option.bitIndex}
+                  type="button"
+                  className={styles.categoryTag}
+                  onClick={() => toggleCategoryMask(option.mask)}
+                  disabled={readonly}
+                  title={`Remove ${option.label}`}
+                >
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+          <button
+            type="button"
+            className={`${styles.categoryAddButton} ${categoryPickerOpen ? "active" : ""}`}
+            onClick={() => setCategoryPickerOpen((open) => !open)}
+            disabled={readonly}
+            aria-expanded={categoryPickerOpen}
+          >
+            +
+          </button>
+        </div>
+        {categoryPickerOpen && (
+          <div className={styles.categoryPickerPanel}>
+            <div className={styles.categoryCheckboxGrid}>
+              {CARD_CATEGORY_OPTIONS.map((option) => {
+                const selected = hasCardCategoryMask(normalizedCategory, option.mask);
+                return (
+                  <label key={option.bitIndex} className={styles.categoryCheckboxItem}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleCategoryMask(option.mask)}
+                      disabled={readonly}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <details className={styles.categoryAdvanced}>
+              <summary>Advanced raw mask</summary>
+              <input
+                className={styles.cardInfoInput}
+                type="text"
+                value={categoryRawInput}
+                onChange={(e) => handleCategoryRawInput(e.target.value)}
+                onBlur={() => setCategoryRawInput(categoryRawDisplay)}
+                readOnly={readonly}
+              />
+            </details>
+          </div>
+        )}
       </div>
       <div className={styles.cardInfoField}>
         <label className={styles.cardInfoLabel}>Primary Type</label>
