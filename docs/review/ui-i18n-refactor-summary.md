@@ -232,10 +232,26 @@ The first slice uses a mixed approach:
 
 This is pragmatic for an initial migration, but the catalog will need more governance as copy grows.
 
+Target structure:
+
+```text
+src/shared/i18n/messages/en-US.ts
+src/shared/i18n/messages/zh-CN.ts
+src/shared/i18n/messages/index.ts
+```
+
+The intended long-term model is:
+
+- `en-US.ts` owns the canonical English source messages.
+- `zh-CN.ts` owns real Simplified Chinese translations for the same message ids.
+- `index.ts` exports the combined `APP_MESSAGES` map and shared message types.
+- Temporary component-local `td(id, defaultMessage)` calls are gradually promoted into the per-locale message files.
+- `zh-CN` should eventually stop being generated from `[待译] ${englishDefault}` except as a development fallback.
+
 Future work:
 
 - Decide naming conventions for message ids.
-- Move high-traffic local descriptors into the central dictionary.
+- Move high-traffic local descriptors into the per-locale message files.
 - Add a script or check to detect duplicate ids and missing defaults.
 - Consider extraction tooling if the project grows beyond two locales.
 
@@ -304,11 +320,15 @@ Recommended order:
 
 1. Manual smoke test the default English UI.
 2. Switch `App language` to `zh-CN` and inspect major screens for `[待译] ...` coverage and layout issues.
-3. Replace the most visible `zh-CN` placeholders with real translations.
-4. Convert notices from rendered strings to descriptors.
-5. Add a message catalog lint/extraction check.
-6. Expand backend code-to-message coverage for less common errors.
-7. Decide whether `subtype_display` frontend parsing remains sufficient or should become a structured DTO in a later backend change.
+3. Split `src/shared/i18n/messages.ts` into per-locale message files:
+   - `messages/en-US.ts`
+   - `messages/zh-CN.ts`
+   - `messages/index.ts`
+4. Replace the most visible `zh-CN` placeholders with real translations.
+5. Convert notices from rendered strings to descriptors.
+6. Add a message catalog lint/extraction check.
+7. Expand backend code-to-message coverage for less common errors.
+8. Decide whether `subtype_display` frontend parsing remains sufficient or should become a structured DTO in a later backend change.
 
 ## 12. Summary
 

@@ -1,4 +1,4 @@
-export type AppLocale = "en-US" | "zh-CN";
+export type AppLocale = "en-US" | "ja-JP" | "zh-CN";
 
 export interface AppLocaleOption {
   id: AppLocale;
@@ -9,6 +9,7 @@ export const DEFAULT_APP_LOCALE: AppLocale = "en-US";
 
 export const APP_LOCALE_OPTIONS: AppLocaleOption[] = [
   { id: "en-US", label: "English" },
+  { id: "ja-JP", label: "Japanese" },
   { id: "zh-CN", label: "Simplified Chinese" },
 ];
 

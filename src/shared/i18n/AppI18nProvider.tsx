@@ -34,9 +34,9 @@ function formatWithIntl(
   descriptor: MessageDescriptor,
   values?: MessageValues,
 ): string {
-  if (locale === "zh-CN" && !Object.hasOwn(APP_MESSAGES["zh-CN"], descriptor.id ?? "")) {
+  if (locale !== DEFAULT_APP_LOCALE && !Object.hasOwn(APP_MESSAGES[locale], descriptor.id ?? "")) {
     const fallback = fallbackIntl.formatMessage(descriptor, values);
-    return `[待译] ${fallback}`;
+    return `[未翻訳] ${fallback}`;
   }
   return intl.formatMessage(descriptor, values);
 }
