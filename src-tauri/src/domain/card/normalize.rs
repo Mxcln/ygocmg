@@ -13,6 +13,11 @@ pub fn normalize_card_input(mut input: CardUpdateInput) -> CardUpdateInput {
             .collect();
     }
 
+    input.setcodes.retain(|&v| v != 0);
+    input.setcodes.sort();
+    input.setcodes.dedup();
+    input.setcodes.truncate(4);
+
     if let Some(flags) = &mut input.monster_flags {
         flags.sort();
         flags.dedup();
@@ -76,7 +81,7 @@ pub fn create_card_entity(new_id: CardId, input: CardUpdateInput, now: AppTimest
         id: new_id,
         code: normalized.code,
         alias: normalized.alias,
-        setcode: normalized.setcode,
+        setcodes: normalized.setcodes,
         ot: normalized.ot,
         category: normalized.category,
         primary_type: normalized.primary_type,
@@ -106,7 +111,7 @@ pub fn apply_card_update(
         id: existing.id.clone(),
         code: normalized.code,
         alias: normalized.alias,
-        setcode: normalized.setcode,
+        setcodes: normalized.setcodes,
         ot: normalized.ot,
         category: normalized.category,
         primary_type: normalized.primary_type,

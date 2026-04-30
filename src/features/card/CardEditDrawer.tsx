@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardApi } from "../../shared/api/cardApi";
+import { stringsApi } from "../../shared/api/stringsApi";
+import { standardPackApi } from "../../shared/api/standardPackApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError } from "../../shared/utils/format";
 import type { GlobalConfig } from "../../shared/contracts/config";
@@ -10,7 +12,7 @@ import type { ValidationIssue } from "../../shared/contracts/common";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardEditDrawer.module.css";
 import { CardAssetBar } from "./CardAssetBar";
-import { CardInfoForm } from "./CardInfoForm";
+import { CardInfoForm, type SetnameEntry } from "./CardInfoForm";
 import { CardTextForm } from "./CardTextForm";
 
 interface CardEditDrawerProps {
@@ -37,7 +39,7 @@ function makeBlankCard(suggestedCode: number, defaultLang: string): CardEntity {
     id: "",
     code: suggestedCode,
     alias: 0,
-    setcode: 0,
+    setcodes: [],
     ot: "custom",
     category: 0,
     primary_type: "monster",
@@ -96,6 +98,52 @@ export function CardEditDrawer({
   });
 
   const defaultLang = displayLanguageOrder[0] || "en-US";
+
+  const { data: standardSetnamesPage } = useQuery({
+    queryKey: ["standard-setnames"],
+    queryFn: () =>
+      standardPackApi.searchStrings({
+        kindFilter: "setname",
+        keyword: null,
+        keyFilter: null,
+        sortBy: "key",
+        sortDirection: "asc",
+        page: 1,
+        pageSize: 10000,
+      }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: packSetnamesPage } = useQuery({
+    queryKey: ["pack-setnames", packId],
+    queryFn: () =>
+      stringsApi.listPackStrings({
+        workspaceId,
+        packId,
+        language: defaultLang,
+        kindFilter: "setname",
+        keyword: null,
+        keyFilter: null,
+        page: 1,
+        pageSize: 10000,
+      }),
+    staleTime: 30_000,
+  });
+
+  const setnameEntries = useMemo<SetnameEntry[]>(() => {
+    const entries: SetnameEntry[] = [];
+    if (packSetnamesPage?.items) {
+      for (const item of packSetnamesPage.items) {
+        entries.push({ key: item.key, name: item.value, source: "pack" });
+      }
+    }
+    if (standardSetnamesPage?.items) {
+      for (const item of standardSetnamesPage.items) {
+        entries.push({ key: item.key, name: item.value, source: "standard" });
+      }
+    }
+    return entries;
+  }, [standardSetnamesPage, packSetnamesPage]);
 
   useEffect(() => {
     if (isCreate) {
@@ -164,7 +212,7 @@ export function CardEditDrawer({
       const cardPayload = {
         code: draft.code,
         alias: draft.alias,
-        setcode: draft.setcode,
+        setcodes: draft.setcodes,
         ot: draft.ot,
         category: draft.category,
         primary_type: draft.primary_type,
@@ -374,7 +422,7 @@ export function CardEditDrawer({
                     }}
                   />
                 ) : (
-                  <CardInfoForm draft={draft} onChange={handleChange} />
+                  <CardInfoForm draft={draft} onChange={handleChange} setnameEntries={setnameEntries} />
                 )}
               </div>
             </div>

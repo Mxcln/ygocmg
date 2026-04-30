@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   CardEntity,
@@ -21,10 +21,17 @@ import {
 
 import styles from "./CardInfoForm.module.css";
 
+export interface SetnameEntry {
+  key: number;
+  name: string;
+  source: "pack" | "standard";
+}
+
 interface CardInfoFormProps {
   draft: CardEntity;
   onChange?: (patch: Partial<CardEntity>) => void;
   readonly?: boolean;
+  setnameEntries?: SetnameEntry[];
 }
 
 const ALL_OT: Ot[] = ["ocg", "tcg", "custom"];
@@ -71,9 +78,26 @@ function displayLabel(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoFormProps) {
+function formatSetcodeHex(value: number): string {
+  return `0x${value.toString(16).toUpperCase()}`;
+}
+
+export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries = [] }: CardInfoFormProps) {
   const [categoryRawInput, setCategoryRawInput] = useState("");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [setcodePickerOpen, setSetcodePickerOpen] = useState(false);
+  const [setcodeSearch, setSetcodeSearch] = useState("");
+  const [setcodeRawOpen, setSetcodeRawOpen] = useState(false);
+
+  const setnameMap = useMemo(() => {
+    const map = new Map<number, SetnameEntry>();
+    for (const entry of setnameEntries) {
+      if (!map.has(entry.key) || entry.source === "pack") {
+        map.set(entry.key, entry);
+      }
+    }
+    return map;
+  }, [setnameEntries]);
   const isMonster = draft.primary_type === "monster";
   const isSpell = draft.primary_type === "spell";
   const isTrap = draft.primary_type === "trap";
@@ -171,7 +195,7 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
   }
 
   function handleNumberInput(
-    field: "code" | "alias" | "setcode" | "atk" | "def" | "level",
+    field: "code" | "alias" | "atk" | "def" | "level",
     value: string,
   ) {
     if (value === "" || value === "-") {
@@ -222,20 +246,79 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
         />
       </div>
 
-      <div className={styles.cardInfoField}>
-        <label className={styles.cardInfoLabel}>Setcode</label>
-        <input
-          className={styles.cardInfoInput}
-          type="text"
-          value={`0x${draft.setcode.toString(16).toUpperCase()}`}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/^0x/i, "");
-            const parsed = Number.parseInt(raw, 16);
-            if (Number.isFinite(parsed)) emitChange({ setcode: parsed });
-            else if (raw === "") emitChange({ setcode: 0 });
-          }}
-          readOnly={readonly}
-        />
+      <div className={`${styles.cardInfoField} ${styles.cardInfoFieldFull}`}>
+        <label className={styles.cardInfoLabel}>Setcodes</label>
+        <div className={styles.setcodeTagRow}>
+          <div className={styles.setcodeTags}>
+            {draft.setcodes.length === 0 ? (
+              <span className={styles.setcodeEmptyTag}>No archetypes</span>
+            ) : (
+              draft.setcodes.map((code) => {
+                const entry = setnameMap.get(code);
+                const label = entry
+                  ? `${entry.name} (${formatSetcodeHex(code)})`
+                  : formatSetcodeHex(code);
+                const sourceTag = entry ? (entry.source === "pack" ? " [Pack]" : " [Std]") : "";
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    className={styles.setcodeTag}
+                    onClick={() => {
+                      emitChange({ setcodes: draft.setcodes.filter((c) => c !== code) });
+                    }}
+                    disabled={readonly}
+                    title={`Remove ${label}${sourceTag}`}
+                  >
+                    {label} &times;
+                  </button>
+                );
+              })
+            )}
+          </div>
+          {draft.setcodes.length < 4 && (
+            <button
+              type="button"
+              className={`${styles.setcodeAddButton} ${setcodePickerOpen ? "active" : ""}`}
+              onClick={() => {
+                setSetcodePickerOpen((open) => !open);
+                setSetcodeSearch("");
+              }}
+              disabled={readonly}
+              aria-expanded={setcodePickerOpen}
+            >
+              +
+            </button>
+          )}
+        </div>
+        {setcodePickerOpen && (
+          <SetcodePicker
+            search={setcodeSearch}
+            onSearchChange={setSetcodeSearch}
+            setnameEntries={setnameEntries}
+            existingCodes={draft.setcodes}
+            onSelect={(code) => {
+              if (!draft.setcodes.includes(code) && draft.setcodes.length < 4) {
+                emitChange({ setcodes: [...draft.setcodes, code] });
+              }
+              setSetcodePickerOpen(false);
+              setSetcodeSearch("");
+            }}
+            readonly={readonly}
+          />
+        )}
+        <details
+          className={styles.setcodeAdvanced}
+          open={setcodeRawOpen}
+          onToggle={(e) => setSetcodeRawOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary>Advanced raw hex</summary>
+          <SetcodeRawInput
+            setcodes={draft.setcodes}
+            onChange={(codes) => emitChange({ setcodes: codes })}
+            readonly={readonly}
+          />
+        </details>
       </div>
       <div className={styles.cardInfoField}>
         <label className={styles.cardInfoLabel}>OT</label>
@@ -551,5 +634,163 @@ export function CardInfoForm({ draft, onChange, readonly = false }: CardInfoForm
         </div>
       )}
     </div>
+  );
+}
+
+function SetcodePicker({
+  search,
+  onSearchChange,
+  setnameEntries,
+  existingCodes,
+  onSelect,
+  readonly,
+}: {
+  search: string;
+  onSearchChange: (value: string) => void;
+  setnameEntries: SetnameEntry[];
+  existingCodes: number[];
+  onSelect: (code: number) => void;
+  readonly: boolean;
+}) {
+  const query = search.trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    if (!query) return setnameEntries;
+    const hexQuery = query.replace(/^0x/i, "");
+    return setnameEntries.filter((entry) => {
+      if (entry.name.toLowerCase().includes(query)) return true;
+      const hexKey = entry.key.toString(16);
+      return hexKey.includes(hexQuery);
+    });
+  }, [setnameEntries, query]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      if (a.source !== b.source) return a.source === "pack" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [filtered]);
+
+  const parsedCustomHex = useMemo(() => {
+    const raw = query.replace(/^0x/i, "");
+    if (!raw || !/^[0-9a-fA-F]+$/.test(raw)) return null;
+    const value = Number.parseInt(raw, 16);
+    if (!Number.isFinite(value) || value <= 0 || value > 0xffff) return null;
+    if (setnameEntries.some((e) => e.key === value)) return null;
+    return value;
+  }, [query, setnameEntries]);
+
+  return (
+    <div className={styles.setcodePickerPanel}>
+      <input
+        className={styles.setcodeSearchInput}
+        type="text"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search by name or hex..."
+        autoFocus
+        readOnly={readonly}
+      />
+      <div className={styles.setcodePickerList}>
+        {parsedCustomHex !== null && (
+          <button
+            type="button"
+            className={`${styles.setcodePickerItem} ${
+              existingCodes.includes(parsedCustomHex) ? styles.setcodePickerItemDisabled : ""
+            }`}
+            disabled={readonly || existingCodes.includes(parsedCustomHex)}
+            onClick={() => onSelect(parsedCustomHex)}
+          >
+            <span className={styles.setcodePickerName}>
+              Add custom {formatSetcodeHex(parsedCustomHex)}
+            </span>
+          </button>
+        )}
+        {sorted.map((entry) => {
+          const isAdded = existingCodes.includes(entry.key);
+          return (
+            <button
+              key={`${entry.source}-${entry.key}`}
+              type="button"
+              className={`${styles.setcodePickerItem} ${
+                isAdded ? styles.setcodePickerItemDisabled : ""
+              }`}
+              disabled={readonly || isAdded}
+              onClick={() => onSelect(entry.key)}
+            >
+              <span className={styles.setcodePickerName}>{entry.name}</span>
+              <span className={styles.setcodePickerMeta}>
+                {formatSetcodeHex(entry.key)}
+                <span className={styles.setcodeSourceBadge}>
+                  {entry.source === "pack" ? "Pack" : "Std"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        {sorted.length === 0 && parsedCustomHex === null && (
+          <div className={styles.setcodePickerEmpty}>No matches</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SetcodeRawInput({
+  setcodes,
+  onChange,
+  readonly,
+}: {
+  setcodes: number[];
+  onChange: (codes: number[]) => void;
+  readonly: boolean;
+}) {
+  const packed = useMemo(() => {
+    let result = BigInt(0);
+    for (let i = setcodes.length - 1; i >= 0; i--) {
+      result = (result << BigInt(16)) | BigInt(setcodes[i] & 0xffff);
+    }
+    return "0x" + result.toString(16).toUpperCase();
+  }, [setcodes]);
+
+  const [rawInput, setRawInput] = useState(packed);
+
+  useEffect(() => {
+    setRawInput(packed);
+  }, [packed]);
+
+  function handleChange(value: string) {
+    setRawInput(value);
+    const hex = value.trim().replace(/^0x/i, "");
+    if (!hex) {
+      onChange([]);
+      return;
+    }
+    if (!/^[0-9a-fA-F]+$/.test(hex)) return;
+    try {
+      let v = BigInt("0x" + hex);
+      const slots: number[] = [];
+      while (v > 0n) {
+        const slot = Number(v & 0xffffn);
+        if (slot !== 0) slots.push(slot);
+        v >>= 16n;
+      }
+      if (slots.length <= 4) {
+        onChange(slots);
+      }
+    } catch {
+      // ignore invalid input
+    }
+  }
+
+  return (
+    <input
+      className={styles.cardInfoInput}
+      type="text"
+      value={rawInput}
+      onChange={(e) => handleChange(e.target.value)}
+      onBlur={() => setRawInput(packed)}
+      readOnly={readonly}
+    />
   );
 }

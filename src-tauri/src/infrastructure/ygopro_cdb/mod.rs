@@ -136,7 +136,7 @@ pub fn write_cards_to_cdb(
                     card.code as i64,
                     encode_ot(&card.ot) as i64,
                     card.alias as i64,
-                    card.setcode as i64,
+                    pack_setcode(&card.setcodes),
                     encoded.raw_type as i64,
                     encoded.atk as i64,
                     encoded.def as i64,
@@ -288,7 +288,7 @@ fn decode_card_row(row: &Row<'_>) -> rusqlite::Result<YgoProCardRecord> {
         code,
         ot: parse_ot(read_u32_bits(row, 1)?),
         alias: read_u32_bits(row, 2)?,
-        setcode: read_i64_bits(row, 3)?,
+        setcodes: unpack_setcode(read_i64_bits(row, 3)?),
         category: read_u32_bits(row, 10)? as u64,
         primary_type: parse_primary_type(raw_type),
         texts: BTreeMap::from([("default".to_string(), texts)]),
@@ -659,6 +659,27 @@ fn parse_attribute(value: u64) -> Option<Attribute> {
         0x40 => Some(Attribute::Divine),
         _ => None,
     }
+}
+
+fn unpack_setcode(raw: u64) -> Vec<u16> {
+    let mut slots = Vec::new();
+    let mut v = raw;
+    while v > 0 {
+        let slot = (v & 0xffff) as u16;
+        if slot != 0 {
+            slots.push(slot);
+        }
+        v >>= 16;
+    }
+    slots
+}
+
+fn pack_setcode(slots: &[u16]) -> i64 {
+    let mut result: u64 = 0;
+    for (i, &slot) in slots.iter().enumerate().take(4) {
+        result |= (slot as u64) << (i * 16);
+    }
+    result as i64
 }
 
 fn parse_race(value: u64) -> Option<Race> {

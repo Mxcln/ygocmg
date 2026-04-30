@@ -1,9 +1,37 @@
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::domain::common::ids::{CardId, LanguageCode};
 use crate::domain::common::time::AppTimestamp;
+
+fn deserialize_setcodes<'de, D>(deserializer: D) -> Result<Vec<u16>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SetcodeValue {
+        Array(Vec<u16>),
+        Single(u64),
+    }
+
+    match SetcodeValue::deserialize(deserializer)? {
+        SetcodeValue::Array(arr) => Ok(arr),
+        SetcodeValue::Single(raw) => {
+            let mut slots = Vec::new();
+            let mut v = raw;
+            while v > 0 {
+                let slot = (v & 0xffff) as u16;
+                if slot != 0 {
+                    slots.push(slot);
+                }
+                v >>= 16;
+            }
+            Ok(slots)
+        }
+    }
+}
 
 pub const QMARK: i32 = -2;
 
@@ -141,7 +169,8 @@ pub struct CardEntity {
     pub id: CardId,
     pub code: u32,
     pub alias: u32,
-    pub setcode: u64,
+    #[serde(deserialize_with = "deserialize_setcodes", alias = "setcode")]
+    pub setcodes: Vec<u16>,
     pub ot: Ot,
     pub category: u64,
     pub primary_type: PrimaryType,
@@ -164,7 +193,8 @@ pub struct CardEntity {
 pub struct CardUpdateInput {
     pub code: u32,
     pub alias: u32,
-    pub setcode: u64,
+    #[serde(deserialize_with = "deserialize_setcodes", alias = "setcode")]
+    pub setcodes: Vec<u16>,
     pub ot: Ot,
     pub category: u64,
     pub primary_type: PrimaryType,

@@ -91,7 +91,7 @@ export interface CardEntity {
   id: CardId;
   code: number;
   alias: number;
-  setcode: number;
+  setcodes: number[];
   ot: Ot;
   category: number;
   primary_type: PrimaryType;

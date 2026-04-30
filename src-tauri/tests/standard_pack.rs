@@ -683,7 +683,7 @@ fn test_monster_input(code: u32, name: &str) -> CardUpdateInput {
     CardUpdateInput {
         code,
         alias: 0,
-        setcode: 0,
+        setcodes: vec![],
         ot: Ot::Custom,
         category: 0,
         primary_type: PrimaryType::Monster,

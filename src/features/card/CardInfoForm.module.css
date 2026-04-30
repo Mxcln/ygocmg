@@ -318,3 +318,199 @@
   background: var(--bg-0);
   border-color: transparent;
 }
+
+/* Setcode editor */
+.setcodeTagRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.setcodeTags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
+
+.setcodeTag,
+.setcodeEmptyTag {
+  flex: 0 0 auto;
+  max-width: 260px;
+  padding: 4px 8px;
+  border: 1px solid rgba(17, 94, 95, 0.3);
+  border-radius: 3px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.setcodeTag {
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setcodeTag:hover {
+  border-color: var(--brand);
+}
+
+.setcodeTag:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.setcodeEmptyTag {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.setcodeAddButton {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.setcodeAddButton:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.setcodeAddButton:global(.active) {
+  border-style: solid;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.setcodeAddButton:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.setcodePickerPanel {
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg-0);
+}
+
+.setcodeSearchInput {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-0);
+  font-size: 13px;
+  font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.setcodeSearchInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.setcodePickerList {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.setcodePickerItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-0);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.setcodePickerItem:hover:not(:disabled) {
+  background: var(--brand-soft);
+}
+
+.setcodePickerItemDisabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.setcodePickerName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.setcodePickerMeta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+.setcodeSourceBadge {
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.setcodePickerEmpty {
+  padding: 12px 8px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.setcodeAdvanced {
+  margin-top: 8px;
+}
+
+.setcodeAdvanced summary {
+  width: max-content;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.setcodeAdvanced input {
+  margin-top: 5px;
+  max-width: 240px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}

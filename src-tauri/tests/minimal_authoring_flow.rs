@@ -94,7 +94,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             card: CardUpdateInput {
                 code: 201_000_000,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -152,7 +152,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             card: CardUpdateInput {
                 code: 201_000_010,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -290,7 +290,7 @@ fn workspace_id_mismatch_rejected_for_card_commands() {
             card: CardUpdateInput {
                 code: 100_000_100,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -354,7 +354,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
             card: CardUpdateInput {
                 code: 201_000_000,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -406,7 +406,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
             card: CardUpdateInput {
                 code: 201_000_020,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -449,7 +449,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
             card: CardUpdateInput {
                 code: 100_000_200,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -527,7 +527,7 @@ fn create_confirmation_reuses_staged_card_identity() {
             card: CardUpdateInput {
                 code: 201_000_100,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -615,7 +615,7 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
             card: CardUpdateInput {
                 code: 100_000_300,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type: PrimaryType::Monster,
@@ -1727,7 +1727,7 @@ fn create_card_direct(
             card: CardUpdateInput {
                 code,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type,
@@ -1794,7 +1794,7 @@ fn update_card_direct(
             card: CardUpdateInput {
                 code,
                 alias: 0,
-                setcode: 0,
+                setcodes: vec![],
                 ot: Ot::Custom,
                 category: 0,
                 primary_type,
@@ -1835,7 +1835,7 @@ fn monster_input_with_texts(code: u32, texts: BTreeMap<String, CardTexts>) -> Ca
     CardUpdateInput {
         code,
         alias: 0,
-        setcode: 0,
+        setcodes: vec![],
         ot: Ot::Custom,
         category: 0,
         primary_type: PrimaryType::Monster,

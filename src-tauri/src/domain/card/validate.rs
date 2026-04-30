@@ -6,7 +6,7 @@ pub fn validate_card_structure(card: &CardEntity) -> Vec<ValidationIssue> {
     validate_card_update_input(&CardUpdateInput {
         code: card.code,
         alias: card.alias,
-        setcode: card.setcode,
+        setcodes: card.setcodes.clone(),
         ot: card.ot.clone(),
         category: card.category,
         primary_type: card.primary_type.clone(),
@@ -39,6 +39,13 @@ pub fn validate_card_update_input(input: &CardUpdateInput) -> Vec<ValidationIssu
         issues.push(ValidationIssue::error(
             "card.category_out_of_range",
             target.clone().with_field("category"),
+        ));
+    }
+
+    if input.setcodes.len() > 4 {
+        issues.push(ValidationIssue::error(
+            "card.setcodes_too_many",
+            target.clone().with_field("setcodes"),
         ));
     }
 
@@ -208,7 +215,7 @@ mod tests {
         CardUpdateInput {
             code: 100_000_000,
             alias: 0,
-            setcode: 0,
+            setcodes: vec![],
             ot: Ot::Custom,
             category,
             primary_type: PrimaryType::Monster,

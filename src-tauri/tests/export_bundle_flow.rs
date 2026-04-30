@@ -610,7 +610,7 @@ impl CardSpec {
         CardUpdateInput {
             code: self.code,
             alias: 0,
-            setcode: if is_monster { 0x345 } else { 0 },
+            setcodes: if is_monster { vec![0x345] } else { vec![] },
             ot: Ot::Custom,
             category: 0,
             primary_type: self.primary_type,
