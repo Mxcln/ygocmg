@@ -69,6 +69,7 @@ fn main() {
             tauri_commands::search_standard_cards,
             tauri_commands::search_standard_strings,
             tauri_commands::get_standard_card,
+            tauri_commands::list_standard_setnames,
             tauri_commands::get_job_status,
             tauri_commands::list_active_jobs
         ])

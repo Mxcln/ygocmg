@@ -92,6 +92,7 @@ export function CardEditDrawer({
   const closeDialog = useShellStore((s) => s.closeDialog);
   const updatePackMetadataInStore = useShellStore((s) => s.updatePackMetadata);
   const displayLanguageOrder = activeMeta?.display_language_order ?? [];
+  const standardSetnameLanguage = config.standard_pack_source_language ?? null;
 
   const { data: cardDetail, isLoading: loadingDetail } = useQuery({
     queryKey: ["card", packId, cardId],
@@ -102,18 +103,9 @@ export function CardEditDrawer({
 
   const defaultLang = displayLanguageOrder[0] || "en-US";
 
-  const { data: standardSetnamesPage } = useQuery({
-    queryKey: ["standard-setnames"],
-    queryFn: () =>
-      standardPackApi.searchStrings({
-        kindFilter: "setname",
-        keyword: null,
-        keyFilter: null,
-        sortBy: "key",
-        sortDirection: "asc",
-        page: 1,
-        pageSize: 10000,
-      }),
+  const { data: standardSetnames } = useQuery({
+    queryKey: ["standard-setnames", standardSetnameLanguage],
+    queryFn: () => standardPackApi.listSetnames({ language: standardSetnameLanguage }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -140,13 +132,13 @@ export function CardEditDrawer({
         entries.push({ key: item.key, name: item.value, source: "pack" });
       }
     }
-    if (standardSetnamesPage?.items) {
-      for (const item of standardSetnamesPage.items) {
+    if (standardSetnames) {
+      for (const item of standardSetnames) {
         entries.push({ key: item.key, name: item.value, source: "standard" });
       }
     }
     return entries;
-  }, [standardSetnamesPage, packSetnamesPage]);
+  }, [standardSetnames, packSetnamesPage]);
 
   useEffect(() => {
     if (isCreate) {

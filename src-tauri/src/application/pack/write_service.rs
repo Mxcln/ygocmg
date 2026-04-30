@@ -4,6 +4,9 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::application::dto::strings::PackStringKeyDto;
+use crate::application::standard_pack::repository::{
+    JsonStandardPackRepository, StandardPackRepository,
+};
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{CodeValidationContext, validate_card_code};
 use crate::domain::card::model::{CardEntity, CardUpdateInput, PrimaryType, SpellSubtype};
@@ -952,9 +955,9 @@ impl<'a> PackWriteService<'a> {
             }
         }
 
-        let standard =
-            crate::infrastructure::standard_pack::standard_strings(self.state.app_data_dir())
-                .unwrap_or_else(|| self.state.standard_baseline.strings.clone());
+        let standard = JsonStandardPackRepository::new(self.state)
+            .strings_baseline()
+            .unwrap_or_else(|_| self.state.standard_baseline.strings.clone());
 
         validate_pack_string_record_namespace(
             record,

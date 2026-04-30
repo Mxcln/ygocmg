@@ -9,6 +9,9 @@ use crate::application::dto::import::{
     ExecuteImportPackInput, ImportPreviewDto, PreviewImportPackInput,
 };
 use crate::application::dto::job::{JobAcceptedDto, JobKindDto};
+use crate::application::standard_pack::repository::{
+    JsonStandardPackRepository, StandardPackRepository,
+};
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{
     CodePolicy, CodeValidationContext, STANDARD_RESERVED_CODE_MAX, validate_card_code,
@@ -380,10 +383,9 @@ impl<'a> ImportService<'a> {
                 other_custom_codes.insert(card.code);
             }
         }
-        let standard_baseline = crate::infrastructure::standard_pack::standard_baseline_from_index(
-            self.state.app_data_dir(),
-        )
-        .unwrap_or_else(|| self.state.standard_baseline.clone());
+        let standard_baseline = JsonStandardPackRepository::new(self.state)
+            .namespace_baseline()
+            .unwrap_or_else(|_| self.state.standard_baseline.clone());
 
         Ok(CodeValidationContext {
             policy: CodePolicy {

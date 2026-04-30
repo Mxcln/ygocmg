@@ -1,12 +1,14 @@
 import { invokeApi } from "./invoke";
 import type {
   GetStandardCardInput,
+  ListStandardSetnamesInput,
   SearchStandardCardsInput,
   SearchStandardStringsInput,
   StandardCardDetail,
   StandardCardPage,
   StandardPackRebuildJob,
   StandardPackStatus,
+  StandardSetnameEntry,
   StandardStringsPage,
 } from "../contracts/standardPack";
 
@@ -29,5 +31,9 @@ export const standardPackApi = {
 
   getCard(input: GetStandardCardInput) {
     return invokeApi<StandardCardDetail>("get_standard_card", { input });
+  },
+
+  listSetnames(input: ListStandardSetnamesInput) {
+    return invokeApi<StandardSetnameEntry[]>("list_standard_setnames", { input });
   },
 };

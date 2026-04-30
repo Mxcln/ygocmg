@@ -77,6 +77,9 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
     setActiveJobId(null);
     void queryClient.invalidateQueries({ queryKey: ["standard-pack-status"] });
     void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
+    void queryClient.invalidateQueries({ queryKey: ["standard-strings"] });
+    void queryClient.invalidateQueries({ queryKey: ["standard-card"] });
+    void queryClient.invalidateQueries({ queryKey: ["standard-setnames"] });
   }, [activeJobId, jobQuery.data, queryClient]);
 
   const status = statusQuery.data ?? null;

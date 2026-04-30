@@ -4,6 +4,9 @@ use crate::application::dto::card::{
     CardDetailDto, CardListPageDto, CardListRowDto, CardSortFieldDto, CodeSuggestionDto,
     GetCardInput, ListCardsInput, SortDirectionDto, SuggestCodeInput,
 };
+use crate::application::standard_pack::repository::{
+    JsonStandardPackRepository, StandardPackRepository,
+};
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{
     CodePolicy, CodeValidationContext, STANDARD_RESERVED_CODE_MAX, suggest_next_code,
@@ -154,10 +157,9 @@ impl<'a> CardService<'a> {
             }
         }
 
-        let baseline = crate::infrastructure::standard_pack::standard_baseline_from_index(
-            self.state.app_data_dir(),
-        )
-        .unwrap_or_else(|| self.state.standard_baseline.clone());
+        let baseline = JsonStandardPackRepository::new(self.state)
+            .namespace_baseline()
+            .unwrap_or_else(|_| self.state.standard_baseline.clone());
 
         Ok(CodeValidationContext {
             policy: CodePolicy {

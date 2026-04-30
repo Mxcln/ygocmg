@@ -8,8 +8,8 @@ use ygocmg_core::application::dto::card::{CreateCardInput, SortDirectionDto};
 use ygocmg_core::application::dto::export::PreviewExportBundleInput;
 use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
 use ygocmg_core::application::dto::standard_pack::{
-    SearchStandardCardsInput, SearchStandardStringsInput, StandardCardSortFieldDto,
-    StandardStringSortFieldDto,
+    ListStandardSetnamesInput, SearchStandardCardsInput, SearchStandardStringsInput,
+    StandardCardSortFieldDto, StandardStringSortFieldDto,
 };
 use ygocmg_core::application::dto::strings::{
     PackStringRecordDto, PackStringValueDto, UpsertPackStringRecordInput,
@@ -350,6 +350,73 @@ fn standard_strings_are_indexed_and_searchable() {
         .unwrap();
     assert_eq!(key_page.total, 1);
     assert_eq!(key_page.items[0].kind, PackStringKind::Counter);
+}
+
+#[test]
+fn standard_setnames_are_listed_with_dedicated_command() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system\n1 System value\n!setname\n0x20 Beta Set\n0x10 Alpha Set\n!victory\n10 Victory value\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let setnames =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+
+    assert_eq!(setnames.len(), 2);
+    assert_eq!(setnames[0].key, 0x10);
+    assert_eq!(setnames[0].value, "Alpha Set");
+    assert_eq!(setnames[1].key, 0x20);
+    assert_eq!(setnames[1].value, "Beta Set");
+}
+
+#[test]
+fn standard_setnames_empty_when_source_has_no_setnames() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let without_strings =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+    assert!(without_strings.is_empty());
+
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system\n1 System value\n",
+    )
+    .unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+    state.standard_pack_index_cache.clear().unwrap();
+
+    let without_setnames =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+    assert!(without_setnames.is_empty());
 }
 
 #[test]

@@ -80,4 +80,13 @@ export interface StandardStringsPage {
   revision: number;
 }
 
+export interface ListStandardSetnamesInput {
+  language: string | null;
+}
+
+export interface StandardSetnameEntry {
+  key: number;
+  value: string;
+}
+
 export type StandardPackRebuildJob = JobAccepted;

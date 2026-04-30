@@ -9,6 +9,9 @@ use crate::application::dto::export::{
     ExecuteExportBundleInput, ExportPreviewDto, PreviewExportBundleInput,
 };
 use crate::application::dto::job::{JobAcceptedDto, JobKindDto};
+use crate::application::standard_pack::repository::{
+    JsonStandardPackRepository, StandardPackRepository,
+};
 use crate::bootstrap::AppState;
 use crate::domain::card::code::STANDARD_RESERVED_CODE_MAX;
 use crate::domain::card::validate::validate_card_structure;
@@ -259,10 +262,9 @@ impl<'a> ExportService<'a> {
         let mut setname_base_owners = BTreeMap::<u16, Vec<String>>::new();
         let mut counter_owners = BTreeMap::<u32, Vec<String>>::new();
         let mut victory_owners = BTreeMap::<u32, Vec<String>>::new();
-        let standard_baseline = crate::infrastructure::standard_pack::standard_baseline_from_index(
-            self.state.app_data_dir(),
-        )
-        .unwrap_or_else(|| self.state.standard_baseline.clone());
+        let standard_baseline = JsonStandardPackRepository::new(self.state)
+            .namespace_baseline()
+            .unwrap_or_else(|_| self.state.standard_baseline.clone());
 
         let output_path = export_output_path(input);
         if export_output_path_is_blocked(&output_path) {

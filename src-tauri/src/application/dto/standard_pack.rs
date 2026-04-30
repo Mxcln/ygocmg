@@ -104,3 +104,15 @@ pub struct StandardStringsPageDto {
     pub total: u64,
     pub revision: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListStandardSetnamesInput {
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StandardSetnameEntryDto {
+    pub key: u32,
+    pub value: String,
+}
