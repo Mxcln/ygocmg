@@ -8,11 +8,15 @@ use ygocmg_core::application::dto::card::{CreateCardInput, SortDirectionDto};
 use ygocmg_core::application::dto::export::PreviewExportBundleInput;
 use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
 use ygocmg_core::application::dto::standard_pack::{
-    ListStandardSetnamesInput, SearchStandardCardsInput, SearchStandardStringsInput,
-    StandardCardSortFieldDto, StandardStringSortFieldDto,
+    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
+    SearchStandardStringsInput, StandardCardSortFieldDto, StandardPackIndexStateDto,
+    StandardStringSortFieldDto,
 };
 use ygocmg_core::application::dto::strings::{
     PackStringRecordDto, PackStringValueDto, UpsertPackStringRecordInput,
+};
+use ygocmg_core::application::standard_pack::repository::{
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use ygocmg_core::application::standard_pack::service::StandardPackService;
 use ygocmg_core::bootstrap::AppState;
@@ -446,6 +450,777 @@ fn standard_strings_parse_ygopro_inline_format() {
             .get("zh-CN")
             .is_some_and(|value| value == "通常召唤")
     }));
+}
+
+#[test]
+fn save_index_writes_manifest() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system 1 System value\n!setname 0x10 Set value\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let manifest =
+        ygocmg_core::infrastructure::standard_pack::manifest::load_manifest(app.path()).unwrap();
+    let index_stamp =
+        ygocmg_core::infrastructure::standard_pack::manifest::index_file_stamp(app.path()).unwrap();
+
+    assert_eq!(
+        manifest.schema_version,
+        ygocmg_core::infrastructure::standard_pack::manifest::STANDARD_MANIFEST_SCHEMA_VERSION
+    );
+    assert_eq!(
+        manifest.index_schema_version,
+        ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION
+    );
+    assert_eq!(manifest.source, index.source);
+    assert_eq!(manifest.source_language, "zh-CN");
+    assert_eq!(manifest.indexed_at, index.indexed_at);
+    assert_eq!(manifest.card_count, 2);
+    assert_eq!(manifest.string_count, 2);
+    assert_eq!(manifest.index_file, index_stamp);
+}
+
+#[test]
+fn status_uses_manifest_without_full_index_deserialize() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    let source = ygocmg_core::infrastructure::standard_pack::discover_source(root.path()).unwrap();
+
+    ygocmg_core::infrastructure::json_store::write_json(
+        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &serde_json::json!({
+            "schema_version": ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION
+        }),
+    )
+    .unwrap();
+    let index_stamp =
+        ygocmg_core::infrastructure::standard_pack::manifest::index_file_stamp(app.path()).unwrap();
+    let indexed_at = ygocmg_core::domain::common::time::now_utc();
+    let manifest = ygocmg_core::infrastructure::standard_pack::manifest::StandardPackManifestFile {
+        schema_version:
+            ygocmg_core::infrastructure::standard_pack::manifest::STANDARD_MANIFEST_SCHEMA_VERSION,
+        index_schema_version:
+            ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION,
+        source: source.snapshot,
+        source_language: "zh-CN".to_string(),
+        indexed_at,
+        card_count: 99,
+        string_count: 7,
+        index_file: index_stamp,
+    };
+    ygocmg_core::infrastructure::json_store::write_json(
+        &ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
+            app.path(),
+        ),
+        &manifest,
+    )
+    .unwrap();
+
+    let status = ygocmg_core::infrastructure::standard_pack::status(
+        app.path(),
+        Some(root.path()),
+        Some("zh-CN"),
+    );
+
+    assert!(status.index_exists);
+    assert!(!status.schema_mismatch);
+    assert!(!status.stale);
+    assert_eq!(status.card_count, 99);
+    assert_eq!(status.source_language.as_deref(), Some("zh-CN"));
+    assert_eq!(status.indexed_at, Some(indexed_at));
+}
+
+#[test]
+fn status_falls_back_when_manifest_missing() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::json_store::write_json(
+        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &index,
+    )
+    .unwrap();
+
+    assert!(
+        !ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
+            app.path()
+        )
+        .exists()
+    );
+    let status = ygocmg_core::infrastructure::standard_pack::status(
+        app.path(),
+        Some(root.path()),
+        Some("zh-CN"),
+    );
+
+    assert!(status.index_exists);
+    assert!(!status.schema_mismatch);
+    assert_eq!(status.card_count, 2);
+}
+
+#[test]
+fn status_falls_back_when_manifest_stamp_mismatches() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    let first =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &first).unwrap();
+
+    fs::remove_file(root.path().join("cards.cdb")).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+    let second =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::json_store::write_json(
+        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &second,
+    )
+    .unwrap();
+
+    let status = ygocmg_core::infrastructure::standard_pack::status(
+        app.path(),
+        Some(root.path()),
+        Some("zh-CN"),
+    );
+
+    assert!(status.index_exists);
+    assert!(!status.schema_mismatch);
+    assert_eq!(status.card_count, 2);
+}
+
+#[test]
+fn save_index_writes_sqlite_index() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system 1 System value\n!setname 0x10 Set value\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    assert!(sqlite_path.exists());
+
+    let connection = Connection::open(sqlite_path).unwrap();
+    let (schema_version, source_language, card_count, string_count): (i64, String, i64, i64) =
+        connection
+            .query_row(
+                "select schema_version, source_language, card_count, string_count from standard_manifest where id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+
+    assert_eq!(
+        schema_version,
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::STANDARD_SQLITE_SCHEMA_VERSION
+            as i64
+    );
+    assert_eq!(source_language, "zh-CN");
+    assert_eq!(card_count, 2);
+    assert_eq!(string_count, 2);
+}
+
+#[test]
+fn sqlite_index_contains_cards_texts_assets_and_list_rows() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::create_dir_all(root.path().join("pics").join("field")).unwrap();
+    fs::create_dir_all(root.path().join("script")).unwrap();
+    fs::write(root.path().join("pics").join("123.jpg"), "image").unwrap();
+    fs::write(
+        root.path().join("pics").join("field").join("123.jpg"),
+        "field",
+    )
+    .unwrap();
+    fs::write(root.path().join("script").join("c123.lua"), "-- script").unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let connection = Connection::open(
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        ),
+    )
+    .unwrap();
+
+    let (ot, primary_type, subtype_display, detail_json): (String, String, String, String) =
+        connection
+            .query_row(
+                "select ot, primary_type, subtype_display, detail_json from standard_cards where code = 123",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+    assert_eq!(ot, "ocg");
+    assert_eq!(primary_type, "monster");
+    assert_eq!(subtype_display, "Effect");
+    let detail: ygocmg_core::domain::card::model::CardEntity =
+        serde_json::from_str(&detail_json).unwrap();
+    assert_eq!(detail.code, 123);
+    assert_eq!(detail.texts["zh-CN"].name, "Indexed");
+
+    let (name, desc, strings_json): (String, String, String) = connection
+        .query_row(
+            "select name, desc, strings_json from standard_card_texts where code = 123 and language = 'zh-CN'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(name, "Indexed");
+    assert_eq!(desc, "desc");
+    let strings: Vec<String> = serde_json::from_str(&strings_json).unwrap();
+    assert_eq!(strings.len(), 16);
+
+    let list_name: String = connection
+        .query_row(
+            "select name from standard_card_list_rows where code = 123 and language = 'zh-CN'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(list_name, "Indexed");
+
+    let (has_image, has_script, has_field_image): (i64, i64, i64) = connection
+        .query_row(
+            "select has_image, has_script, has_field_image from standard_assets where code = 123",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!((has_image, has_script, has_field_image), (1, 1, 1));
+}
+
+#[test]
+fn sqlite_index_contains_strings_and_baselines() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system 1 System value\n!victory 0x10 Victory value\n!counter 0x101 Counter value\n!setname 0x20 Set value\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let connection = Connection::open(
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        ),
+    )
+    .unwrap();
+
+    let set_value: String = connection
+        .query_row(
+            "select value from standard_strings where kind = 'setname' and key = 0x20 and language = 'zh-CN'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(set_value, "Set value");
+
+    let standard_code_count: i64 = connection
+        .query_row("select count(*) from standard_code_baseline", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let standard_string_count: i64 = connection
+        .query_row("select count(*) from standard_string_baseline", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let setname_base: i64 = connection
+        .query_row(
+            "select base from standard_setname_base_baseline where base = 0x20",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+
+    assert_eq!(standard_code_count, 1);
+    assert_eq!(standard_string_count, 4);
+    assert_eq!(setname_base, 0x20);
+}
+
+#[test]
+fn sqlite_index_replaces_previous_file() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    let first =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &first).unwrap();
+
+    fs::remove_file(root.path().join("cards.cdb")).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+    let second =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &second).unwrap();
+
+    let connection = Connection::open(
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        ),
+    )
+    .unwrap();
+    let manifest_card_count: i64 = connection
+        .query_row(
+            "select card_count from standard_manifest where id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let card_count: i64 = connection
+        .query_row("select count(*) from standard_cards", [], |row| row.get(0))
+        .unwrap();
+
+    assert_eq!(manifest_card_count, 2);
+    assert_eq!(card_count, 2);
+}
+
+#[test]
+fn rebuild_index_job_writes_sqlite_index() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let mut config = ygocmg_core::domain::config::rules::default_global_config();
+    config.ygopro_path = Some(root.path().to_path_buf());
+    config.standard_pack_source_language = Some("zh-CN".to_string());
+    app_commands::save_config(&state, &config).unwrap();
+
+    let accepted = app_commands::rebuild_standard_pack_index(&state).unwrap();
+    wait_for_status(&state, &accepted.job_id, JobStatusDto::Succeeded);
+
+    assert!(
+        ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()).exists()
+    );
+    assert!(
+        ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
+            app.path()
+        )
+        .exists()
+    );
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    assert!(sqlite_path.exists());
+
+    let connection = Connection::open(sqlite_path).unwrap();
+    let card_count: i64 = connection
+        .query_row(
+            "select card_count from standard_manifest where id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(card_count, 1);
+}
+
+#[test]
+fn status_requires_sqlite_when_only_json_exists() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::json_store::write_json(
+        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &index,
+    )
+    .unwrap();
+    ygocmg_core::infrastructure::standard_pack::manifest::save_manifest(app.path(), &index)
+        .unwrap();
+    assert!(
+        !ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path()
+        )
+        .exists()
+    );
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let mut config = ygocmg_core::domain::config::rules::default_global_config();
+    config.ygopro_path = Some(root.path().to_path_buf());
+    config.standard_pack_source_language = Some("zh-CN".to_string());
+    app_commands::save_config(&state, &config).unwrap();
+
+    let status = app_commands::get_standard_pack_status(&state);
+    assert!(!status.index_exists);
+    assert_eq!(status.card_count, 0);
+    assert!(matches!(
+        status.state,
+        StandardPackIndexStateDto::MissingIndex
+    ));
+    assert!(
+        status
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("sqlite index is missing"))
+    );
+}
+
+#[test]
+fn sqlite_repository_search_cards_matches_existing_behavior() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[
+            (300, "Gamma Trap", 0x4),
+            (100, "Alpha Dragon", 0x1 | 0x20),
+            (200, "Beta Spell", 0x2),
+        ],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let service = StandardPackService::new(&state);
+    let effect_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: Some("effect".to_string()),
+            sort_by: StandardCardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 20,
+        })
+        .unwrap();
+    assert_eq!(effect_page.total, 1);
+    assert_eq!(effect_page.items[0].code, 100);
+
+    let name_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: None,
+            sort_by: StandardCardSortFieldDto::Name,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 2,
+        })
+        .unwrap();
+    assert_eq!(name_page.total, 3);
+    assert_eq!(
+        name_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![100, 200]
+    );
+
+    let type_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: None,
+            sort_by: StandardCardSortFieldDto::Type,
+            sort_direction: SortDirectionDto::Desc,
+            page: 1,
+            page_size: 3,
+        })
+        .unwrap();
+    assert_eq!(
+        type_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![300, 200, 100]
+    );
+}
+
+#[test]
+fn sqlite_repository_get_card_reads_single_detail() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let detail =
+        app_commands::get_standard_card(&state, GetStandardCardInput { code: 123 }).unwrap();
+    assert_eq!(detail.card.code, 123);
+    assert_eq!(detail.card.texts["zh-CN"].name, "Indexed");
+    assert_eq!(detail.available_languages, vec!["zh-CN".to_string()]);
+
+    let missing =
+        app_commands::get_standard_card(&state, GetStandardCardInput { code: 999 }).unwrap_err();
+    assert_eq!(missing.code, "standard_pack.card_not_found");
+}
+
+#[test]
+fn sqlite_repository_search_strings_filters_and_sorts() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system 1 Zebra\n!victory 0x10 Alpha\n!counter 0x101 Middle\n!setname 0x20 Beta Set\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let filtered = app_commands::search_standard_strings(
+        &state,
+        SearchStandardStringsInput {
+            kind_filter: Some(PackStringKind::Victory),
+            key_filter: None,
+            keyword: Some("alpha".to_string()),
+            sort_by: StandardStringSortFieldDto::Value,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 20,
+        },
+    )
+    .unwrap();
+    assert_eq!(filtered.total, 1);
+    assert_eq!(filtered.items[0].key, 0x10);
+    assert_eq!(filtered.items[0].value, "Alpha");
+
+    let sorted = app_commands::search_standard_strings(
+        &state,
+        SearchStandardStringsInput {
+            kind_filter: None,
+            key_filter: None,
+            keyword: None,
+            sort_by: StandardStringSortFieldDto::Key,
+            sort_direction: SortDirectionDto::Desc,
+            page: 1,
+            page_size: 2,
+        },
+    )
+    .unwrap();
+    assert_eq!(sorted.total, 4);
+    assert_eq!(
+        sorted.items.iter().map(|item| item.key).collect::<Vec<_>>(),
+        vec![0x101, 0x20]
+    );
+}
+
+#[test]
+fn sqlite_repository_lists_setnames_without_card_data() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!setname 0x20 Beta Set\n!setname 0x10 Alpha Set\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    let connection = Connection::open(sqlite_path).unwrap();
+    connection
+        .execute(
+            "update standard_cards set detail_json = 'not valid json' where code = 123",
+            [],
+        )
+        .unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let setnames =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+    assert_eq!(
+        setnames
+            .iter()
+            .map(|entry| (entry.key, entry.value.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(0x10, "Alpha Set"), (0x20, "Beta Set")]
+    );
+}
+
+#[test]
+fn sqlite_repository_builds_namespace_baseline_without_card_details() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Indexed", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!system 1 System value\n!setname 0x20 Set value\n",
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    let connection = Connection::open(sqlite_path).unwrap();
+    connection
+        .execute(
+            "update standard_cards set detail_json = 'not valid json' where code = 123",
+            [],
+        )
+        .unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let baseline = SqliteStandardPackRepository::new(&state)
+        .namespace_baseline()
+        .unwrap();
+    assert!(baseline.standard_codes.contains(&123));
+    assert!(baseline.strings.system_keys.contains(&1));
+    assert!(baseline.strings.setname_keys.contains(&0x20));
+    assert!(baseline.strings.setname_bases.contains(&0x20));
+}
+
+#[test]
+fn rebuild_clears_runtime_cache() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Original", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!setname 0x20 Alpha Set\n",
+    )
+    .unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let mut config = ygocmg_core::domain::config::rules::default_global_config();
+    config.ygopro_path = Some(root.path().to_path_buf());
+    config.standard_pack_source_language = Some("zh-CN".to_string());
+    app_commands::save_config(&state, &config).unwrap();
+
+    let first = app_commands::rebuild_standard_pack_index(&state).unwrap();
+    wait_for_status(&state, &first.job_id, JobStatusDto::Succeeded);
+    let cached =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+    assert_eq!(cached[0].value, "Alpha Set");
+
+    fs::remove_file(root.path().join("cards.cdb")).unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(123, "Original", 0x1 | 0x20), (456, "Second", 0x2)],
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("strings.conf"),
+        "!setname 0x20 Omega Set\n",
+    )
+    .unwrap();
+
+    let second = app_commands::rebuild_standard_pack_index(&state).unwrap();
+    wait_for_status(&state, &second.job_id, JobStatusDto::Succeeded);
+    let refreshed =
+        app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
+            .unwrap();
+    assert_eq!(refreshed[0].value, "Omega Set");
+
+    let status = app_commands::get_standard_pack_status(&state);
+    assert_eq!(status.card_count, 2);
 }
 
 #[test]

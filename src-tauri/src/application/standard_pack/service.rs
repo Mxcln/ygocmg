@@ -5,7 +5,7 @@ use crate::application::dto::standard_pack::{
     StandardSetnameEntryDto, StandardStringsPageDto,
 };
 use crate::application::standard_pack::repository::{
-    JsonStandardPackRepository, StandardPackRepository,
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::{AppError, AppResult};
@@ -39,7 +39,7 @@ impl<'a> StandardPackService<'a> {
             )
         })?;
         let app_data_dir = self.state.app_data_dir().to_path_buf();
-        let index_cache = self.state.standard_pack_index_cache.clone();
+        let runtime_cache = self.state.standard_pack_index_cache.clone();
 
         self.state
             .jobs
@@ -72,7 +72,7 @@ impl<'a> StandardPackService<'a> {
                     Some(95),
                     Some("Refreshing standard index cache".to_string()),
                 )?;
-                let _ = index_cache.replace(&app_data_dir, index)?;
+                runtime_cache.clear()?;
 
                 context.progress(
                     "index_ready",
@@ -104,7 +104,7 @@ impl<'a> StandardPackService<'a> {
         self.repository().list_setnames(input)
     }
 
-    fn repository(&self) -> JsonStandardPackRepository<'_> {
-        JsonStandardPackRepository::new(self.state)
+    fn repository(&self) -> SqliteStandardPackRepository<'_> {
+        SqliteStandardPackRepository::new(self.state)
     }
 }

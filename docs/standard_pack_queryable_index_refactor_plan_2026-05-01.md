@@ -2,6 +2,17 @@
 
 Date: 2026-05-01
 
+## Implementation Status
+
+Status as of 2026-05-01:
+
+- Phase 1 is implemented: Standard Pack runtime access is behind a repository boundary, and `list_standard_setnames` is available as a setname-specific command.
+- Phase 2 is implemented: rebuild writes `<app_data>/standard_pack/manifest.json`; legacy low-level JSON status can use the manifest without deserializing the full JSON index.
+- Phase 3 is implemented: rebuild writes `<app_data>/standard_pack/index.sqlite` with schema version `1`, validates row counts, and atomically replaces the previous SQLite cache.
+- Phase 4 is implemented: production Standard Pack read paths use SQLite, not `index.json`; `index.json` remains a compatibility/debug artifact until Phase 6.
+- The production runtime cache no longer stores `StandardPackIndexFile`; it caches SQLite-stamp-bound manifest data, namespace baseline, and setname lists by language.
+- Regression verification passed with `cargo fmt`, `cargo test --offline --test standard_pack`, and full `cargo test --offline`.
+
 ## 1. Purpose
 
 This document proposes a structural refactor of the Standard Pack backend model.
@@ -63,7 +74,7 @@ The Standard Pack is different:
 - It is rebuilt from an external YGOPro source.
 - It is used both by UI browsing and by validation/reference logic.
 
-Today, the Standard Pack rebuild writes a single large file:
+Before this refactor, the Standard Pack rebuild wrote a single large file:
 
 ```text
 <app_data>/standard_pack/index.json
@@ -85,6 +96,20 @@ On the tested local machine, this file is about 33.7 MB and contains:
 
 - 14,670 cards
 - 1,246 strings records
+
+As of Phase 4, rebuild still writes `index.json` for compatibility/debug purposes, but production reads use:
+
+```text
+<app_data>/standard_pack/index.sqlite
+```
+
+The Phase 2 sidecar remains:
+
+```text
+<app_data>/standard_pack/manifest.json
+```
+
+Runtime commands no longer use `index.json` as a fallback when SQLite is missing. A JSON-only cache is treated as a missing Standard Pack index, and users recover by rebuilding.
 
 ### 2.4 Current first-load behavior
 
@@ -364,7 +389,7 @@ Materialized version:
 
 ```sql
 create table standard_card_list_rows (
-  code integer primary key,
+  code integer not null,
   language text not null,
   name text not null,
   desc text not null,
@@ -375,7 +400,8 @@ create table standard_card_list_rows (
   level integer,
   has_image integer not null,
   has_script integer not null,
-  has_field_image integer not null
+  has_field_image integer not null,
+  primary key (code, language)
 );
 ```
 
@@ -442,6 +468,10 @@ create table standard_string_baseline (
   kind text not null,
   key integer not null,
   primary key (kind, key)
+);
+
+create table standard_setname_base_baseline (
+  base integer primary key
 );
 ```
 
@@ -775,6 +805,13 @@ Target rebuild:
 12. Atomically replace old index DB.
 13. Clear runtime caches.
 
+Implemented Phase 4 behavior:
+
+- `save_index()` writes SQLite first, then writes the compatibility `index.json`, then writes `manifest.json`.
+- SQLite is written to a temp DB path, validated, closed, and then installed with a backup-rename replacement flow that works on Windows.
+- If SQLite creation, insertion, validation, or replacement fails, rebuild fails and the existing SQLite file is preserved where possible.
+- After successful rebuild, the lightweight runtime cache is cleared instead of being populated with a full `StandardPackIndexFile`.
+
 ### 10.3 Atomic replacement
 
 The rebuild job should write to:
@@ -830,21 +867,34 @@ Implemented notes:
 
 ### Phase 2: Add lightweight manifest
 
+Status: Implemented on 2026-05-01.
+
 Goal:
 
 - Make status independent from full Standard Pack card data.
 
 Tasks:
 
-- Write `manifest.json` or manifest table during rebuild.
-- Change `get_status` to read manifest plus source file metadata.
-- Keep fallback to old `index.json` for existing cache compatibility.
+- [x] Write `manifest.json` during rebuild.
+- [x] Store manifest schema version, JSON index schema version, source snapshot, source language, indexed timestamp, card count, string count, and `index.json` file stamp.
+- [x] Change low-level status metadata loading to prefer a stamp-matched manifest.
+- [x] Keep fallback to old `index.json` for existing low-level cache compatibility.
+- [x] Avoid auto-writing manifest on status reads.
 
 Expected result:
 
 - Opening Standard Pack no longer requires full index read just to determine status.
 
+Implemented notes:
+
+- The manifest path is `<app_data>/standard_pack/manifest.json`.
+- Manifest schema version is independent from `STANDARD_INDEX_SCHEMA_VERSION`.
+- Manifest failures make rebuild fail, because a successful rebuild should leave the lightweight sidecar ready.
+- Phase 4 production status now reads SQLite manifest rather than this JSON manifest; the JSON manifest remains part of the compatibility cache bundle.
+
 ### Phase 3: Add SQLite index writer
+
+Status: Implemented on 2026-05-01.
 
 Goal:
 
@@ -852,20 +902,31 @@ Goal:
 
 Tasks:
 
-- Add `sqlite_store.rs`.
-- Define schema version.
-- Implement schema creation.
-- Implement bulk insert transaction.
-- Insert manifest, cards, card texts, list rows, strings, baselines.
-- Add row-count validation.
-- Keep JSON reader as fallback during development.
+- [x] Add `sqlite_store.rs`.
+- [x] Define `STANDARD_SQLITE_SCHEMA_VERSION = 1`.
+- [x] Implement schema creation.
+- [x] Implement bulk insert transaction.
+- [x] Insert manifest, cards, card texts, source-language list rows, assets, strings, code baseline, string baseline, and setname base baseline.
+- [x] Add row-count validation.
+- [x] Use temp DB plus validation plus atomic replacement.
+- [x] Keep JSON writer/reader available during development.
 
 Expected result:
 
 - Rebuild writes queryable index.
 - Existing UI can still use old JSON path until repository switches.
 
+Implemented notes:
+
+- The SQLite path is `<app_data>/standard_pack/index.sqlite`.
+- `detail_json` stores serialized `CardEntity`.
+- `strings_json` stores serialized per-card text strings.
+- `standard_strings` stores every language value present in the in-memory index.
+- `standard_manifest.string_count` remains the number of Standard Pack string records, not the number of language-value rows.
+
 ### Phase 4: Switch Standard Pack reads to SQLite
+
+Status: Implemented on 2026-05-01.
 
 Goal:
 
@@ -873,10 +934,13 @@ Goal:
 
 Tasks:
 
-- Implement `SqliteStandardPackRepository`.
-- Route `get_status`, `search_cards`, `get_card`, `search_strings`, `list_standard_setnames`, and baseline calls through SQLite.
-- Remove or shrink `StandardPackIndexCache`.
-- Add runtime caches for manifest, setnames, and namespace baseline.
+- [x] Implement `SqliteStandardPackRepository`.
+- [x] Route `get_status`, `search_cards`, `get_card`, `search_strings`, `list_standard_setnames`, and baseline calls through SQLite.
+- [x] Switch Standard Pack consumers in card, import, export, and pack write services from `JsonStandardPackRepository` to `SqliteStandardPackRepository`.
+- [x] Shrink `StandardPackIndexCache` so production caching no longer stores a full `StandardPackIndexFile`.
+- [x] Add runtime caches for SQLite manifest, setnames by language, and namespace baseline.
+- [x] Treat JSON-only cache as missing index in production status.
+- [x] Keep public Tauri command and TypeScript contracts unchanged.
 
 Expected result:
 
@@ -884,6 +948,14 @@ Expected result:
 - Card detail reads one card.
 - Setname picker reads only setname rows.
 - Strings browser reads only strings rows.
+
+Implemented notes:
+
+- `get_standard_pack_status` opens SQLite and reads `standard_manifest`; missing `index.sqlite` maps to missing index/rebuild required.
+- Card list and strings browser currently query lightweight SQLite rows per call and preserve existing contains/filter/sort/page semantics in Rust. Full-text search and deeper SQL pagination optimization remain Phase 5 work.
+- `get_standard_card` queries one `standard_cards.detail_json` row and asset booleans.
+- `namespace_baseline()` reads baseline tables and does not deserialize card details.
+- `JsonStandardPackRepository` remains in the codebase for temporary compatibility/testing and is planned for Phase 6 deletion.
 
 ### Phase 5: Optimize search
 
@@ -938,15 +1010,18 @@ Add tests for:
 
 Extend `src-tauri/tests/standard_pack.rs`:
 
-- Rebuild writes SQLite index.
-- Status works without reading full card data.
-- Search cards returns expected page and total.
-- Get standard card returns detail by code.
-- Search strings returns expected filtered records.
-- Setnames can be listed without card data access.
-- Rebuild invalidates runtime caches.
-- Stale detection works when source CDB stamp changes.
-- Schema mismatch asks for rebuild.
+- [x] Rebuild writes SQLite index.
+- [x] Status works without reading full card data.
+- [x] JSON-only cache is missing index for production SQLite status.
+- [x] Search cards returns expected page and total.
+- [x] Get standard card returns detail by code.
+- [x] Missing standard card returns `standard_pack.card_not_found`.
+- [x] Search strings returns expected filtered records.
+- [x] Setnames can be listed without card data access.
+- [x] Namespace baseline can be built without card detail data.
+- [x] Rebuild invalidates runtime caches.
+- [x] Stale detection works when source CDB stamp changes.
+- [x] Schema mismatch asks for rebuild.
 
 ### 12.3 Performance tests
 

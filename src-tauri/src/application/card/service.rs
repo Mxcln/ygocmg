@@ -5,7 +5,7 @@ use crate::application::dto::card::{
     GetCardInput, ListCardsInput, SortDirectionDto, SuggestCodeInput,
 };
 use crate::application::standard_pack::repository::{
-    JsonStandardPackRepository, StandardPackRepository,
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{
@@ -157,7 +157,7 @@ impl<'a> CardService<'a> {
             }
         }
 
-        let baseline = JsonStandardPackRepository::new(self.state)
+        let baseline = SqliteStandardPackRepository::new(self.state)
             .namespace_baseline()
             .unwrap_or_else(|_| self.state.standard_baseline.clone());
 

@@ -10,7 +10,7 @@ use crate::application::dto::export::{
 };
 use crate::application::dto::job::{JobAcceptedDto, JobKindDto};
 use crate::application::standard_pack::repository::{
-    JsonStandardPackRepository, StandardPackRepository,
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::card::code::STANDARD_RESERVED_CODE_MAX;
@@ -262,7 +262,7 @@ impl<'a> ExportService<'a> {
         let mut setname_base_owners = BTreeMap::<u16, Vec<String>>::new();
         let mut counter_owners = BTreeMap::<u32, Vec<String>>::new();
         let mut victory_owners = BTreeMap::<u32, Vec<String>>::new();
-        let standard_baseline = JsonStandardPackRepository::new(self.state)
+        let standard_baseline = SqliteStandardPackRepository::new(self.state)
             .namespace_baseline()
             .unwrap_or_else(|_| self.state.standard_baseline.clone());
 

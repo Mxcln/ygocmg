@@ -4,37 +4,27 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use crate::domain::common::error::{AppError, AppResult};
-use crate::infrastructure::standard_pack::{
-    StandardCardIndexRecord, StandardPackIndexFile, load_index, standard_pack_index_path,
+use crate::domain::namespace::model::StandardNamespaceBaseline;
+use crate::infrastructure::standard_pack::sqlite_store::{
+    StandardPackSqliteManifest, StandardSetnameRecord, standard_pack_sqlite_path,
 };
 
 #[derive(Clone, Debug, Default)]
 pub struct StandardPackIndexCache {
-    inner: Arc<RwLock<Option<CachedStandardPackIndex>>>,
+    inner: Arc<RwLock<CachedStandardPackRuntime>>,
+}
+
+#[derive(Debug, Default)]
+struct CachedStandardPackRuntime {
+    manifest: Option<CachedValue<StandardPackSqliteManifest>>,
+    namespace_baseline: Option<CachedValue<StandardNamespaceBaseline>>,
+    setnames_by_language: BTreeMap<String, CachedValue<Vec<StandardSetnameRecord>>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct StandardPackIndexSnapshot {
-    index: Arc<StandardPackIndexFile>,
-    cards_by_code: Arc<BTreeMap<u32, usize>>,
-}
-
-impl StandardPackIndexSnapshot {
-    pub fn index(&self) -> &StandardPackIndexFile {
-        &self.index
-    }
-
-    pub fn card_by_code(&self, code: u32) -> Option<&StandardCardIndexRecord> {
-        self.cards_by_code
-            .get(&code)
-            .and_then(|index| self.index.cards.get(*index))
-    }
-}
-
-#[derive(Debug, Clone)]
-struct CachedStandardPackIndex {
+struct CachedValue<T> {
     file_stamp: IndexFileStamp,
-    snapshot: StandardPackIndexSnapshot,
+    value: T,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,94 +34,122 @@ struct IndexFileStamp {
 }
 
 impl StandardPackIndexCache {
-    pub fn get_or_load(&self, app_data_dir: &Path) -> AppResult<StandardPackIndexSnapshot> {
-        let current_stamp = index_file_stamp(app_data_dir)?;
-        if let Some(snapshot) = self.cached_snapshot(current_stamp)? {
-            return Ok(snapshot);
+    pub fn manifest<F>(&self, app_data_dir: &Path, load: F) -> AppResult<StandardPackSqliteManifest>
+    where
+        F: FnOnce() -> AppResult<StandardPackSqliteManifest>,
+    {
+        let current_stamp = sqlite_file_stamp(app_data_dir)?;
+        {
+            let guard = self.read_inner()?;
+            if let Some(cached) = guard
+                .manifest
+                .as_ref()
+                .filter(|cached| cached.file_stamp == current_stamp)
+            {
+                return Ok(cached.value.clone());
+            }
         }
 
-        let index = load_index(app_data_dir)?;
-        let snapshot = build_snapshot(index);
+        let value = load()?;
         let mut guard = self.write_inner()?;
-        *guard = Some(CachedStandardPackIndex {
+        guard.manifest = Some(CachedValue {
             file_stamp: current_stamp,
-            snapshot: snapshot.clone(),
+            value: value.clone(),
         });
-        Ok(snapshot)
+        Ok(value)
     }
 
-    pub fn replace(
+    pub fn namespace_baseline<F>(
         &self,
         app_data_dir: &Path,
-        index: StandardPackIndexFile,
-    ) -> AppResult<StandardPackIndexSnapshot> {
-        let file_stamp = index_file_stamp(app_data_dir)?;
-        let snapshot = build_snapshot(index);
+        load: F,
+    ) -> AppResult<StandardNamespaceBaseline>
+    where
+        F: FnOnce() -> AppResult<StandardNamespaceBaseline>,
+    {
+        let current_stamp = sqlite_file_stamp(app_data_dir)?;
+        {
+            let guard = self.read_inner()?;
+            if let Some(cached) = guard
+                .namespace_baseline
+                .as_ref()
+                .filter(|cached| cached.file_stamp == current_stamp)
+            {
+                return Ok(cached.value.clone());
+            }
+        }
+
+        let value = load()?;
         let mut guard = self.write_inner()?;
-        *guard = Some(CachedStandardPackIndex {
-            file_stamp,
-            snapshot: snapshot.clone(),
+        guard.namespace_baseline = Some(CachedValue {
+            file_stamp: current_stamp,
+            value: value.clone(),
         });
-        Ok(snapshot)
+        Ok(value)
+    }
+
+    pub fn setnames<F>(
+        &self,
+        app_data_dir: &Path,
+        language: &str,
+        load: F,
+    ) -> AppResult<Vec<StandardSetnameRecord>>
+    where
+        F: FnOnce() -> AppResult<Vec<StandardSetnameRecord>>,
+    {
+        let current_stamp = sqlite_file_stamp(app_data_dir)?;
+        {
+            let guard = self.read_inner()?;
+            if let Some(cached) = guard
+                .setnames_by_language
+                .get(language)
+                .filter(|cached| cached.file_stamp == current_stamp)
+            {
+                return Ok(cached.value.clone());
+            }
+        }
+
+        let value = load()?;
+        let mut guard = self.write_inner()?;
+        guard.setnames_by_language.insert(
+            language.to_string(),
+            CachedValue {
+                file_stamp: current_stamp,
+                value: value.clone(),
+            },
+        );
+        Ok(value)
     }
 
     pub fn clear(&self) -> AppResult<()> {
         let mut guard = self.write_inner()?;
-        *guard = None;
+        *guard = CachedStandardPackRuntime::default();
         Ok(())
     }
 
-    fn cached_snapshot(
-        &self,
-        current_stamp: IndexFileStamp,
-    ) -> AppResult<Option<StandardPackIndexSnapshot>> {
-        let guard = self.read_inner()?;
-        Ok(guard
-            .as_ref()
-            .filter(|cached| cached.file_stamp == current_stamp)
-            .map(|cached| cached.snapshot.clone()))
-    }
-
-    fn read_inner(
-        &self,
-    ) -> AppResult<std::sync::RwLockReadGuard<'_, Option<CachedStandardPackIndex>>> {
+    fn read_inner(&self) -> AppResult<std::sync::RwLockReadGuard<'_, CachedStandardPackRuntime>> {
         self.inner.read().map_err(|_| {
             AppError::new(
                 "standard_pack.cache_lock_poisoned",
-                "standard pack index cache lock poisoned",
+                "standard pack runtime cache lock poisoned",
             )
         })
     }
 
-    fn write_inner(
-        &self,
-    ) -> AppResult<std::sync::RwLockWriteGuard<'_, Option<CachedStandardPackIndex>>> {
+    fn write_inner(&self) -> AppResult<std::sync::RwLockWriteGuard<'_, CachedStandardPackRuntime>> {
         self.inner.write().map_err(|_| {
             AppError::new(
                 "standard_pack.cache_lock_poisoned",
-                "standard pack index cache lock poisoned",
+                "standard pack runtime cache lock poisoned",
             )
         })
     }
 }
 
-fn build_snapshot(index: StandardPackIndexFile) -> StandardPackIndexSnapshot {
-    let cards_by_code = index
-        .cards
-        .iter()
-        .enumerate()
-        .map(|(record_index, record)| (record.card.code, record_index))
-        .collect::<BTreeMap<_, _>>();
-    StandardPackIndexSnapshot {
-        index: Arc::new(index),
-        cards_by_code: Arc::new(cards_by_code),
-    }
-}
-
-fn index_file_stamp(app_data_dir: &Path) -> AppResult<IndexFileStamp> {
-    let path = standard_pack_index_path(app_data_dir);
+fn sqlite_file_stamp(app_data_dir: &Path) -> AppResult<IndexFileStamp> {
+    let path = standard_pack_sqlite_path(app_data_dir);
     let metadata = fs::metadata(&path).map_err(|source| {
-        AppError::from_io("standard_pack.index_metadata_failed", source)
+        AppError::from_io("standard_pack.sqlite_missing", source)
             .with_detail("path", path.display().to_string())
     })?;
     Ok(IndexFileStamp {

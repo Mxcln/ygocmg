@@ -10,7 +10,7 @@ use crate::application::dto::import::{
 };
 use crate::application::dto::job::{JobAcceptedDto, JobKindDto};
 use crate::application::standard_pack::repository::{
-    JsonStandardPackRepository, StandardPackRepository,
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{
@@ -383,7 +383,7 @@ impl<'a> ImportService<'a> {
                 other_custom_codes.insert(card.code);
             }
         }
-        let standard_baseline = JsonStandardPackRepository::new(self.state)
+        let standard_baseline = SqliteStandardPackRepository::new(self.state)
             .namespace_baseline()
             .unwrap_or_else(|_| self.state.standard_baseline.clone());
 

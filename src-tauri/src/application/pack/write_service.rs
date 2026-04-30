@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::application::dto::strings::PackStringKeyDto;
 use crate::application::standard_pack::repository::{
-    JsonStandardPackRepository, StandardPackRepository,
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::card::code::{CodeValidationContext, validate_card_code};
@@ -955,7 +955,7 @@ impl<'a> PackWriteService<'a> {
             }
         }
 
-        let standard = JsonStandardPackRepository::new(self.state)
+        let standard = SqliteStandardPackRepository::new(self.state)
             .strings_baseline()
             .unwrap_or_else(|_| self.state.standard_baseline.strings.clone());
 

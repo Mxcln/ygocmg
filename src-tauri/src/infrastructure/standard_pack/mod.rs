@@ -14,6 +14,9 @@ use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringN
 use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::PackStringRecord;
 
+pub mod manifest;
+pub mod sqlite_store;
+
 pub const STANDARD_INDEX_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +78,14 @@ pub struct StandardPackStatus {
     pub message: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct StandardPackStatusIndexMetadata {
+    source: StandardPackSourceSnapshot,
+    source_language: LanguageCode,
+    indexed_at: AppTimestamp,
+    card_count: usize,
+}
+
 pub fn standard_pack_dir(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join("standard_pack")
 }
@@ -125,7 +136,9 @@ pub fn load_index(app_data_dir: &Path) -> AppResult<StandardPackIndexFile> {
 }
 
 pub fn save_index(app_data_dir: &Path, index: &StandardPackIndexFile) -> AppResult<()> {
-    crate::infrastructure::json_store::write_json(&standard_pack_index_path(app_data_dir), index)
+    sqlite_store::save_sqlite_index(app_data_dir, index)?;
+    crate::infrastructure::json_store::write_json(&standard_pack_index_path(app_data_dir), index)?;
+    manifest::save_manifest(app_data_dir, index)
 }
 
 pub fn status(
@@ -142,12 +155,12 @@ pub fn status(
         .as_ref()
         .and_then(|result| result.as_ref().err())
         .map(|error| error.message.clone());
-    let index_result = load_index(app_data_dir);
+    let index_result = load_status_index_metadata(app_data_dir);
     let schema_mismatch = index_result
         .as_ref()
         .err()
         .is_some_and(|error| error.code == "standard_pack.index_schema_mismatch");
-    let index = index_result.ok();
+    let index = index_result.ok().flatten();
     let index_exists = index.is_some();
     let stale = match (&index, source) {
         (Some(index), Some(source)) => {
@@ -175,9 +188,30 @@ pub fn status(
         stale,
         source_language: index.as_ref().map(|index| index.source_language.clone()),
         indexed_at: index.as_ref().map(|index| index.indexed_at),
-        card_count: index.as_ref().map(|index| index.cards.len()).unwrap_or(0),
+        card_count: index.as_ref().map(|index| index.card_count).unwrap_or(0),
         message,
     }
+}
+
+fn load_status_index_metadata(
+    app_data_dir: &Path,
+) -> AppResult<Option<StandardPackStatusIndexMetadata>> {
+    if let Some(manifest) = manifest::load_matching_manifest(app_data_dir)? {
+        return Ok(Some(StandardPackStatusIndexMetadata {
+            source: manifest.source,
+            source_language: manifest.source_language,
+            indexed_at: manifest.indexed_at,
+            card_count: manifest.card_count,
+        }));
+    }
+
+    let index = load_index(app_data_dir)?;
+    Ok(Some(StandardPackStatusIndexMetadata {
+        source: index.source,
+        source_language: index.source_language,
+        indexed_at: index.indexed_at,
+        card_count: index.cards.len(),
+    }))
 }
 
 pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
