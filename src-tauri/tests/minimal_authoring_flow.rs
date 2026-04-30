@@ -1558,8 +1558,13 @@ fn config_validates_and_normalizes_app_language() {
     let saved = app_commands::save_config(&state, &zh).unwrap();
     assert_eq!(saved.app_language, "zh-CN");
 
+    let mut ja = initialized.clone();
+    ja.app_language = "ja-JP".to_string();
+    let saved = app_commands::save_config(&state, &ja).unwrap();
+    assert_eq!(saved.app_language, "ja-JP");
+
     let mut unsupported = initialized.clone();
-    unsupported.app_language = "ja-JP".to_string();
+    unsupported.app_language = "fr-FR".to_string();
     let err = app_commands::save_config(&state, &unsupported).unwrap_err();
     assert_eq!(err.code, "config.validation_failed");
     let normalized = normalize_global_config(&unsupported);

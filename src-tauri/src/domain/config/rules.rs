@@ -8,7 +8,7 @@ use crate::domain::language::rules::{
 };
 
 pub const DEFAULT_APP_LANGUAGE: &str = "en-US";
-pub const SUPPORTED_APP_LANGUAGES: [&str; 2] = ["en-US", "zh-CN"];
+pub const SUPPORTED_APP_LANGUAGES: [&str; 3] = ["en-US", "ja-JP", "zh-CN"];
 
 pub fn default_global_config() -> GlobalConfig {
     GlobalConfig {
