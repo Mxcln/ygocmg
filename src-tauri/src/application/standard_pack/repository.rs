@@ -11,16 +11,16 @@ use crate::application::dto::standard_pack::{
     StandardSetnameEntryDto, StandardStringSortFieldDto, StandardStringsPageDto,
 };
 use crate::bootstrap::AppState;
-use crate::domain::card::model::{CardEntity, PrimaryType};
+use crate::domain::card::model::CardEntity;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringNamespaceBaseline};
 use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::{PackStringEntry, PackStringKind};
 use crate::infrastructure::json_store;
+use crate::infrastructure::standard_pack;
 use crate::infrastructure::standard_pack::sqlite_store::{
     self, StandardPackSqliteManifest, StandardSetnameRecord,
 };
-use crate::infrastructure::standard_pack::{self, StandardPackIndexFile};
 
 pub trait StandardPackRepository {
     fn status(&self) -> StandardPackStatusDto;
@@ -49,7 +49,7 @@ impl<'a> SqliteStandardPackRepository<'a> {
 
     fn load_manifest(&self) -> AppResult<StandardPackSqliteManifest> {
         self.state
-            .standard_pack_index_cache
+            .standard_pack_runtime_cache
             .manifest(self.state.app_data_dir(), || {
                 sqlite_store::load_sqlite_manifest_from_app_data(self.state.app_data_dir())
             })
@@ -128,53 +128,18 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
         let manifest = self.load_manifest()?;
         let connection = self.open_connection()?;
         let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
-        let mut rows = load_card_list_rows(&connection, &manifest.source_language)?
-            .into_iter()
-            .filter(|row| {
-                if keyword.is_empty() {
-                    return true;
-                }
-                row.name.to_lowercase().contains(&keyword)
-                    || row.desc.to_lowercase().contains(&keyword)
-                    || row.code.to_string().contains(&keyword)
-                    || row.subtype_display.to_lowercase().contains(&keyword)
-                    || primary_type_label(&row.primary_type)
-                        .to_lowercase()
-                        .contains(&keyword)
-            })
-            .collect::<Vec<_>>();
-
-        match input.sort_by {
-            StandardCardSortFieldDto::Code => {
-                rows.sort_by(|left, right| left.code.cmp(&right.code))
-            }
-            StandardCardSortFieldDto::Name => {
-                rows.sort_by(|left, right| left.name.cmp(&right.name))
-            }
-            StandardCardSortFieldDto::Type => rows.sort_by(|left, right| {
-                primary_type_label(&left.primary_type)
-                    .cmp(primary_type_label(&right.primary_type))
-                    .then(left.subtype_display.cmp(&right.subtype_display))
-                    .then(left.code.cmp(&right.code))
-            }),
-        }
-
-        if matches!(input.sort_direction, SortDirectionDto::Desc) {
-            rows.reverse();
-        }
-
         let page_size = input.page_size.max(1);
         let page = input.page.max(1);
-        let total = rows.len() as u64;
         let start = ((page - 1) as usize).saturating_mul(page_size as usize);
-        let items = if start >= rows.len() {
-            Vec::new()
-        } else {
-            rows.into_iter()
-                .skip(start)
-                .take(page_size as usize)
-                .collect()
-        };
+        let (total, items) = load_card_list_page(
+            &connection,
+            &manifest.source_language,
+            &keyword,
+            &input.sort_by,
+            &input.sort_direction,
+            page_size,
+            start,
+        )?;
 
         Ok(StandardCardPageDto {
             items,
@@ -326,7 +291,7 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
         let language = input
             .language
             .unwrap_or_else(|| manifest.source_language.clone());
-        let records = self.state.standard_pack_index_cache.setnames(
+        let records = self.state.standard_pack_runtime_cache.setnames(
             self.state.app_data_dir(),
             &language,
             || load_setnames_from_sqlite(self.state.app_data_dir(), &language),
@@ -342,7 +307,7 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
 
     fn namespace_baseline(&self) -> AppResult<StandardNamespaceBaseline> {
         self.state
-            .standard_pack_index_cache
+            .standard_pack_runtime_cache
             .namespace_baseline(self.state.app_data_dir(), || {
                 load_namespace_baseline_from_sqlite(self.state.app_data_dir())
             })
@@ -350,259 +315,6 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
 
     fn strings_baseline(&self) -> AppResult<StandardStringNamespaceBaseline> {
         Ok(self.namespace_baseline()?.strings)
-    }
-}
-
-pub struct JsonStandardPackRepository<'a> {
-    state: &'a AppState,
-}
-
-impl<'a> JsonStandardPackRepository<'a> {
-    pub fn new(state: &'a AppState) -> Self {
-        Self { state }
-    }
-
-    fn load_index(&self) -> AppResult<StandardPackIndexFile> {
-        standard_pack::load_index(self.state.app_data_dir())
-    }
-}
-
-impl StandardPackRepository for JsonStandardPackRepository<'_> {
-    fn status(&self) -> StandardPackStatusDto {
-        let config = json_store::load_global_config(self.state.app_data_dir()).ok();
-        let status = standard_pack::status(
-            self.state.app_data_dir(),
-            config
-                .as_ref()
-                .and_then(|config| config.ygopro_path.as_deref()),
-            config
-                .as_ref()
-                .and_then(|config| config.standard_pack_source_language.as_deref()),
-        );
-        StandardPackStatusDto::from(status)
-    }
-
-    fn search_cards(&self, input: SearchStandardCardsInput) -> AppResult<StandardCardPageDto> {
-        let index = self.load_index()?;
-        let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
-        let mut rows = index
-            .cards
-            .iter()
-            .filter(|record| {
-                if keyword.is_empty() {
-                    return true;
-                }
-                record.row.name.to_lowercase().contains(&keyword)
-                    || record.row.desc.to_lowercase().contains(&keyword)
-                    || record.row.code.to_string().contains(&keyword)
-                    || record.row.subtype_display.to_lowercase().contains(&keyword)
-                    || primary_type_label(&record.row.primary_type)
-                        .to_lowercase()
-                        .contains(&keyword)
-            })
-            .map(|record| CardListRowDto::from(record.row.clone()))
-            .collect::<Vec<_>>();
-
-        match input.sort_by {
-            StandardCardSortFieldDto::Code => {
-                rows.sort_by(|left, right| left.code.cmp(&right.code))
-            }
-            StandardCardSortFieldDto::Name => {
-                rows.sort_by(|left, right| left.name.cmp(&right.name))
-            }
-            StandardCardSortFieldDto::Type => rows.sort_by(|left, right| {
-                primary_type_label(&left.primary_type)
-                    .cmp(primary_type_label(&right.primary_type))
-                    .then(left.subtype_display.cmp(&right.subtype_display))
-                    .then(left.code.cmp(&right.code))
-            }),
-        }
-
-        if matches!(input.sort_direction, SortDirectionDto::Desc) {
-            rows.reverse();
-        }
-
-        let page_size = input.page_size.max(1);
-        let page = input.page.max(1);
-        let total = rows.len() as u64;
-        let start = ((page - 1) as usize).saturating_mul(page_size as usize);
-        let items = if start >= rows.len() {
-            Vec::new()
-        } else {
-            rows.into_iter()
-                .skip(start)
-                .take(page_size as usize)
-                .collect()
-        };
-
-        Ok(StandardCardPageDto {
-            items,
-            page,
-            page_size,
-            total,
-            ygopro_path: Some(index.source.ygopro_path.clone()),
-            revision: index
-                .indexed_at
-                .timestamp_millis()
-                .try_into()
-                .unwrap_or_default(),
-        })
-    }
-
-    fn get_card(&self, input: GetStandardCardInput) -> AppResult<StandardCardDetailDto> {
-        let index = self.load_index()?;
-        let record = index
-            .cards
-            .iter()
-            .find(|record| record.card.code == input.code)
-            .ok_or_else(|| {
-                AppError::new(
-                    "standard_pack.card_not_found",
-                    "standard card was not found",
-                )
-            })?;
-
-        Ok(StandardCardDetailDto {
-            card: record.card.clone().into(),
-            asset_state: record.asset_state.clone(),
-            available_languages: vec![index.source_language.clone()],
-            ygopro_path: index.source.ygopro_path.clone(),
-        })
-    }
-
-    fn search_strings(
-        &self,
-        input: SearchStandardStringsInput,
-    ) -> AppResult<StandardStringsPageDto> {
-        let index = self.load_index()?;
-        let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
-        let mut rows = index
-            .strings
-            .records
-            .iter()
-            .filter(|record| {
-                input
-                    .kind_filter
-                    .as_ref()
-                    .map_or(true, |kind| &record.kind == kind)
-            })
-            .filter(|record| input.key_filter.map_or(true, |key| record.key == key))
-            .filter_map(|record| {
-                let value = record
-                    .values
-                    .get(&index.source_language)
-                    .cloned()
-                    .unwrap_or_default();
-                if keyword.is_empty()
-                    || value.to_lowercase().contains(&keyword)
-                    || record.key.to_string().contains(&keyword)
-                    || format_string_key_hex(record.key)
-                        .to_lowercase()
-                        .contains(&keyword)
-                    || format!("{:?}", record.kind)
-                        .to_lowercase()
-                        .contains(&keyword)
-                {
-                    Some(PackStringEntry {
-                        kind: record.kind.clone(),
-                        key: record.key,
-                        value,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        match input.sort_by {
-            StandardStringSortFieldDto::Kind => rows.sort_by(|left, right| {
-                left.kind
-                    .cmp(&right.kind)
-                    .then(left.key.cmp(&right.key))
-                    .then(left.value.cmp(&right.value))
-            }),
-            StandardStringSortFieldDto::Key => rows.sort_by(|left, right| {
-                left.key
-                    .cmp(&right.key)
-                    .then(left.kind.cmp(&right.kind))
-                    .then(left.value.cmp(&right.value))
-            }),
-            StandardStringSortFieldDto::Value => rows.sort_by(|left, right| {
-                left.value
-                    .cmp(&right.value)
-                    .then(left.kind.cmp(&right.kind))
-                    .then(left.key.cmp(&right.key))
-            }),
-        }
-
-        if matches!(input.sort_direction, SortDirectionDto::Desc) {
-            rows.reverse();
-        }
-
-        let page_size = input.page_size.max(1);
-        let page = input.page.max(1);
-        let total = rows.len() as u64;
-        let start = ((page - 1) as usize).saturating_mul(page_size as usize);
-        let items = if start >= rows.len() {
-            Vec::new()
-        } else {
-            rows.into_iter()
-                .skip(start)
-                .take(page_size as usize)
-                .map(Into::into)
-                .collect()
-        };
-
-        Ok(StandardStringsPageDto {
-            language: index.source_language.clone(),
-            items,
-            page,
-            page_size,
-            total,
-            revision: index
-                .indexed_at
-                .timestamp_millis()
-                .try_into()
-                .unwrap_or_default(),
-        })
-    }
-
-    fn list_setnames(
-        &self,
-        input: ListStandardSetnamesInput,
-    ) -> AppResult<Vec<StandardSetnameEntryDto>> {
-        let index = self.load_index()?;
-        let language = input.language.as_deref().unwrap_or(&index.source_language);
-        let mut rows = index
-            .strings
-            .records
-            .iter()
-            .filter(|record| matches!(record.kind, PackStringKind::Setname))
-            .filter_map(|record| {
-                record
-                    .values
-                    .get(language)
-                    .map(|value| StandardSetnameEntryDto {
-                        key: record.key,
-                        value: value.clone(),
-                    })
-            })
-            .collect::<Vec<_>>();
-
-        rows.sort_by(|left, right| left.value.cmp(&right.value).then(left.key.cmp(&right.key)));
-        Ok(rows)
-    }
-
-    fn namespace_baseline(&self) -> AppResult<StandardNamespaceBaseline> {
-        let index = self.load_index()?;
-        Ok(StandardNamespaceBaseline {
-            standard_codes: index.cards.iter().map(|record| record.card.code).collect(),
-            strings: index.strings.baseline,
-        })
-    }
-
-    fn strings_baseline(&self) -> AppResult<StandardStringNamespaceBaseline> {
-        Ok(self.load_index()?.strings.baseline)
     }
 }
 
@@ -628,19 +340,100 @@ struct RawStringEntry {
     value: String,
 }
 
-fn load_card_list_rows(connection: &Connection, language: &str) -> AppResult<Vec<CardListRowDto>> {
-    let mut statement = connection
-        .prepare(
+fn load_card_list_page(
+    connection: &Connection,
+    language: &str,
+    keyword: &str,
+    sort_by: &StandardCardSortFieldDto,
+    sort_direction: &SortDirectionDto,
+    page_size: u32,
+    offset: usize,
+) -> AppResult<(u64, Vec<CardListRowDto>)> {
+    let order_by = card_order_by(sort_by, sort_direction);
+    if keyword.is_empty() {
+        let total = connection
+            .query_row(
+                "select count(*) from standard_card_list_rows where language = ?1",
+                params![language],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|source| sqlite_query_error("standard_pack.sqlite_count_cards_failed", source))
+            .and_then(|value| i64_to_u64("total", value))?;
+        let sql = format!(
             "select code, name, desc, primary_type, subtype_display, atk, def, level,
                     has_image, has_script, has_field_image
-             from standard_card_list_rows
-             where language = ?1",
+             from standard_card_list_rows r
+             where r.language = ?1
+             order by {order_by}
+             limit ?2 offset ?3"
+        );
+        let rows = query_card_rows(
+            connection,
+            &sql,
+            params![language, page_size as i64, usize_to_i64("offset", offset)?],
+        )?;
+        return Ok((total, rows));
+    }
+
+    let fts_query = build_fts_query(keyword);
+    let where_clause = "r.language = ?1 and (
+        instr(cast(r.code as text), ?2) > 0
+        or instr(lower(r.name), ?2) > 0
+        or instr(lower(r.desc), ?2) > 0
+        or instr(lower(r.subtype_display), ?2) > 0
+        or instr(lower(r.primary_type), ?2) > 0
+        or exists (
+            select 1
+            from standard_card_search_fts
+            where standard_card_search_fts.language = r.language
+              and standard_card_search_fts.code = cast(r.code as text)
+              and standard_card_search_fts match ?3
         )
-        .map_err(|source| {
-            sqlite_query_error("standard_pack.sqlite_prepare_cards_failed", source)
-        })?;
+    )";
+    let count_sql = format!("select count(*) from standard_card_list_rows r where {where_clause}");
+    let total = connection
+        .query_row(
+            &count_sql,
+            params![language, keyword, fts_query.as_str()],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|source| sqlite_query_error("standard_pack.sqlite_count_cards_failed", source))
+        .and_then(|value| i64_to_u64("total", value))?;
+    let sql = format!(
+        "select code, name, desc, primary_type, subtype_display, atk, def, level,
+                has_image, has_script, has_field_image
+         from standard_card_list_rows r
+         where {where_clause}
+         order by {order_by}
+         limit ?4 offset ?5"
+    );
+    let rows = query_card_rows(
+        connection,
+        &sql,
+        params![
+            language,
+            keyword,
+            fts_query.as_str(),
+            page_size as i64,
+            usize_to_i64("offset", offset)?
+        ],
+    )?;
+    Ok((total, rows))
+}
+
+fn query_card_rows<P>(
+    connection: &Connection,
+    sql: &str,
+    params: P,
+) -> AppResult<Vec<CardListRowDto>>
+where
+    P: rusqlite::Params,
+{
+    let mut statement = connection.prepare(sql).map_err(|source| {
+        sqlite_query_error("standard_pack.sqlite_prepare_cards_failed", source)
+    })?;
     let rows = statement
-        .query_map(params![language], |row| {
+        .query_map(params, |row| {
             Ok(RawCardListRow {
                 code: row.get(0)?,
                 name: row.get(1)?,
@@ -853,12 +646,31 @@ fn format_string_key_hex(value: u32) -> String {
     format!("{value:X}")
 }
 
-fn primary_type_label(value: &PrimaryType) -> &'static str {
-    match value {
-        PrimaryType::Monster => "monster",
-        PrimaryType::Spell => "spell",
-        PrimaryType::Trap => "trap",
+fn card_order_by(
+    sort_by: &StandardCardSortFieldDto,
+    sort_direction: &SortDirectionDto,
+) -> &'static str {
+    match (sort_by, sort_direction) {
+        (StandardCardSortFieldDto::Code, SortDirectionDto::Asc) => "r.code asc",
+        (StandardCardSortFieldDto::Code, SortDirectionDto::Desc) => "r.code desc",
+        (StandardCardSortFieldDto::Name, SortDirectionDto::Asc) => "r.name asc, r.code asc",
+        (StandardCardSortFieldDto::Name, SortDirectionDto::Desc) => "r.name desc, r.code desc",
+        (StandardCardSortFieldDto::Type, SortDirectionDto::Asc) => {
+            "r.primary_type asc, r.subtype_display asc, r.code asc"
+        }
+        (StandardCardSortFieldDto::Type, SortDirectionDto::Desc) => {
+            "r.primary_type desc, r.subtype_display desc, r.code desc"
+        }
     }
+}
+
+fn build_fts_query(keyword: &str) -> String {
+    keyword
+        .split_whitespace()
+        .filter(|part| !part.is_empty())
+        .map(|part| format!("\"{}\"", part.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" OR ")
 }
 
 fn deserialize_enum_text<T>(field: &str, value: String) -> AppResult<T>
@@ -894,8 +706,30 @@ fn i64_to_u32(field: &str, value: i64) -> AppResult<u32> {
     })
 }
 
+fn i64_to_u64(field: &str, value: i64) -> AppResult<u64> {
+    u64::try_from(value).map_err(|_| {
+        AppError::new(
+            "standard_pack.sqlite_integer_out_of_range",
+            "standard pack sqlite integer is out of range",
+        )
+        .with_detail("field", field)
+        .with_detail("value", value)
+    })
+}
+
 fn i64_to_u16(field: &str, value: i64) -> AppResult<u16> {
     u16::try_from(value).map_err(|_| {
+        AppError::new(
+            "standard_pack.sqlite_integer_out_of_range",
+            "standard pack sqlite integer is out of range",
+        )
+        .with_detail("field", field)
+        .with_detail("value", value)
+    })
+}
+
+fn usize_to_i64(field: &str, value: usize) -> AppResult<i64> {
+    i64::try_from(value).map_err(|_| {
         AppError::new(
             "standard_pack.sqlite_integer_out_of_range",
             "standard pack sqlite integer is out of range",

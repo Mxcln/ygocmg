@@ -10,18 +10,15 @@ use crate::domain::card::model::CardEntity;
 use crate::domain::common::error::{AppError, AppResult};
 use crate::domain::common::ids::LanguageCode;
 use crate::domain::common::time::{AppTimestamp, now_utc};
-use crate::domain::namespace::model::{StandardNamespaceBaseline, StandardStringNamespaceBaseline};
+use crate::domain::namespace::model::StandardStringNamespaceBaseline;
 use crate::domain::resource::model::CardAssetState;
 use crate::domain::strings::model::PackStringRecord;
 
 pub mod manifest;
 pub mod sqlite_store;
 
-pub const STANDARD_INDEX_SCHEMA_VERSION: u32 = 3;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StandardPackIndexFile {
-    pub schema_version: u32,
     pub source: StandardPackSourceSnapshot,
     pub source_language: LanguageCode,
     pub indexed_at: AppTimestamp,
@@ -78,66 +75,12 @@ pub struct StandardPackStatus {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-struct StandardPackStatusIndexMetadata {
-    source: StandardPackSourceSnapshot,
-    source_language: LanguageCode,
-    indexed_at: AppTimestamp,
-    card_count: usize,
-}
-
 pub fn standard_pack_dir(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join("standard_pack")
 }
 
-pub fn standard_pack_index_path(app_data_dir: &Path) -> PathBuf {
-    standard_pack_dir(app_data_dir).join("index.json")
-}
-
-pub fn load_index(app_data_dir: &Path) -> AppResult<StandardPackIndexFile> {
-    let path = standard_pack_index_path(app_data_dir);
-    let raw = fs::read(&path).map_err(|source| {
-        AppError::from_io("standard_pack.index_read_failed", source)
-            .with_detail("path", path.display().to_string())
-    })?;
-    let value: serde_json::Value = serde_json::from_slice(&raw).map_err(|source| {
-        AppError::new("standard_pack.index_deserialize_failed", source.to_string())
-            .with_detail("path", path.display().to_string())
-    })?;
-    let schema_version = value
-        .get("schema_version")
-        .and_then(|value| value.as_u64())
-        .unwrap_or(0) as u32;
-    if schema_version != STANDARD_INDEX_SCHEMA_VERSION {
-        return Err(AppError::new(
-            "standard_pack.index_schema_mismatch",
-            "standard pack index schema mismatch",
-        )
-        .with_detail("path", path.display().to_string())
-        .with_detail("expected", STANDARD_INDEX_SCHEMA_VERSION)
-        .with_detail("actual", schema_version));
-    }
-    let mut index: StandardPackIndexFile = serde_json::from_value(value).map_err(|source| {
-        AppError::new("standard_pack.index_deserialize_failed", source.to_string())
-            .with_detail("path", path.display().to_string())
-    })?;
-    if index.strings.baseline.setname_keys.is_empty()
-        && index.strings.records.iter().any(|record| {
-            matches!(
-                record.kind,
-                crate::domain::strings::model::PackStringKind::Setname
-            )
-        })
-    {
-        index.strings.baseline =
-            crate::infrastructure::strings_conf::baseline_from_records(&index.strings.records);
-    }
-    Ok(index)
-}
-
 pub fn save_index(app_data_dir: &Path, index: &StandardPackIndexFile) -> AppResult<()> {
     sqlite_store::save_sqlite_index(app_data_dir, index)?;
-    crate::infrastructure::json_store::write_json(&standard_pack_index_path(app_data_dir), index)?;
     manifest::save_manifest(app_data_dir, index)
 }
 
@@ -155,12 +98,17 @@ pub fn status(
         .as_ref()
         .and_then(|result| result.as_ref().err())
         .map(|error| error.message.clone());
-    let index_result = load_status_index_metadata(app_data_dir);
+    let index_result = sqlite_store::load_sqlite_manifest_from_app_data(app_data_dir);
     let schema_mismatch = index_result
         .as_ref()
         .err()
-        .is_some_and(|error| error.code == "standard_pack.index_schema_mismatch");
-    let index = index_result.ok().flatten();
+        .is_some_and(|error| error.code == "standard_pack.sqlite_schema_mismatch");
+    let sqlite_missing = index_result
+        .as_ref()
+        .err()
+        .is_some_and(|error| error.code == "standard_pack.sqlite_missing");
+    let index_error = index_result.as_ref().err().cloned();
+    let index = index_result.ok();
     let index_exists = index.is_some();
     let stale = match (&index, source) {
         (Some(index), Some(source)) => {
@@ -173,7 +121,11 @@ pub fn status(
     let message = if configured && configured_source_language.is_none() {
         Some("standard pack source language is not configured".to_string())
     } else if schema_mismatch {
-        Some("standard pack index schema is outdated; rebuild required".to_string())
+        Some("standard pack sqlite schema is outdated; rebuild required".to_string())
+    } else if sqlite_missing {
+        Some("standard pack sqlite index is missing; rebuild required".to_string())
+    } else if let Some(error) = index_error {
+        Some(error.message)
     } else {
         source_error
     };
@@ -191,27 +143,6 @@ pub fn status(
         card_count: index.as_ref().map(|index| index.card_count).unwrap_or(0),
         message,
     }
-}
-
-fn load_status_index_metadata(
-    app_data_dir: &Path,
-) -> AppResult<Option<StandardPackStatusIndexMetadata>> {
-    if let Some(manifest) = manifest::load_matching_manifest(app_data_dir)? {
-        return Ok(Some(StandardPackStatusIndexMetadata {
-            source: manifest.source,
-            source_language: manifest.source_language,
-            indexed_at: manifest.indexed_at,
-            card_count: manifest.card_count,
-        }));
-    }
-
-    let index = load_index(app_data_dir)?;
-    Ok(Some(StandardPackStatusIndexMetadata {
-        source: index.source,
-        source_language: index.source_language,
-        indexed_at: index.indexed_at,
-        card_count: index.cards.len(),
-    }))
 }
 
 pub fn discover_source(ygopro_path: &Path) -> AppResult<StandardPackSource> {
@@ -300,42 +231,12 @@ pub fn rebuild_index(
     records.sort_by(|left, right| left.card.code.cmp(&right.card.code));
 
     Ok(StandardPackIndexFile {
-        schema_version: STANDARD_INDEX_SCHEMA_VERSION,
         source: source.snapshot,
         source_language: source_language.to_string(),
         indexed_at: now_utc(),
         cards: records,
         strings: load_standard_strings(&source.ygopro_path.join("strings.conf"), source_language),
     })
-}
-
-pub fn standard_codes(app_data_dir: &Path) -> Option<BTreeSet<u32>> {
-    load_index(app_data_dir).ok().map(|index| {
-        index
-            .cards
-            .into_iter()
-            .map(|record| record.card.code)
-            .collect()
-    })
-}
-
-pub fn standard_strings(app_data_dir: &Path) -> Option<StandardStringNamespaceBaseline> {
-    load_index(app_data_dir)
-        .ok()
-        .map(|index| index.strings.baseline)
-}
-
-pub fn standard_baseline_from_index(app_data_dir: &Path) -> Option<StandardNamespaceBaseline> {
-    load_index(app_data_dir)
-        .ok()
-        .map(|index| StandardNamespaceBaseline {
-            standard_codes: index
-                .cards
-                .into_iter()
-                .map(|record| record.card.code)
-                .collect(),
-            strings: index.strings.baseline,
-        })
 }
 
 fn load_cards_from_cdb(

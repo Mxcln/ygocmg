@@ -7,9 +7,11 @@ Date: 2026-05-01
 Status as of 2026-05-01:
 
 - Phase 1 is implemented: Standard Pack runtime access is behind a repository boundary, and `list_standard_setnames` is available as a setname-specific command.
-- Phase 2 is implemented: rebuild writes `<app_data>/standard_pack/manifest.json`; legacy low-level JSON status can use the manifest without deserializing the full JSON index.
-- Phase 3 is implemented: rebuild writes `<app_data>/standard_pack/index.sqlite` with schema version `1`, validates row counts, and atomically replaces the previous SQLite cache.
-- Phase 4 is implemented: production Standard Pack read paths use SQLite, not `index.json`; `index.json` remains a compatibility/debug artifact until Phase 6.
+- Phase 2 is implemented: rebuild writes `<app_data>/standard_pack/manifest.json` as a lightweight sidecar.
+- Phase 3 is implemented: rebuild writes `<app_data>/standard_pack/index.sqlite`, validates row counts, and atomically replaces the previous SQLite cache.
+- Phase 4 is implemented: production Standard Pack read paths use SQLite, not `index.json`.
+- Phase 5 is implemented: the SQLite cache includes an FTS5 card-search table, and card keyword search has an FTS-backed SQL query path while preserving existing contains behavior.
+- Phase 6 is implemented: the full `index.json` writer/reader and `JsonStandardPackRepository` have been removed.
 - The production runtime cache no longer stores `StandardPackIndexFile`; it caches SQLite-stamp-bound manifest data, namespace baseline, and setname lists by language.
 - Regression verification passed with `cargo fmt`, `cargo test --offline --test standard_pack`, and full `cargo test --offline`.
 
@@ -30,7 +32,7 @@ The application currently keeps these runtime structures in `AppState`:
 - `sessions`: workspace and open custom-pack sessions.
 - `confirmation_cache`: staged card and strings confirmation entries.
 - `preview_token_cache`: import/export preview entries.
-- `standard_pack_index_cache`: one in-memory Standard Pack index snapshot.
+- `standard_pack_runtime_cache`: lightweight SQLite-stamp-bound Standard Pack runtime data.
 
 Relevant files:
 
@@ -97,7 +99,7 @@ On the tested local machine, this file is about 33.7 MB and contains:
 - 14,670 cards
 - 1,246 strings records
 
-As of Phase 4, rebuild still writes `index.json` for compatibility/debug purposes, but production reads use:
+As of Phase 6, rebuild no longer writes `index.json`. Production reads use:
 
 ```text
 <app_data>/standard_pack/index.sqlite
@@ -109,25 +111,25 @@ The Phase 2 sidecar remains:
 <app_data>/standard_pack/manifest.json
 ```
 
-Runtime commands no longer use `index.json` as a fallback when SQLite is missing. A JSON-only cache is treated as a missing Standard Pack index, and users recover by rebuilding.
+Runtime commands do not use `index.json` as a fallback when SQLite is missing. A JSON-only cache is treated as a missing Standard Pack index, and users recover by rebuilding.
 
 ### 2.4 Current first-load behavior
 
-Opening Standard Pack currently triggers:
+Before this refactor, opening Standard Pack triggered:
 
 1. `get_standard_pack_status`
 2. `standard_pack::status`
 3. `standard_pack::load_index`
 4. full read and deserialize of `index.json`
 
-Then the card list triggers:
+Then the card list triggered:
 
 1. `search_standard_cards`
 2. `standard_pack_index_cache.get_or_load`
 3. another full `load_index` if the runtime cache is cold
 4. full-card filtering, cloning, sorting, and pagination
 
-Opening a custom-card editor drawer also triggers Standard Pack access:
+Opening a custom-card editor drawer also triggered Standard Pack access:
 
 1. `CardEditDrawer` starts a `standard-setnames` query immediately.
 2. The query calls `search_standard_strings`.
@@ -138,7 +140,7 @@ Opening a custom-card editor drawer also triggers Standard Pack access:
 
 The current Standard Pack design conflates several read models into one large snapshot.
 
-The single `index.json` currently acts as:
+Before the refactor, the single `index.json` acted as:
 
 1. Status manifest.
 2. Card list index.
@@ -379,7 +381,20 @@ create virtual table standard_card_texts_fts using fts5(
 );
 ```
 
-FTS can be deferred to a later phase. A regular indexed query is enough for the first refactor.
+The implemented Phase 5 schema uses a materialized card-search FTS table for source-language card list rows:
+
+```sql
+create virtual table standard_card_search_fts using fts5(
+  code unindexed,
+  language unindexed,
+  name,
+  card_desc,
+  primary_type,
+  subtype_display
+);
+```
+
+The repository still keeps `instr(lower(...), keyword)` predicates in the SQL where clause so existing contains behavior remains compatible for substrings and languages/tokenization that FTS may not segment well.
 
 ### 5.4 Card list rows
 
@@ -531,7 +546,7 @@ Keyword search should initially support:
 - subtype contains
 - primary type label match
 
-Long-term, keyword search should move to FTS.
+Keyword search uses SQL predicates plus the FTS5 table for token matches. Full ranking is still deliberately simple; sort order remains the user-selected code/name/type order.
 
 ### 6.3 Card detail
 
@@ -784,7 +799,7 @@ Current rebuild:
 4. Derive card list rows.
 5. Load strings.
 6. Build one `StandardPackIndexFile`.
-7. Save `index.json`.
+7. Save the queryable SQLite cache.
 8. Refresh runtime cache.
 
 ### 10.2 Target rebuild flow
@@ -805,9 +820,9 @@ Target rebuild:
 12. Atomically replace old index DB.
 13. Clear runtime caches.
 
-Implemented Phase 4 behavior:
+Implemented final behavior:
 
-- `save_index()` writes SQLite first, then writes the compatibility `index.json`, then writes `manifest.json`.
+- `save_index()` writes SQLite first, then writes `manifest.json`.
 - SQLite is written to a temp DB path, validated, closed, and then installed with a backup-rename replacement flow that works on Windows.
 - If SQLite creation, insertion, validation, or replacement fails, rebuild fails and the existing SQLite file is preserved where possible.
 - After successful rebuild, the lightweight runtime cache is cleared instead of being populated with a full `StandardPackIndexFile`.
@@ -830,9 +845,7 @@ The replacement should be performed only after the new DB validates successfully
 
 ### 10.4 Optional compatibility output
 
-During migration, keep writing `index.json` only if tests or other code still require it.
-
-Long-term, `index.json` should be removed or replaced by a small `manifest.json`.
+The Phase 6 implementation removed the `index.json` writer. The remaining JSON artifact is the small `manifest.json` sidecar.
 
 ## 11. Migration Strategy
 
@@ -848,7 +861,7 @@ Goal:
 Tasks:
 
 - [x] Add `StandardPackRepository` abstraction.
-- [x] Implement `JsonStandardPackRepository` using current `StandardPackIndexCache`.
+- [x] Implement initial `JsonStandardPackRepository` using the then-current `StandardPackIndexCache`.
 - [x] Move `get_status`, `search_cards`, `get_card`, `search_strings`, baseline access behind repository methods.
 - [x] Add `list_standard_setnames` command, implemented from current JSON index for now.
 
@@ -863,7 +876,7 @@ Implemented notes:
 - Existing command contracts remain compatible.
 - `list_standard_setnames` is additive and returns only `{ key, value }` setname entries.
 - Card editor setname lookup uses the setname-specific API instead of `search_standard_strings(pageSize: 10000)`.
-- Standard Pack status still reads the legacy JSON index in this phase; manifest-based status remains Phase 2.
+- Standard Pack status still read the legacy JSON index in this phase; later phases replaced that path with SQLite status.
 
 ### Phase 2: Add lightweight manifest
 
@@ -876,9 +889,9 @@ Goal:
 Tasks:
 
 - [x] Write `manifest.json` during rebuild.
-- [x] Store manifest schema version, JSON index schema version, source snapshot, source language, indexed timestamp, card count, string count, and `index.json` file stamp.
-- [x] Change low-level status metadata loading to prefer a stamp-matched manifest.
-- [x] Keep fallback to old `index.json` for existing low-level cache compatibility.
+- [x] Store manifest schema version, SQLite schema version, source snapshot, source language, indexed timestamp, card count, and string count.
+- [x] Change low-level status metadata loading to prefer SQLite manifest/status data.
+- [x] Remove fallback to old `index.json` in the final read path.
 - [x] Avoid auto-writing manifest on status reads.
 
 Expected result:
@@ -888,9 +901,9 @@ Expected result:
 Implemented notes:
 
 - The manifest path is `<app_data>/standard_pack/manifest.json`.
-- Manifest schema version is independent from `STANDARD_INDEX_SCHEMA_VERSION`.
+- Manifest schema version is independent from `STANDARD_SQLITE_SCHEMA_VERSION`.
 - Manifest failures make rebuild fail, because a successful rebuild should leave the lightweight sidecar ready.
-- Phase 4 production status now reads SQLite manifest rather than this JSON manifest; the JSON manifest remains part of the compatibility cache bundle.
+- Production status reads the SQLite `standard_manifest`; the JSON manifest is a small sidecar/debug artifact, not the runtime source of truth.
 
 ### Phase 3: Add SQLite index writer
 
@@ -903,7 +916,7 @@ Goal:
 Tasks:
 
 - [x] Add `sqlite_store.rs`.
-- [x] Define `STANDARD_SQLITE_SCHEMA_VERSION = 1`.
+- [x] Define `STANDARD_SQLITE_SCHEMA_VERSION`.
 - [x] Implement schema creation.
 - [x] Implement bulk insert transaction.
 - [x] Insert manifest, cards, card texts, source-language list rows, assets, strings, code baseline, string baseline, and setname base baseline.
@@ -919,6 +932,7 @@ Expected result:
 Implemented notes:
 
 - The SQLite path is `<app_data>/standard_pack/index.sqlite`.
+- The current SQLite schema version is `2`.
 - `detail_json` stores serialized `CardEntity`.
 - `strings_json` stores serialized per-card text strings.
 - `standard_strings` stores every language value present in the in-memory index.
@@ -937,7 +951,7 @@ Tasks:
 - [x] Implement `SqliteStandardPackRepository`.
 - [x] Route `get_status`, `search_cards`, `get_card`, `search_strings`, `list_standard_setnames`, and baseline calls through SQLite.
 - [x] Switch Standard Pack consumers in card, import, export, and pack write services from `JsonStandardPackRepository` to `SqliteStandardPackRepository`.
-- [x] Shrink `StandardPackIndexCache` so production caching no longer stores a full `StandardPackIndexFile`.
+- [x] Replace `StandardPackIndexCache` with `StandardPackRuntimeCache` so production caching no longer stores a full `StandardPackIndexFile`.
 - [x] Add runtime caches for SQLite manifest, setnames by language, and namespace baseline.
 - [x] Treat JSON-only cache as missing index in production status.
 - [x] Keep public Tauri command and TypeScript contracts unchanged.
@@ -952,12 +966,14 @@ Expected result:
 Implemented notes:
 
 - `get_standard_pack_status` opens SQLite and reads `standard_manifest`; missing `index.sqlite` maps to missing index/rebuild required.
-- Card list and strings browser currently query lightweight SQLite rows per call and preserve existing contains/filter/sort/page semantics in Rust. Full-text search and deeper SQL pagination optimization remain Phase 5 work.
+- Card list queries use SQL count/order/page and a keyword where clause with FTS plus contains-compatible predicates.
 - `get_standard_card` queries one `standard_cards.detail_json` row and asset booleans.
 - `namespace_baseline()` reads baseline tables and does not deserialize card details.
-- `JsonStandardPackRepository` remains in the codebase for temporary compatibility/testing and is planned for Phase 6 deletion.
+- `JsonStandardPackRepository` has been removed.
 
 ### Phase 5: Optimize search
+
+Status: Implemented on 2026-05-01.
 
 Goal:
 
@@ -965,16 +981,24 @@ Goal:
 
 Tasks:
 
-- Add FTS5 table for card name and desc.
-- Add FTS query path for non-empty keyword.
-- Keep simple code exact/prefix handling.
-- Add ranking or stable fallback order.
+- [x] Add FTS5 table for card name, desc, primary type, and subtype.
+- [x] Add FTS query path for non-empty keyword.
+- [x] Keep simple code/text contains handling for backward-compatible search behavior.
+- [x] Keep stable user-selected sort order for code/name/type.
 
 Expected result:
 
 - Standard Pack search remains fast as data grows.
 
+Implemented notes:
+
+- `standard_card_search_fts` is populated during SQLite index writing and row-count validated.
+- Keyword card search now uses SQL count/order/limit/offset instead of loading all list rows into Rust first.
+- FTS is used as an additional match path. Contains predicates remain in the same SQL where clause to preserve current behavior for substrings and non-FTS-friendly text.
+
 ### Phase 6: Remove legacy JSON full index
+
+Status: Implemented on 2026-05-01.
 
 Goal:
 
@@ -982,14 +1006,22 @@ Goal:
 
 Tasks:
 
-- Delete `index.json` writer if no longer needed.
-- Remove `JsonStandardPackRepository`.
-- Remove full-index runtime cache.
-- Keep migration error messages clear: users can rebuild the Standard Pack index if old cache files are present.
+- [x] Delete `index.json` writer.
+- [x] Remove `JsonStandardPackRepository`.
+- [x] Remove full-index JSON loader/status fallback helpers.
+- [x] Remove full-index runtime cache and rename it to `StandardPackRuntimeCache`.
+- [x] Keep migration error messages clear: users can rebuild the Standard Pack index if old cache files are present.
 
 Expected result:
 
 - Standard Pack architecture is fully queryable and no longer whole-file oriented.
+
+Implemented notes:
+
+- `save_index()` no longer writes `<app_data>/standard_pack/index.json`.
+- `standard_pack::status()` now reads SQLite metadata rather than JSON/manifest stamp metadata.
+- A JSON-only cache is reported as a missing SQLite index, which drives users toward rebuild.
+- `StandardPackIndexFile` remains only as an in-memory rebuild bundle passed to the SQLite writer.
 
 ## 12. Testing Plan
 
@@ -1014,6 +1046,7 @@ Extend `src-tauri/tests/standard_pack.rs`:
 - [x] Status works without reading full card data.
 - [x] JSON-only cache is missing index for production SQLite status.
 - [x] Search cards returns expected page and total.
+- [x] Card keyword search uses the FTS-backed SQL path.
 - [x] Get standard card returns detail by code.
 - [x] Missing standard card returns `standard_pack.card_not_found`.
 - [x] Search strings returns expected filtered records.
@@ -1059,6 +1092,8 @@ The refactor is successful when:
 8. Rebuild still produces a fully deterministic Standard Pack reference index.
 9. Existing Tauri command contracts remain compatible, except for additive commands.
 10. Users can recover from old or missing index files by rebuilding the Standard Pack index.
+11. Rebuild no longer writes the legacy full `index.json` cache.
+12. `JsonStandardPackRepository` and full JSON load paths are removed.
 
 ## 14. Expected Performance Outcome
 

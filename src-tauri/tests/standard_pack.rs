@@ -415,7 +415,7 @@ fn standard_setnames_empty_when_source_has_no_setnames() {
     let index =
         ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
-    state.standard_pack_index_cache.clear().unwrap();
+    state.standard_pack_runtime_cache.clear().unwrap();
 
     let without_setnames =
         app_commands::list_standard_setnames(&state, ListStandardSetnamesInput { language: None })
@@ -473,65 +473,40 @@ fn save_index_writes_manifest() {
 
     let manifest =
         ygocmg_core::infrastructure::standard_pack::manifest::load_manifest(app.path()).unwrap();
-    let index_stamp =
-        ygocmg_core::infrastructure::standard_pack::manifest::index_file_stamp(app.path()).unwrap();
 
     assert_eq!(
         manifest.schema_version,
         ygocmg_core::infrastructure::standard_pack::manifest::STANDARD_MANIFEST_SCHEMA_VERSION
     );
     assert_eq!(
-        manifest.index_schema_version,
-        ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION
+        manifest.sqlite_schema_version,
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::STANDARD_SQLITE_SCHEMA_VERSION
     );
     assert_eq!(manifest.source, index.source);
     assert_eq!(manifest.source_language, "zh-CN");
     assert_eq!(manifest.indexed_at, index.indexed_at);
     assert_eq!(manifest.card_count, 2);
     assert_eq!(manifest.string_count, 2);
-    assert_eq!(manifest.index_file, index_stamp);
+    assert!(
+        !ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path())
+            .join("index.json")
+            .exists()
+    );
 }
 
 #[test]
-fn status_uses_manifest_without_full_index_deserialize() {
+fn status_uses_sqlite_manifest_without_json_index() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
     create_test_cdb(
         &root.path().join("cards.cdb"),
-        &[(123, "Indexed", 0x1 | 0x20)],
+        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
     )
     .unwrap();
-    let source = ygocmg_core::infrastructure::standard_pack::discover_source(root.path()).unwrap();
-
-    ygocmg_core::infrastructure::json_store::write_json(
-        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
-        &serde_json::json!({
-            "schema_version": ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION
-        }),
-    )
-    .unwrap();
-    let index_stamp =
-        ygocmg_core::infrastructure::standard_pack::manifest::index_file_stamp(app.path()).unwrap();
-    let indexed_at = ygocmg_core::domain::common::time::now_utc();
-    let manifest = ygocmg_core::infrastructure::standard_pack::manifest::StandardPackManifestFile {
-        schema_version:
-            ygocmg_core::infrastructure::standard_pack::manifest::STANDARD_MANIFEST_SCHEMA_VERSION,
-        index_schema_version:
-            ygocmg_core::infrastructure::standard_pack::STANDARD_INDEX_SCHEMA_VERSION,
-        source: source.snapshot,
-        source_language: "zh-CN".to_string(),
-        indexed_at,
-        card_count: 99,
-        string_count: 7,
-        index_file: index_stamp,
-    };
-    ygocmg_core::infrastructure::json_store::write_json(
-        &ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
-            app.path(),
-        ),
-        &manifest,
-    )
-    .unwrap();
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    let indexed_at = index.indexed_at;
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
 
     let status = ygocmg_core::infrastructure::standard_pack::status(
         app.path(),
@@ -542,32 +517,33 @@ fn status_uses_manifest_without_full_index_deserialize() {
     assert!(status.index_exists);
     assert!(!status.schema_mismatch);
     assert!(!status.stale);
-    assert_eq!(status.card_count, 99);
+    assert_eq!(status.card_count, 2);
     assert_eq!(status.source_language.as_deref(), Some("zh-CN"));
     assert_eq!(status.indexed_at, Some(indexed_at));
+    assert!(
+        !ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path())
+            .join("index.json")
+            .exists()
+    );
 }
 
 #[test]
-fn status_falls_back_when_manifest_missing() {
+fn status_reports_missing_without_sqlite_even_if_manifest_exists() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
     create_test_cdb(
         &root.path().join("cards.cdb"),
-        &[(123, "Indexed", 0x1 | 0x20), (456, "Second", 0x2)],
+        &[(123, "Indexed", 0x1 | 0x20)],
     )
     .unwrap();
 
     let index =
         ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
-    ygocmg_core::infrastructure::json_store::write_json(
-        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
-        &index,
-    )
-    .unwrap();
-
+    ygocmg_core::infrastructure::standard_pack::manifest::save_manifest(app.path(), &index)
+        .unwrap();
     assert!(
-        !ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
-            app.path()
+        !ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
         )
         .exists()
     );
@@ -577,13 +553,19 @@ fn status_falls_back_when_manifest_missing() {
         Some("zh-CN"),
     );
 
-    assert!(status.index_exists);
+    assert!(!status.index_exists);
     assert!(!status.schema_mismatch);
-    assert_eq!(status.card_count, 2);
+    assert_eq!(status.card_count, 0);
+    assert!(
+        status
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("sqlite index is missing"))
+    );
 }
 
 #[test]
-fn status_falls_back_when_manifest_stamp_mismatches() {
+fn status_uses_current_sqlite_when_manifest_is_stale() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();
     create_test_cdb(
@@ -594,6 +576,8 @@ fn status_falls_back_when_manifest_stamp_mismatches() {
     let first =
         ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &first).unwrap();
+    let stale_manifest =
+        ygocmg_core::infrastructure::standard_pack::manifest::manifest_from_index(&first);
 
     fs::remove_file(root.path().join("cards.cdb")).unwrap();
     create_test_cdb(
@@ -604,7 +588,14 @@ fn status_falls_back_when_manifest_stamp_mismatches() {
     let second =
         ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
     ygocmg_core::infrastructure::json_store::write_json(
-        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
+            app.path(),
+        ),
+        &stale_manifest,
+    )
+    .unwrap();
+    ygocmg_core::infrastructure::standard_pack::sqlite_store::save_sqlite_index(
+        app.path(),
         &second,
     )
     .unwrap();
@@ -663,6 +654,13 @@ fn save_index_writes_sqlite_index() {
     assert_eq!(source_language, "zh-CN");
     assert_eq!(card_count, 2);
     assert_eq!(string_count, 2);
+
+    let fts_count: i64 = connection
+        .query_row("select count(*) from standard_card_search_fts", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(fts_count, 2);
 }
 
 #[test]
@@ -864,7 +862,9 @@ fn rebuild_index_job_writes_sqlite_index() {
     wait_for_status(&state, &accepted.job_id, JobStatusDto::Succeeded);
 
     assert!(
-        ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()).exists()
+        !ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path())
+            .join("index.json")
+            .exists()
     );
     assert!(
         ygocmg_core::infrastructure::standard_pack::manifest::standard_pack_manifest_path(
@@ -901,8 +901,11 @@ fn status_requires_sqlite_when_only_json_exists() {
 
     let index =
         ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    fs::create_dir_all(ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path()))
+        .unwrap();
     ygocmg_core::infrastructure::json_store::write_json(
-        &ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
+        &ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path())
+            .join("index.json"),
         &index,
     )
     .unwrap();
@@ -1004,6 +1007,51 @@ fn sqlite_repository_search_cards_matches_existing_behavior() {
             .collect::<Vec<_>>(),
         vec![300, 200, 100]
     );
+}
+
+#[test]
+fn sqlite_repository_search_cards_uses_fts_keyword_path() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(100, "Alpha Dragon", 0x1 | 0x20), (200, "Beta Spell", 0x2)],
+    )
+    .unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    let connection = Connection::open(sqlite_path).unwrap();
+    connection
+        .execute(
+            "update standard_card_list_rows
+             set name = 'No direct match', desc = 'No direct match', subtype_display = 'Nope'
+             where code = 100",
+            [],
+        )
+        .unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let page = app_commands::search_standard_cards(
+        &state,
+        SearchStandardCardsInput {
+            keyword: Some("dragon".to_string()),
+            sort_by: StandardCardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 20,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(page.total, 1);
+    assert_eq!(page.items[0].code, 100);
+    assert_eq!(page.items[0].name, "No direct match");
 }
 
 #[test]
@@ -1228,14 +1276,38 @@ fn schema_mismatch_requires_rebuild() {
     let app = tempdir().unwrap();
     fs::create_dir_all(ygocmg_core::infrastructure::standard_pack::standard_pack_dir(app.path()))
         .unwrap();
-    fs::write(
-        ygocmg_core::infrastructure::standard_pack::standard_pack_index_path(app.path()),
-        r#"{"schema_version":1,"source":{"ygopro_path":"x","cdb_path":"x","cdb_modified":null,"cdb_len":0,"strings_modified":null,"strings_len":null},"indexed_at":"2026-01-01T00:00:00Z","cards":[],"strings":{"system_keys":[],"victory_keys":[],"counter_keys":[],"setname_bases":[]}}"#,
-    )
-    .unwrap();
+    let sqlite_path =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        );
+    let connection = Connection::open(&sqlite_path).unwrap();
+    connection
+        .execute_batch(
+            "create table standard_manifest (
+              id integer primary key check (id = 1),
+              schema_version integer not null,
+              source_language text not null,
+              indexed_at text not null,
+              ygopro_path text not null,
+              cdb_path text not null,
+              cdb_modified integer,
+              cdb_len integer not null,
+              strings_modified integer,
+              strings_len integer,
+              card_count integer not null,
+              string_count integer not null
+            );
+            insert into standard_manifest(
+              id, schema_version, source_language, indexed_at, ygopro_path, cdb_path,
+              cdb_modified, cdb_len, strings_modified, strings_len, card_count, string_count
+            ) values (1, 1, 'zh-CN', '2026-01-01T00:00:00Z', 'x', 'x', null, 0, null, null, 0, 0);",
+        )
+        .unwrap();
 
-    let err = ygocmg_core::infrastructure::standard_pack::load_index(app.path()).unwrap_err();
-    assert_eq!(err.code, "standard_pack.index_schema_mismatch");
+    let err =
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::load_sqlite_manifest(&connection)
+            .unwrap_err();
+    assert_eq!(err.code, "standard_pack.sqlite_schema_mismatch");
 
     let status = ygocmg_core::infrastructure::standard_pack::status(app.path(), None, None);
     assert!(status.schema_mismatch);

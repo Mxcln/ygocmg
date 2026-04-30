@@ -39,7 +39,7 @@ impl<'a> StandardPackService<'a> {
             )
         })?;
         let app_data_dir = self.state.app_data_dir().to_path_buf();
-        let runtime_cache = self.state.standard_pack_index_cache.clone();
+        let runtime_cache = self.state.standard_pack_runtime_cache.clone();
 
         self.state
             .jobs

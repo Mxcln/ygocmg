@@ -9,7 +9,7 @@ use crate::runtime::events::{NoopEventBus, SharedEventBus};
 use crate::runtime::jobs::JobRuntime;
 use crate::runtime::preview_token_cache::{PreviewTokenCache, SharedPreviewTokenCache};
 use crate::runtime::sessions::SessionManager;
-use crate::runtime::standard_pack_cache::StandardPackIndexCache;
+use crate::runtime::standard_pack_cache::StandardPackRuntimeCache;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -18,7 +18,7 @@ pub struct AppState {
     pub sessions: Arc<RwLock<SessionManager>>,
     pub confirmation_cache: Arc<RwLock<ConfirmationCache>>,
     pub preview_token_cache: SharedPreviewTokenCache,
-    pub standard_pack_index_cache: StandardPackIndexCache,
+    pub standard_pack_runtime_cache: StandardPackRuntimeCache,
     pub jobs: JobRuntime,
     pub event_bus: SharedEventBus,
 }
@@ -42,7 +42,7 @@ impl AppState {
             sessions: Arc::new(RwLock::new(SessionManager::default())),
             confirmation_cache: Arc::new(RwLock::new(ConfirmationCache::default())),
             preview_token_cache: Arc::new(RwLock::new(PreviewTokenCache::default())),
-            standard_pack_index_cache: StandardPackIndexCache::default(),
+            standard_pack_runtime_cache: StandardPackRuntimeCache::default(),
             jobs,
             event_bus,
         })
@@ -62,7 +62,10 @@ impl fmt::Debug for AppState {
             .field("sessions", &self.sessions)
             .field("confirmation_cache", &self.confirmation_cache)
             .field("preview_token_cache", &self.preview_token_cache)
-            .field("standard_pack_index_cache", &self.standard_pack_index_cache)
+            .field(
+                "standard_pack_runtime_cache",
+                &self.standard_pack_runtime_cache,
+            )
             .field("jobs", &self.jobs)
             .finish_non_exhaustive()
     }

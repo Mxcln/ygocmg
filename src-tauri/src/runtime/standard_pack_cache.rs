@@ -10,7 +10,7 @@ use crate::infrastructure::standard_pack::sqlite_store::{
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct StandardPackIndexCache {
+pub struct StandardPackRuntimeCache {
     inner: Arc<RwLock<CachedStandardPackRuntime>>,
 }
 
@@ -33,7 +33,7 @@ struct IndexFileStamp {
     modified: Option<std::time::SystemTime>,
 }
 
-impl StandardPackIndexCache {
+impl StandardPackRuntimeCache {
     pub fn manifest<F>(&self, app_data_dir: &Path, load: F) -> AppResult<StandardPackSqliteManifest>
     where
         F: FnOnce() -> AppResult<StandardPackSqliteManifest>,

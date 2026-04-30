@@ -13,7 +13,7 @@ use crate::domain::strings::model::PackStringKind;
 
 use super::{StandardPackIndexFile, StandardPackSourceSnapshot, standard_pack_dir};
 
-pub const STANDARD_SQLITE_SCHEMA_VERSION: u32 = 1;
+pub const STANDARD_SQLITE_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone)]
 pub struct StandardPackSqliteManifest {
@@ -102,6 +102,15 @@ create index idx_standard_card_rows_name
   on standard_card_list_rows(name, code);
 create index idx_standard_card_rows_type
   on standard_card_list_rows(primary_type, subtype_display, code);
+
+create virtual table standard_card_search_fts using fts5(
+  code unindexed,
+  language unindexed,
+  name,
+  card_desc,
+  primary_type,
+  subtype_display
+);
 
 create table standard_assets (
   code integer primary key,
@@ -349,6 +358,18 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
                 source.to_string(),
             )
         })?;
+    let mut fts_statement = transaction
+        .prepare(
+            "insert into standard_card_search_fts(
+                code, language, name, card_desc, primary_type, subtype_display
+             ) values (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|source| {
+            AppError::new(
+                "standard_pack.sqlite_prepare_card_search_fts_failed",
+                source.to_string(),
+            )
+        })?;
     let mut asset_statement = transaction
         .prepare(
             "insert into standard_assets(code, has_image, has_script, has_field_image)
@@ -425,6 +446,23 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
             .map_err(|source| {
                 AppError::new(
                     "standard_pack.sqlite_insert_card_row_failed",
+                    source.to_string(),
+                )
+                .with_detail("code", record.card.code)
+            })?;
+
+        fts_statement
+            .execute(params![
+                record.row.code.to_string(),
+                index.source_language.as_str(),
+                record.row.name.as_str(),
+                record.row.desc.as_str(),
+                serialize_enum_text("row_primary_type", &record.row.primary_type)?,
+                record.row.subtype_display.as_str(),
+            ])
+            .map_err(|source| {
+                AppError::new(
+                    "standard_pack.sqlite_insert_card_search_fts_failed",
                     source.to_string(),
                 )
                 .with_detail("code", record.card.code)
@@ -588,6 +626,7 @@ fn validate_index(connection: &Connection, index: &StandardPackIndexFile) -> App
     assert_count(connection, "standard_cards", index.cards.len())?;
     assert_count(connection, "standard_card_texts", card_text_count(index))?;
     assert_count(connection, "standard_card_list_rows", index.cards.len())?;
+    assert_count(connection, "standard_card_search_fts", index.cards.len())?;
     assert_count(connection, "standard_assets", index.cards.len())?;
     assert_count(connection, "standard_strings", string_value_count(index))?;
     assert_count(connection, "standard_code_baseline", index.cards.len())?;
