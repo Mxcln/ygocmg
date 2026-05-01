@@ -3,6 +3,7 @@ import type { PackMetadata, PackOverview } from "../contracts/pack";
 
 export interface CreatePackInput {
   name: string;
+  packCode: string | null;
   author: string;
   version: string;
   description: string | null;
@@ -21,6 +22,7 @@ export interface ClosePackInput {
 export interface UpdatePackMetadataInput {
   packId: string;
   name: string;
+  packCode: string | null;
   author: string;
   version: string;
   description: string | null;

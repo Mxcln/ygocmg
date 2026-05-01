@@ -15,6 +15,7 @@ pub struct PackMetadata {
     pub id: PackId,
     pub kind: PackKind,
     pub name: String,
+    pub pack_code: Option<String>,
     pub author: String,
     pub version: String,
     pub description: Option<String>,

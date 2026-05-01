@@ -37,6 +37,7 @@ impl<'a> PackService<'a> {
     pub fn create_pack(
         &self,
         name: &str,
+        pack_code: Option<String>,
         author: &str,
         version: &str,
         description: Option<String>,
@@ -55,11 +56,13 @@ impl<'a> PackService<'a> {
             .map(|value| normalize_language_id(&value))
             .filter(|value| !value.is_empty());
         let empty_existing_languages = BTreeSet::new();
+        let pack_code = normalize_pack_code(pack_code);
 
         let metadata = PackMetadata {
             id: Uuid::now_v7().to_string(),
             kind: PackKind::Custom,
             name: name.trim().to_string(),
+            pack_code,
             author: author.trim().to_string(),
             version: version.trim().to_string(),
             description,
@@ -204,6 +207,7 @@ impl<'a> PackService<'a> {
         &self,
         pack_id: &str,
         name: &str,
+        pack_code: Option<String>,
         author: &str,
         version: &str,
         description: Option<String>,
@@ -217,6 +221,7 @@ impl<'a> PackService<'a> {
 
         let mut metadata = json_store::load_pack_metadata(&pack_path)?;
         metadata.name = name.trim().to_string();
+        metadata.pack_code = normalize_pack_code(pack_code);
         metadata.author = author.trim().to_string();
         metadata.version = version.trim().to_string();
         metadata.description = description;
@@ -392,6 +397,13 @@ impl<'a> PackService<'a> {
         let inventory = load_pack_inventory(workspace_path)?;
         pack_locator::resolve_pack_path(&inventory, pack_id)
     }
+}
+
+fn normalize_pack_code(value: Option<String>) -> Option<String> {
+    value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .map(|v| v.to_ascii_uppercase())
 }
 
 pub fn load_pack_inventory(workspace_path: &Path) -> AppResult<WorkspacePackInventory> {

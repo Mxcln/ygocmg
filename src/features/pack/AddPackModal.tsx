@@ -16,6 +16,7 @@ type AddPackTab = "openPack" | "createPack" | "importPack";
 
 interface CreatePackForm {
   name: string;
+  packCode: string;
   author: string;
   version: string;
   description: string;
@@ -27,6 +28,7 @@ function emptyCreateForm(config: GlobalConfig): CreatePackForm {
   const language = preferredAuthoringLanguage(config);
   return {
     name: "",
+    packCode: "",
     author: "",
     version: "1.0.0",
     description: "",
@@ -116,6 +118,7 @@ export function AddPackModal({
 
       const createdMeta = await packApi.createPack({
         name,
+        packCode: createForm.packCode.trim() || null,
         author,
         version,
         description: desc,
@@ -201,6 +204,7 @@ export function AddPackModal({
               onSubmit={handleCreatePack}
               labels={{
                 packName: t("pack.form.name"),
+                packCode: t("pack.form.packCode"),
                 author: t("pack.form.author"),
                 version: t("pack.form.version"),
                 description: t("pack.form.description"),
@@ -303,6 +307,7 @@ function CreatePackPanel({
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   labels: {
     packName: string;
+    packCode: string;
     author: string;
     version: string;
     description: string;
@@ -321,14 +326,24 @@ function CreatePackPanel({
   return (
     <section className={shared.workspaceCreatePanel}>
       <form className={shared.formStack} onSubmit={onSubmit}>
-        <label className={shared.field}>
-          <span>{labels.packName}</span>
-          <input
-            value={form.name}
-            onChange={(e) => onFormChange({ ...form, name: e.target.value })}
-            placeholder="My Custom Pack"
-          />
-        </label>
+        <div className={shared.packFormRow}>
+          <label className={shared.field}>
+            <span>{labels.packName}</span>
+            <input
+              value={form.name}
+              onChange={(e) => onFormChange({ ...form, name: e.target.value })}
+              placeholder="My Custom Pack"
+            />
+          </label>
+          <label className={shared.field}>
+            <span>{labels.packCode}</span>
+            <input
+              value={form.packCode}
+              onChange={(e) => onFormChange({ ...form, packCode: e.target.value })}
+              placeholder="BZDM"
+            />
+          </label>
+        </div>
 
         <div className={shared.packFormRow}>
           <label className={shared.field}>

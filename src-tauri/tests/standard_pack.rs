@@ -128,7 +128,15 @@ fn card_code_context_uses_standard_index_before_fallback_baseline() {
         .open_workspace(workspace.path())
         .unwrap();
     let pack = ygocmg_core::application::pack::service::PackService::new(&state)
-        .create_pack("pack", "me", "1", None, vec!["zh-CN".to_string()], None)
+        .create_pack(
+            "pack",
+            None,
+            "me",
+            "1",
+            None,
+            vec!["zh-CN".to_string()],
+            None,
+        )
         .unwrap();
     let context = ygocmg_core::application::card::service::CardService::new(&state)
         .build_code_context(&pack.id, None)
@@ -187,6 +195,7 @@ fn custom_card_write_rejects_exact_standard_code_but_warns_for_reserved_gap() {
     let pack = app_commands::create_pack(
         &state,
         "pack",
+        None,
         "me",
         "1",
         None,
@@ -265,6 +274,7 @@ fn strings_conf_namespace_enters_standard_baseline() {
     let pack = app_commands::create_pack(
         &state,
         "pack",
+        None,
         "me",
         "1",
         None,
@@ -1740,6 +1750,7 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
     let conflict_pack = app_commands::create_pack(
         &state,
         "conflict",
+        None,
         "me",
         "1",
         None,
@@ -1751,6 +1762,7 @@ fn export_preflight_uses_standard_index_for_code_conflicts_and_reserved_warning(
     let warning_pack = app_commands::create_pack(
         &state,
         "warning",
+        None,
         "me",
         "1",
         None,

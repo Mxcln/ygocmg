@@ -36,6 +36,7 @@ interface SourceForm {
 
 interface MetadataForm {
   name: string;
+  packCode: string;
   author: string;
   version: string;
   description: string;
@@ -56,6 +57,7 @@ function emptySource(config: GlobalConfig): SourceForm {
 
 const EMPTY_METADATA: MetadataForm = {
   name: "",
+  packCode: "",
   author: "",
   version: "1.0.0",
   description: "",
@@ -199,6 +201,7 @@ export function ImportPackPanel({
       const result = await importApi.previewImportPack({
         workspaceId,
         newPackName: name,
+        newPackCode: metadataForm.packCode.trim() || null,
         newPackAuthor: author,
         newPackVersion: version,
         newPackDescription: metadataForm.description.trim() || null,
@@ -350,13 +353,23 @@ export function ImportPackPanel({
 
       {step === 2 && (
         <div className={shared.formStack}>
-          <div className={shared.field}>
-            <span>{t("import.packNameRequired")}</span>
-            <input
-              value={metadataForm.name}
-              onChange={(e) => setMetadataForm({ ...metadataForm, name: e.target.value })}
-              placeholder="My Custom Pack"
-            />
+          <div className={shared.packFormRow}>
+            <div className={shared.field}>
+              <span>{t("import.packNameRequired")}</span>
+              <input
+                value={metadataForm.name}
+                onChange={(e) => setMetadataForm({ ...metadataForm, name: e.target.value })}
+                placeholder="My Custom Pack"
+              />
+            </div>
+            <div className={shared.field}>
+              <span>{t("pack.form.packCode")}</span>
+              <input
+                value={metadataForm.packCode}
+                onChange={(e) => setMetadataForm({ ...metadataForm, packCode: e.target.value })}
+                placeholder="BZDM"
+              />
+            </div>
           </div>
 
           <div className={shared.packFormRow}>

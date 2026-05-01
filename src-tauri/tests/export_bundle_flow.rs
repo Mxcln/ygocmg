@@ -489,6 +489,7 @@ fn create_open_pack(
     let pack = app_commands::create_pack(
         state,
         name,
+        None,
         "Tester",
         "1.0.0",
         None,

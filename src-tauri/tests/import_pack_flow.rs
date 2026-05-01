@@ -49,6 +49,7 @@ fn imports_runtime_resources_into_author_pack() {
         PreviewImportPackInput {
             workspace_id: workspace.id.clone(),
             new_pack_name: "Imported Pack".to_string(),
+            new_pack_code: None,
             new_pack_author: "Importer".to_string(),
             new_pack_version: "1.0.0".to_string(),
             new_pack_description: Some("from cdb".to_string()),
@@ -143,6 +144,7 @@ fn missing_resources_are_warnings_and_do_not_block_import() {
         PreviewImportPackInput {
             workspace_id: workspace.id,
             new_pack_name: "Missing Resources".to_string(),
+            new_pack_code: None,
             new_pack_author: "Importer".to_string(),
             new_pack_version: "1.0.0".to_string(),
             new_pack_description: None,
@@ -202,6 +204,7 @@ fn duplicate_codes_block_import_execute() {
         PreviewImportPackInput {
             workspace_id: workspace.id,
             new_pack_name: "Duplicate Codes".to_string(),
+            new_pack_code: None,
             new_pack_author: "Importer".to_string(),
             new_pack_version: "1.0.0".to_string(),
             new_pack_description: None,
@@ -260,6 +263,7 @@ fn opening_workspace_clears_import_preview_tokens() {
         PreviewImportPackInput {
             workspace_id: workspace.id,
             new_pack_name: "Token Pack".to_string(),
+            new_pack_code: None,
             new_pack_author: "Importer".to_string(),
             new_pack_version: "1.0.0".to_string(),
             new_pack_description: None,

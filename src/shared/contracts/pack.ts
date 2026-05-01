@@ -6,6 +6,7 @@ export interface PackMetadata {
   id: PackId;
   kind: PackKind;
   name: string;
+  pack_code: string | null;
   author: string;
   version: string;
   description: string | null;

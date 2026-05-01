@@ -88,6 +88,7 @@ pub fn delete_workspace(
 pub fn create_pack(
     state: &AppState,
     name: &str,
+    pack_code: Option<String>,
     author: &str,
     version: &str,
     description: Option<String>,
@@ -96,6 +97,7 @@ pub fn create_pack(
 ) -> AppResult<PackMetadata> {
     crate::application::pack::service::PackService::new(state).create_pack(
         name,
+        pack_code,
         author,
         version,
         description,
@@ -120,6 +122,7 @@ pub fn update_pack_metadata(
     state: &AppState,
     pack_id: &str,
     name: &str,
+    pack_code: Option<String>,
     author: &str,
     version: &str,
     description: Option<String>,
@@ -129,6 +132,7 @@ pub fn update_pack_metadata(
     crate::application::pack::service::PackService::new(state).update_pack_metadata(
         pack_id,
         name,
+        pack_code,
         author,
         version,
         description,

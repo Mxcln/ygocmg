@@ -63,6 +63,7 @@ pub struct DeleteWorkspaceInput {
 #[serde(rename_all = "camelCase")]
 pub struct CreatePackInput {
     name: String,
+    pack_code: Option<String>,
     author: String,
     version: String,
     description: Option<String>,
@@ -93,6 +94,7 @@ pub struct SetActivePackInput {
 pub struct UpdatePackMetadataInput {
     pack_id: String,
     name: String,
+    pack_code: Option<String>,
     author: String,
     version: String,
     description: Option<String>,
@@ -173,6 +175,7 @@ pub fn create_pack(
     crate::presentation::commands::app_commands::create_pack(
         &state,
         &input.name,
+        input.pack_code,
         &input.author,
         &input.version,
         input.description,
@@ -208,6 +211,7 @@ pub fn update_pack_metadata(
         &state,
         &input.pack_id,
         &input.name,
+        input.pack_code,
         &input.author,
         &input.version,
         input.description,

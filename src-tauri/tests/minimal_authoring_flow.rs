@@ -61,6 +61,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "0.1.0",
         Some("test pack".to_string()),
@@ -263,6 +264,7 @@ fn workspace_id_mismatch_rejected_for_card_commands() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "0.1.0",
         Some("test pack".to_string()),
@@ -327,6 +329,7 @@ fn confirmation_token_can_only_be_used_once_and_expires_on_revision_change() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "0.1.0",
         None,
@@ -500,6 +503,7 @@ fn create_confirmation_reuses_staged_card_identity() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "0.1.0",
         None,
@@ -588,6 +592,7 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "0.1.0",
         None,
@@ -697,6 +702,7 @@ fn create_pack_uses_readable_storage_name_and_handles_collisions() {
     let pack_a = app_commands::create_pack(
         &state,
         "龙族卡组",
+        None,
         "Max",
         "1.0.0",
         None,
@@ -707,6 +713,7 @@ fn create_pack_uses_readable_storage_name_and_handles_collisions() {
     let pack_b = app_commands::create_pack(
         &state,
         "龙族卡组",
+        None,
         "Max",
         "1.0.1",
         None,
@@ -758,6 +765,7 @@ fn duplicate_pack_ids_fail_workspace_open() {
     let pack = app_commands::create_pack(
         &state,
         "Pack One",
+        None,
         "Max",
         "1.0.0",
         None,
@@ -853,6 +861,7 @@ fn pack_strings_support_list_upsert_confirm_delete_and_filtering() {
     let pack = app_commands::create_pack(
         &state,
         "Pack Strings",
+        None,
         "Max",
         "1.0.0",
         None,
@@ -1175,6 +1184,7 @@ fn resource_management_supports_images_scripts_and_external_editor_validation()
     let pack = app_commands::create_pack(
         &state,
         "Pack Resources",
+        None,
         "Max",
         "1.0.0",
         None,
@@ -1593,6 +1603,7 @@ fn language_catalog_is_enforced_on_pack_and_card_writes_but_preserves_legacy_unk
     let bad_pack = app_commands::create_pack(
         &state,
         "bad",
+        None,
         "me",
         "1",
         None,
@@ -1605,6 +1616,7 @@ fn language_catalog_is_enforced_on_pack_and_card_writes_but_preserves_legacy_unk
     let default_pack = app_commands::create_pack(
         &state,
         "default",
+        None,
         "me",
         "1",
         None,
@@ -1623,6 +1635,7 @@ fn language_catalog_is_enforced_on_pack_and_card_writes_but_preserves_legacy_unk
     let pack = app_commands::create_pack(
         &state,
         "good",
+        None,
         "me",
         "1",
         None,

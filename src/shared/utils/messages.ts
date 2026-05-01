@@ -78,6 +78,7 @@ const ISSUE_MESSAGES: Record<string, AppMessageId> = {
   "pack.name_required": "issue.pack.nameRequired",
   "pack.author_required": "issue.pack.authorRequired",
   "pack.version_required": "issue.pack.versionRequired",
+  "pack.pack_code_invalid": "issue.pack.packCodeInvalid",
   "pack.display_language_order_empty": "issue.pack.displayLanguageOrderEmpty",
   "pack_strings.overwrite_existing_value": "issue.packStrings.overwriteExistingValue",
   "pack_strings.overwrite_existing_record": "issue.packStrings.overwriteExistingRecord",

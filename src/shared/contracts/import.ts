@@ -4,6 +4,7 @@ import type { JobAccepted } from "./job";
 export interface PreviewImportPackInput {
   workspaceId: WorkspaceId;
   newPackName: string;
+  newPackCode: string | null;
   newPackAuthor: string;
   newPackVersion: string;
   newPackDescription: string | null;

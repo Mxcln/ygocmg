@@ -40,6 +40,7 @@ export function PackMetadataPanel({
   const [metaEditing, setMetaEditing] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{
     name: string;
+    packCode: string;
     author: string;
     version: string;
     description: string;
@@ -64,6 +65,7 @@ export function PackMetadataPanel({
     if (!metadata) return;
     setMetaDraft({
       name: metadata.name,
+      packCode: metadata.pack_code ?? "",
       author: metadata.author,
       version: metadata.version,
       description: metadata.description || "",
@@ -91,6 +93,7 @@ export function PackMetadataPanel({
       const updated = await packApi.updatePackMetadata({
         packId,
         name: trimmedName,
+        packCode: metaDraft.packCode.trim() || null,
         author: metaDraft.author.trim(),
         version: metaDraft.version.trim(),
         description: metaDraft.description.trim() || null,
@@ -142,6 +145,11 @@ export function PackMetadataPanel({
           <strong className={styles.metaPackName} title={metadata?.name ?? packId ?? ""}>
             {metadata?.name ?? packId}
           </strong>
+          {metadata?.pack_code && (
+            <span className={styles.metaPackCode} title={metadata.pack_code}>
+              {metadata.pack_code}
+            </span>
+          )}
           <span className={styles.metaDetail} title={summaryDetail}>
             {summaryDetail}
           </span>
@@ -185,6 +193,15 @@ export function PackMetadataPanel({
                         className={styles.metaEditInput}
                         value={metaDraft.name}
                         onChange={(e) => setMetaDraft({ ...metaDraft, name: e.target.value })}
+                      />
+                    </div>
+                    <div className={styles.metaField}>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.packCode")}</span>
+                      <input
+                        className={styles.metaEditInput}
+                        value={metaDraft.packCode}
+                        onChange={(e) => setMetaDraft({ ...metaDraft, packCode: e.target.value })}
+                        placeholder="BZDM"
                       />
                     </div>
                     <div className={styles.metaField}>
@@ -260,6 +277,12 @@ export function PackMetadataPanel({
                       <span className={styles.metaFieldLabel}>{t("pack.metadata.name")}</span>
                       <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.name}>
                         {metadata.name}
+                      </span>
+                    </div>
+                    <div className={styles.metaField}>
+                      <span className={styles.metaFieldLabel}>{t("pack.metadata.packCode")}</span>
+                      <span className={`${styles.metaFieldValue} ${styles.metaFieldValueInline}`} title={metadata.pack_code || t("common.none")}>
+                        {metadata.pack_code || t("common.none")}
                       </span>
                     </div>
                     <div className={styles.metaField}>

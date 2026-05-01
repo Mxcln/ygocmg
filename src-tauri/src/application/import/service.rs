@@ -260,6 +260,12 @@ impl<'a> ImportService<'a> {
             id: target_pack_id.to_string(),
             kind: PackKind::Custom,
             name: input.new_pack_name.trim().to_string(),
+            pack_code: input
+                .new_pack_code
+                .as_ref()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_ascii_uppercase()),
             author: input.new_pack_author.trim().to_string(),
             version: input.new_pack_version.trim().to_string(),
             description: input.new_pack_description.clone(),

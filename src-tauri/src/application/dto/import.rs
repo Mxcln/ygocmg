@@ -10,6 +10,7 @@ use crate::domain::common::issue::ValidationIssue;
 pub struct PreviewImportPackInput {
     pub workspace_id: WorkspaceId,
     pub new_pack_name: String,
+    pub new_pack_code: Option<String>,
     pub new_pack_author: String,
     pub new_pack_version: String,
     pub new_pack_description: Option<String>,

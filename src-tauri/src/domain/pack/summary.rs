@@ -27,6 +27,29 @@ pub fn validate_pack_metadata(metadata: &PackMetadata) -> Vec<ValidationIssue> {
         ));
     }
 
+    if let Some(code) = metadata.pack_code.as_ref() {
+        let trimmed = code.trim();
+        if trimmed.is_empty() {
+            issues.push(ValidationIssue::error(
+                "pack.pack_code_invalid",
+                target.clone().with_field("pack_code"),
+            ));
+        } else if trimmed.len() > 12 {
+            issues.push(ValidationIssue::error(
+                "pack.pack_code_invalid",
+                target.clone().with_field("pack_code"),
+            ));
+        } else if !trimmed
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+        {
+            issues.push(ValidationIssue::error(
+                "pack.pack_code_invalid",
+                target.clone().with_field("pack_code"),
+            ));
+        }
+    }
+
     if metadata.display_language_order.is_empty() {
         issues.push(ValidationIssue::warning(
             "pack.display_language_order_empty",
