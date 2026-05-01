@@ -340,7 +340,7 @@ function CreatePackPanel({
             <input
               value={form.packCode}
               onChange={(e) => onFormChange({ ...form, packCode: e.target.value })}
-              placeholder="BZDM"
+              placeholder="MCTP"
             />
           </label>
         </div>

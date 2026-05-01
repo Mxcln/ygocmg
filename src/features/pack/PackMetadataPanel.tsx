@@ -201,7 +201,7 @@ export function PackMetadataPanel({
                         className={styles.metaEditInput}
                         value={metaDraft.packCode}
                         onChange={(e) => setMetaDraft({ ...metaDraft, packCode: e.target.value })}
-                        placeholder="BZDM"
+                        placeholder="MCTP"
                       />
                     </div>
                     <div className={styles.metaField}>

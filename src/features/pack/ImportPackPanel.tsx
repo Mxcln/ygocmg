@@ -367,7 +367,7 @@ export function ImportPackPanel({
               <input
                 value={metadataForm.packCode}
                 onChange={(e) => setMetadataForm({ ...metadataForm, packCode: e.target.value })}
-                placeholder="BZDM"
+                placeholder="MCTP"
               />
             </div>
           </div>
