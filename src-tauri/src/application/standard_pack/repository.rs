@@ -1,12 +1,14 @@
 use std::collections::BTreeSet;
 
-use rusqlite::{Connection, OptionalExtension, params};
-use serde::de::DeserializeOwned;
+use rusqlite::types::Value;
+use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::application::dto::card::{CardListRowDto, SortDirectionDto};
 use crate::application::dto::standard_pack::{
-    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
-    SearchStandardStringsInput, StandardCardDetailDto, StandardCardPageDto,
+    CardFilterMatchModeDto, GetStandardCardInput, ListStandardSetnamesInput, NumericRangeFilterDto,
+    SearchStandardCardsInput, SearchStandardStringsInput, SetcodeFilterModeDto,
+    StandardCardDetailDto, StandardCardPageDto, StandardCardSearchFiltersDto,
     StandardCardSortFieldDto, StandardPackIndexStateDto, StandardPackStatusDto,
     StandardSetnameEntryDto, StandardStringSortFieldDto, StandardStringsPageDto,
 };
@@ -128,6 +130,10 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
         let manifest = self.load_manifest()?;
         let connection = self.open_connection()?;
         let keyword = input.keyword.unwrap_or_default().trim().to_lowercase();
+        let filters = input
+            .filters
+            .map(normalize_card_search_filters)
+            .transpose()?;
         let page_size = input.page_size.max(1);
         let page = input.page.max(1);
         let start = ((page - 1) as usize).saturating_mul(page_size as usize);
@@ -135,6 +141,7 @@ impl StandardPackRepository for SqliteStandardPackRepository<'_> {
             &connection,
             &manifest.source_language,
             &keyword,
+            filters.as_ref(),
             &input.sort_by,
             &input.sort_direction,
             page_size,
@@ -340,84 +347,485 @@ struct RawStringEntry {
     value: String,
 }
 
+#[derive(Debug, Clone, Default)]
+struct NormalizedStandardCardSearchFilters {
+    codes: Vec<u32>,
+    code_range: Option<NumericRangeFilterDto>,
+    aliases: Vec<u32>,
+    alias_range: Option<NumericRangeFilterDto>,
+    ots: Vec<crate::domain::card::model::Ot>,
+    name_contains: Option<String>,
+    desc_contains: Option<String>,
+    primary_types: Vec<crate::domain::card::model::PrimaryType>,
+    races: Vec<crate::domain::card::model::Race>,
+    attributes: Vec<crate::domain::card::model::Attribute>,
+    monster_flags: Vec<crate::domain::card::model::MonsterFlag>,
+    monster_flag_match: CardFilterMatchModeDto,
+    spell_subtypes: Vec<crate::domain::card::model::SpellSubtype>,
+    trap_subtypes: Vec<crate::domain::card::model::TrapSubtype>,
+    pendulum_left_scale: Option<NumericRangeFilterDto>,
+    pendulum_right_scale: Option<NumericRangeFilterDto>,
+    link_markers: Vec<crate::domain::card::model::LinkMarker>,
+    link_marker_match: CardFilterMatchModeDto,
+    setcodes: Vec<u16>,
+    setcode_mode: SetcodeFilterModeDto,
+    setcode_match: CardFilterMatchModeDto,
+    category_masks: Vec<u64>,
+    category_match: CardFilterMatchModeDto,
+    atk: Option<NumericRangeFilterDto>,
+    def: Option<NumericRangeFilterDto>,
+    level: Option<NumericRangeFilterDto>,
+}
+
+#[derive(Debug, Clone)]
+struct StandardCardSqlQuery {
+    clauses: Vec<String>,
+    params: Vec<Value>,
+}
+
+impl StandardCardSqlQuery {
+    fn new(language: &str) -> Self {
+        Self {
+            clauses: vec!["r.language = ?".to_string()],
+            params: vec![Value::Text(language.to_string())],
+        }
+    }
+
+    fn push_clause(&mut self, clause: impl Into<String>) {
+        self.clauses.push(clause.into());
+    }
+
+    fn push_value(&mut self, value: Value) {
+        self.params.push(value);
+    }
+
+    fn push_values(&mut self, values: impl IntoIterator<Item = Value>) {
+        self.params.extend(values);
+    }
+
+    fn where_sql(&self) -> String {
+        self.clauses.join(" and ")
+    }
+
+    fn count_sql(&self) -> String {
+        format!(
+            "select count(*)
+             from standard_card_list_rows r
+             join standard_cards c on c.code = r.code
+             where {}",
+            self.where_sql()
+        )
+    }
+
+    fn page_sql(&self, order_by: &str) -> String {
+        format!(
+            "select r.code, r.name, r.desc, r.primary_type, r.subtype_display,
+                    r.atk, r.def, r.level,
+                    r.has_image, r.has_script, r.has_field_image
+             from standard_card_list_rows r
+             join standard_cards c on c.code = r.code
+             where {}
+             order by {order_by}
+             limit ? offset ?",
+            self.where_sql()
+        )
+    }
+}
+
+fn normalize_card_search_filters(
+    filters: StandardCardSearchFiltersDto,
+) -> AppResult<NormalizedStandardCardSearchFilters> {
+    let category_masks = filters
+        .category_masks
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|value| *value != 0)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    for mask in &category_masks {
+        let _ = u64_to_i64_param("category_mask", *mask)?;
+    }
+
+    Ok(NormalizedStandardCardSearchFilters {
+        codes: unique_u32(filters.codes),
+        code_range: normalize_range(filters.code_range),
+        aliases: unique_u32(filters.aliases),
+        alias_range: normalize_range(filters.alias_range),
+        ots: unique_values(filters.ots),
+        name_contains: normalize_contains(filters.name_contains),
+        desc_contains: normalize_contains(filters.desc_contains),
+        primary_types: unique_values(filters.primary_types),
+        races: unique_values(filters.races),
+        attributes: unique_values(filters.attributes),
+        monster_flags: unique_values(filters.monster_flags),
+        monster_flag_match: filters.monster_flag_match.unwrap_or_default(),
+        spell_subtypes: unique_values(filters.spell_subtypes),
+        trap_subtypes: unique_values(filters.trap_subtypes),
+        pendulum_left_scale: normalize_range(filters.pendulum_left_scale),
+        pendulum_right_scale: normalize_range(filters.pendulum_right_scale),
+        link_markers: unique_values(filters.link_markers),
+        link_marker_match: filters.link_marker_match.unwrap_or_default(),
+        setcodes: filters
+            .setcodes
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|value| *value != 0)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+        setcode_mode: filters.setcode_mode.unwrap_or_default(),
+        setcode_match: filters.setcode_match.unwrap_or_default(),
+        category_masks,
+        category_match: filters.category_match.unwrap_or_default(),
+        atk: normalize_range(filters.atk),
+        def: normalize_range(filters.def),
+        level: normalize_range(filters.level),
+    })
+}
+
+fn build_card_sql_query(
+    language: &str,
+    keyword: &str,
+    filters: Option<&NormalizedStandardCardSearchFilters>,
+) -> AppResult<StandardCardSqlQuery> {
+    let mut query = StandardCardSqlQuery::new(language);
+    apply_keyword_clause(&mut query, keyword);
+    if let Some(filters) = filters {
+        apply_card_filters(&mut query, filters)?;
+    }
+    Ok(query)
+}
+
+fn apply_keyword_clause(query: &mut StandardCardSqlQuery, keyword: &str) {
+    if keyword.is_empty() {
+        return;
+    }
+    let fts_query = build_fts_query(keyword);
+    query.push_clause(
+        "(instr(cast(r.code as text), ?) > 0
+          or instr(lower(r.name), ?) > 0
+          or instr(lower(r.desc), ?) > 0
+          or instr(lower(r.subtype_display), ?) > 0
+          or instr(lower(r.primary_type), ?) > 0
+          or exists (
+              select 1
+              from standard_card_search_fts
+              where standard_card_search_fts.language = r.language
+                and standard_card_search_fts.code = cast(r.code as text)
+                and standard_card_search_fts match ?
+          ))",
+    );
+    for _ in 0..5 {
+        query.push_value(Value::Text(keyword.to_string()));
+    }
+    query.push_value(Value::Text(fts_query));
+}
+
+fn apply_card_filters(
+    query: &mut StandardCardSqlQuery,
+    filters: &NormalizedStandardCardSearchFilters,
+) -> AppResult<()> {
+    add_integer_in_clause(
+        query,
+        "c.code",
+        filters.codes.iter().map(|value| *value as i64).collect(),
+    );
+    add_range_clause(query, "c.code", filters.code_range.as_ref());
+    add_integer_in_clause(
+        query,
+        "c.alias",
+        filters.aliases.iter().map(|value| *value as i64).collect(),
+    );
+    add_range_clause(query, "c.alias", filters.alias_range.as_ref());
+    add_enum_in_clause(query, "c.ot", &filters.ots)?;
+    add_contains_clause(query, "r.name", filters.name_contains.as_deref());
+    add_contains_clause(query, "r.desc", filters.desc_contains.as_deref());
+    add_enum_in_clause(query, "c.primary_type", &filters.primary_types)?;
+    add_enum_in_clause(query, "c.race", &filters.races)?;
+    add_enum_in_clause(query, "c.attribute", &filters.attributes)?;
+    add_match_table_clause(
+        query,
+        "standard_card_monster_flags",
+        "flag",
+        &filters.monster_flags,
+        &filters.monster_flag_match,
+    )?;
+    add_enum_in_clause(query, "c.spell_subtype", &filters.spell_subtypes)?;
+    add_enum_in_clause(query, "c.trap_subtype", &filters.trap_subtypes)?;
+    add_pendulum_clause(
+        query,
+        filters.pendulum_left_scale.as_ref(),
+        filters.pendulum_right_scale.as_ref(),
+    );
+    add_match_table_clause(
+        query,
+        "standard_card_link_markers",
+        "marker",
+        &filters.link_markers,
+        &filters.link_marker_match,
+    )?;
+    add_setcode_clause(query, filters);
+    add_category_clause(query, filters)?;
+    add_range_clause(query, "c.atk", filters.atk.as_ref());
+    add_range_clause(query, "c.def", filters.def.as_ref());
+    add_range_clause(query, "c.level", filters.level.as_ref());
+    Ok(())
+}
+
+fn add_contains_clause(query: &mut StandardCardSqlQuery, column: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        query.push_clause(format!("instr(lower({column}), ?) > 0"));
+        query.push_value(Value::Text(value.to_string()));
+    }
+}
+
+fn add_integer_in_clause(query: &mut StandardCardSqlQuery, column: &str, values: Vec<i64>) {
+    if values.is_empty() {
+        return;
+    }
+    query.push_clause(format!("{column} in ({})", placeholders(values.len())));
+    query.push_values(values.into_iter().map(Value::Integer));
+}
+
+fn add_enum_in_clause<T: Serialize>(
+    query: &mut StandardCardSqlQuery,
+    column: &str,
+    values: &[T],
+) -> AppResult<()> {
+    if values.is_empty() {
+        return Ok(());
+    }
+    query.push_clause(format!("{column} in ({})", placeholders(values.len())));
+    let params = values
+        .iter()
+        .map(|value| enum_text_value(column, value).map(Value::Text))
+        .collect::<AppResult<Vec<_>>>()?;
+    query.push_values(params);
+    Ok(())
+}
+
+fn add_range_clause(
+    query: &mut StandardCardSqlQuery,
+    column: &str,
+    range: Option<&NumericRangeFilterDto>,
+) {
+    let Some(range) = range else {
+        return;
+    };
+    if let Some(min) = range.min {
+        query.push_clause(format!("{column} >= ?"));
+        query.push_value(Value::Integer(min));
+    }
+    if let Some(max) = range.max {
+        query.push_clause(format!("{column} <= ?"));
+        query.push_value(Value::Integer(max));
+    }
+}
+
+fn add_match_table_clause<T: Serialize>(
+    query: &mut StandardCardSqlQuery,
+    table: &str,
+    column: &str,
+    values: &[T],
+    match_mode: &CardFilterMatchModeDto,
+) -> AppResult<()> {
+    if values.is_empty() {
+        return Ok(());
+    }
+    let params = values
+        .iter()
+        .map(|value| enum_text_value(column, value))
+        .collect::<AppResult<Vec<_>>>()?;
+    match match_mode {
+        CardFilterMatchModeDto::Any => {
+            query.push_clause(format!(
+                "exists (
+                    select 1
+                    from {table} ft
+                    where ft.code = r.code
+                      and ft.{column} in ({})
+                )",
+                placeholders(params.len())
+            ));
+            query.push_values(params.into_iter().map(Value::Text));
+        }
+        CardFilterMatchModeDto::All => {
+            query.push_clause(format!(
+                "r.code in (
+                    select code
+                    from {table}
+                    where {column} in ({})
+                    group by code
+                    having count(distinct {column}) = ?
+                )",
+                placeholders(params.len())
+            ));
+            let expected = params.len() as i64;
+            query.push_values(params.into_iter().map(Value::Text));
+            query.push_value(Value::Integer(expected));
+        }
+    }
+    Ok(())
+}
+
+fn add_pendulum_clause(
+    query: &mut StandardCardSqlQuery,
+    left: Option<&NumericRangeFilterDto>,
+    right: Option<&NumericRangeFilterDto>,
+) {
+    if left.is_none() && right.is_none() {
+        return;
+    }
+
+    let mut clauses = vec!["p.code = r.code".to_string()];
+    let mut params = Vec::new();
+    if let Some(left) = left {
+        if let Some(min) = left.min {
+            clauses.push("p.left_scale >= ?".to_string());
+            params.push(Value::Integer(min));
+        }
+        if let Some(max) = left.max {
+            clauses.push("p.left_scale <= ?".to_string());
+            params.push(Value::Integer(max));
+        }
+    }
+    if let Some(right) = right {
+        if let Some(min) = right.min {
+            clauses.push("p.right_scale >= ?".to_string());
+            params.push(Value::Integer(min));
+        }
+        if let Some(max) = right.max {
+            clauses.push("p.right_scale <= ?".to_string());
+            params.push(Value::Integer(max));
+        }
+    }
+    if params.is_empty() {
+        return;
+    }
+    query.push_clause(format!(
+        "exists (
+            select 1
+            from standard_card_pendulum p
+            where {}
+        )",
+        clauses.join(" and ")
+    ));
+    query.push_values(params);
+}
+
+fn add_setcode_clause(
+    query: &mut StandardCardSqlQuery,
+    filters: &NormalizedStandardCardSearchFilters,
+) {
+    if filters.setcodes.is_empty() {
+        return;
+    }
+    let (column, values) = match filters.setcode_mode {
+        SetcodeFilterModeDto::Exact => (
+            "setcode",
+            filters
+                .setcodes
+                .iter()
+                .map(|value| *value as i64)
+                .collect::<Vec<_>>(),
+        ),
+        SetcodeFilterModeDto::Base => (
+            "base",
+            filters
+                .setcodes
+                .iter()
+                .map(|value| (*value & 0x0fff) as i64)
+                .filter(|value| *value != 0)
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>(),
+        ),
+    };
+    if values.is_empty() {
+        return;
+    }
+    match filters.setcode_match {
+        CardFilterMatchModeDto::Any => {
+            query.push_clause(format!(
+                "exists (
+                    select 1
+                    from standard_card_setcodes sc
+                    where sc.code = r.code
+                      and sc.{column} in ({})
+                )",
+                placeholders(values.len())
+            ));
+            query.push_values(values.into_iter().map(Value::Integer));
+        }
+        CardFilterMatchModeDto::All => {
+            query.push_clause(format!(
+                "r.code in (
+                    select code
+                    from standard_card_setcodes
+                    where {column} in ({})
+                    group by code
+                    having count(distinct {column}) = ?
+                )",
+                placeholders(values.len())
+            ));
+            let expected = values.len() as i64;
+            query.push_values(values.into_iter().map(Value::Integer));
+            query.push_value(Value::Integer(expected));
+        }
+    }
+}
+
+fn add_category_clause(
+    query: &mut StandardCardSqlQuery,
+    filters: &NormalizedStandardCardSearchFilters,
+) -> AppResult<()> {
+    let combined = filters
+        .category_masks
+        .iter()
+        .fold(0u64, |acc, value| acc | *value);
+    if combined == 0 {
+        return Ok(());
+    }
+    let combined = u64_to_i64_param("category_mask", combined)?;
+    match filters.category_match {
+        CardFilterMatchModeDto::Any => {
+            query.push_clause("(c.category & ?) != 0");
+            query.push_value(Value::Integer(combined));
+        }
+        CardFilterMatchModeDto::All => {
+            query.push_clause("(c.category & ?) = ?");
+            query.push_value(Value::Integer(combined));
+            query.push_value(Value::Integer(combined));
+        }
+    }
+    Ok(())
+}
+
 fn load_card_list_page(
     connection: &Connection,
     language: &str,
     keyword: &str,
+    filters: Option<&NormalizedStandardCardSearchFilters>,
     sort_by: &StandardCardSortFieldDto,
     sort_direction: &SortDirectionDto,
     page_size: u32,
     offset: usize,
 ) -> AppResult<(u64, Vec<CardListRowDto>)> {
     let order_by = card_order_by(sort_by, sort_direction);
-    if keyword.is_empty() {
-        let total = connection
-            .query_row(
-                "select count(*) from standard_card_list_rows where language = ?1",
-                params![language],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|source| sqlite_query_error("standard_pack.sqlite_count_cards_failed", source))
-            .and_then(|value| i64_to_u64("total", value))?;
-        let sql = format!(
-            "select code, name, desc, primary_type, subtype_display, atk, def, level,
-                    has_image, has_script, has_field_image
-             from standard_card_list_rows r
-             where r.language = ?1
-             order by {order_by}
-             limit ?2 offset ?3"
-        );
-        let rows = query_card_rows(
-            connection,
-            &sql,
-            params![language, page_size as i64, usize_to_i64("offset", offset)?],
-        )?;
-        return Ok((total, rows));
-    }
-
-    let fts_query = build_fts_query(keyword);
-    let where_clause = "r.language = ?1 and (
-        instr(cast(r.code as text), ?2) > 0
-        or instr(lower(r.name), ?2) > 0
-        or instr(lower(r.desc), ?2) > 0
-        or instr(lower(r.subtype_display), ?2) > 0
-        or instr(lower(r.primary_type), ?2) > 0
-        or exists (
-            select 1
-            from standard_card_search_fts
-            where standard_card_search_fts.language = r.language
-              and standard_card_search_fts.code = cast(r.code as text)
-              and standard_card_search_fts match ?3
-        )
-    )";
-    let count_sql = format!("select count(*) from standard_card_list_rows r where {where_clause}");
+    let query = build_card_sql_query(language, keyword, filters)?;
+    let count_sql = query.count_sql();
     let total = connection
-        .query_row(
-            &count_sql,
-            params![language, keyword, fts_query.as_str()],
-            |row| row.get::<_, i64>(0),
-        )
+        .query_row(&count_sql, params_from_iter(query.params.iter()), |row| {
+            row.get::<_, i64>(0)
+        })
         .map_err(|source| sqlite_query_error("standard_pack.sqlite_count_cards_failed", source))
         .and_then(|value| i64_to_u64("total", value))?;
-    let sql = format!(
-        "select code, name, desc, primary_type, subtype_display, atk, def, level,
-                has_image, has_script, has_field_image
-         from standard_card_list_rows r
-         where {where_clause}
-         order by {order_by}
-         limit ?4 offset ?5"
-    );
-    let rows = query_card_rows(
-        connection,
-        &sql,
-        params![
-            language,
-            keyword,
-            fts_query.as_str(),
-            page_size as i64,
-            usize_to_i64("offset", offset)?
-        ],
-    )?;
+    let mut page_params = query.params.clone();
+    page_params.push(Value::Integer(page_size as i64));
+    page_params.push(Value::Integer(usize_to_i64("offset", offset)?));
+    let sql = query.page_sql(order_by);
+    let rows = query_card_rows(connection, &sql, params_from_iter(page_params.iter()))?;
     Ok((total, rows))
 }
 
@@ -673,6 +1081,57 @@ fn build_fts_query(keyword: &str) -> String {
         .join(" OR ")
 }
 
+fn normalize_contains(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_lowercase())
+        .filter(|value| !value.is_empty())
+}
+
+fn normalize_range(value: Option<NumericRangeFilterDto>) -> Option<NumericRangeFilterDto> {
+    value.filter(|range| range.min.is_some() || range.max.is_some())
+}
+
+fn unique_u32(values: Option<Vec<u32>>) -> Vec<u32> {
+    values
+        .unwrap_or_default()
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn unique_values<T: PartialEq>(values: Option<Vec<T>>) -> Vec<T> {
+    let mut unique = Vec::new();
+    for value in values.unwrap_or_default() {
+        if !unique.contains(&value) {
+            unique.push(value);
+        }
+    }
+    unique
+}
+
+fn placeholders(count: usize) -> String {
+    (0..count).map(|_| "?").collect::<Vec<_>>().join(", ")
+}
+
+fn enum_text_value<T: Serialize>(field: &str, value: &T) -> AppResult<String> {
+    match serde_json::to_value(value).map_err(|source| {
+        AppError::new(
+            "standard_pack.sqlite_filter_serialize_failed",
+            source.to_string(),
+        )
+        .with_detail("field", field)
+    })? {
+        serde_json::Value::String(value) => Ok(value),
+        other => Err(AppError::new(
+            "standard_pack.sqlite_filter_serialize_enum_failed",
+            "serialized filter enum did not produce a string",
+        )
+        .with_detail("field", field)
+        .with_detail("value", other)),
+    }
+}
+
 fn deserialize_enum_text<T>(field: &str, value: String) -> AppResult<T>
 where
     T: DeserializeOwned,
@@ -708,6 +1167,17 @@ fn i64_to_u32(field: &str, value: i64) -> AppResult<u32> {
 
 fn i64_to_u64(field: &str, value: i64) -> AppResult<u64> {
     u64::try_from(value).map_err(|_| {
+        AppError::new(
+            "standard_pack.sqlite_integer_out_of_range",
+            "standard pack sqlite integer is out of range",
+        )
+        .with_detail("field", field)
+        .with_detail("value", value)
+    })
+}
+
+fn u64_to_i64_param(field: &str, value: u64) -> AppResult<i64> {
+    i64::try_from(value).map_err(|_| {
         AppError::new(
             "standard_pack.sqlite_integer_out_of_range",
             "standard pack sqlite integer is out of range",

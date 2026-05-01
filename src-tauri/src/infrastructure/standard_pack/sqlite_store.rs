@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -13,7 +14,7 @@ use crate::domain::strings::model::PackStringKind;
 
 use super::{StandardPackIndexFile, StandardPackSourceSnapshot, standard_pack_dir};
 
-pub const STANDARD_SQLITE_SCHEMA_VERSION: u32 = 2;
+pub const STANDARD_SQLITE_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone)]
 pub struct StandardPackSqliteManifest {
@@ -53,6 +54,10 @@ create table standard_cards (
   category integer not null,
   primary_type text not null,
   subtype_display text not null,
+  race text,
+  attribute text,
+  spell_subtype text,
+  trap_subtype text,
   atk integer,
   def integer,
   level integer,
@@ -67,6 +72,59 @@ create index idx_standard_cards_primary_type
   on standard_cards(primary_type, subtype_display, code);
 create index idx_standard_cards_subtype
   on standard_cards(subtype_display, code);
+create index idx_standard_cards_alias
+  on standard_cards(alias, code);
+create index idx_standard_cards_ot
+  on standard_cards(ot, code);
+create index idx_standard_cards_race
+  on standard_cards(race, code);
+create index idx_standard_cards_attribute
+  on standard_cards(attribute, code);
+create index idx_standard_cards_race_attribute
+  on standard_cards(race, attribute, code);
+create index idx_standard_cards_stats
+  on standard_cards(atk, def, level, code);
+
+create table standard_card_monster_flags (
+  code integer not null,
+  flag text not null,
+  primary key (code, flag)
+);
+
+create index idx_standard_card_monster_flags_flag
+  on standard_card_monster_flags(flag, code);
+
+create table standard_card_setcodes (
+  code integer not null,
+  setcode integer not null,
+  base integer not null,
+  primary key (code, setcode)
+);
+
+create index idx_standard_card_setcodes_setcode
+  on standard_card_setcodes(setcode, code);
+create index idx_standard_card_setcodes_base
+  on standard_card_setcodes(base, code);
+
+create table standard_card_pendulum (
+  code integer primary key,
+  left_scale integer not null,
+  right_scale integer not null
+);
+
+create index idx_standard_card_pendulum_left
+  on standard_card_pendulum(left_scale, code);
+create index idx_standard_card_pendulum_right
+  on standard_card_pendulum(right_scale, code);
+
+create table standard_card_link_markers (
+  code integer not null,
+  marker text not null,
+  primary key (code, marker)
+);
+
+create index idx_standard_card_link_markers_marker
+  on standard_card_link_markers(marker, code);
 
 create table standard_card_texts (
   code integer not null,
@@ -324,9 +382,10 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
     let mut card_statement = transaction
         .prepare(
             "insert into standard_cards(
-                code, alias, ot, category, primary_type, subtype_display, atk, def, level,
+                code, alias, ot, category, primary_type, subtype_display,
+                race, attribute, spell_subtype, trap_subtype, atk, def, level,
                 raw_type, raw_race, raw_attribute, raw_level, detail_json
-             ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
         )
         .map_err(|source| {
             AppError::new(
@@ -381,6 +440,50 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
                 source.to_string(),
             )
         })?;
+    let mut monster_flag_statement = transaction
+        .prepare(
+            "insert into standard_card_monster_flags(code, flag)
+             values (?1, ?2)",
+        )
+        .map_err(|source| {
+            AppError::new(
+                "standard_pack.sqlite_prepare_monster_flags_failed",
+                source.to_string(),
+            )
+        })?;
+    let mut setcode_statement = transaction
+        .prepare(
+            "insert into standard_card_setcodes(code, setcode, base)
+             values (?1, ?2, ?3)",
+        )
+        .map_err(|source| {
+            AppError::new(
+                "standard_pack.sqlite_prepare_setcodes_failed",
+                source.to_string(),
+            )
+        })?;
+    let mut pendulum_statement = transaction
+        .prepare(
+            "insert into standard_card_pendulum(code, left_scale, right_scale)
+             values (?1, ?2, ?3)",
+        )
+        .map_err(|source| {
+            AppError::new(
+                "standard_pack.sqlite_prepare_pendulum_failed",
+                source.to_string(),
+            )
+        })?;
+    let mut link_marker_statement = transaction
+        .prepare(
+            "insert into standard_card_link_markers(code, marker)
+             values (?1, ?2)",
+        )
+        .map_err(|source| {
+            AppError::new(
+                "standard_pack.sqlite_prepare_link_markers_failed",
+                source.to_string(),
+            )
+        })?;
 
     for record in &index.cards {
         let detail_json = serialize_json("detail_json", &record.card)?;
@@ -392,6 +495,10 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
                 u64_to_i64("category", record.card.category)?,
                 serialize_enum_text("primary_type", &record.card.primary_type)?,
                 record.row.subtype_display.as_str(),
+                serialize_optional_enum_text("race", record.card.race.as_ref())?,
+                serialize_optional_enum_text("attribute", record.card.attribute.as_ref())?,
+                serialize_optional_enum_text("spell_subtype", record.card.spell_subtype.as_ref())?,
+                serialize_optional_enum_text("trap_subtype", record.card.trap_subtype.as_ref())?,
                 record.card.atk,
                 record.card.def,
                 record.card.level,
@@ -482,6 +589,70 @@ fn insert_cards(transaction: &Transaction<'_>, index: &StandardPackIndexFile) ->
                 )
                 .with_detail("code", record.card.code)
             })?;
+
+        for flag in unique_serialized_values(
+            "monster_flag",
+            record.card.monster_flags.as_deref().unwrap_or_default(),
+        )? {
+            monster_flag_statement
+                .execute(params![record.card.code as i64, flag.as_str()])
+                .map_err(|source| {
+                    AppError::new(
+                        "standard_pack.sqlite_insert_monster_flag_failed",
+                        source.to_string(),
+                    )
+                    .with_detail("code", record.card.code)
+                    .with_detail("flag", flag)
+                })?;
+        }
+
+        for setcode in unique_nonzero_setcodes(&record.card.setcodes) {
+            setcode_statement
+                .execute(params![
+                    record.card.code as i64,
+                    setcode as i64,
+                    (setcode & 0x0fff) as i64,
+                ])
+                .map_err(|source| {
+                    AppError::new(
+                        "standard_pack.sqlite_insert_setcode_failed",
+                        source.to_string(),
+                    )
+                    .with_detail("code", record.card.code)
+                    .with_detail("setcode", setcode)
+                })?;
+        }
+
+        if let Some(pendulum) = &record.card.pendulum {
+            pendulum_statement
+                .execute(params![
+                    record.card.code as i64,
+                    pendulum.left_scale as i64,
+                    pendulum.right_scale as i64,
+                ])
+                .map_err(|source| {
+                    AppError::new(
+                        "standard_pack.sqlite_insert_pendulum_failed",
+                        source.to_string(),
+                    )
+                    .with_detail("code", record.card.code)
+                })?;
+        }
+
+        if let Some(link) = &record.card.link {
+            for marker in unique_serialized_values("link_marker", &link.markers)? {
+                link_marker_statement
+                    .execute(params![record.card.code as i64, marker.as_str()])
+                    .map_err(|source| {
+                        AppError::new(
+                            "standard_pack.sqlite_insert_link_marker_failed",
+                            source.to_string(),
+                        )
+                        .with_detail("code", record.card.code)
+                        .with_detail("marker", marker)
+                    })?;
+            }
+        }
     }
 
     Ok(())
@@ -628,6 +799,18 @@ fn validate_index(connection: &Connection, index: &StandardPackIndexFile) -> App
     assert_count(connection, "standard_card_list_rows", index.cards.len())?;
     assert_count(connection, "standard_card_search_fts", index.cards.len())?;
     assert_count(connection, "standard_assets", index.cards.len())?;
+    assert_count(
+        connection,
+        "standard_card_monster_flags",
+        monster_flag_count(index)?,
+    )?;
+    assert_count(connection, "standard_card_setcodes", setcode_count(index))?;
+    assert_count(connection, "standard_card_pendulum", pendulum_count(index))?;
+    assert_count(
+        connection,
+        "standard_card_link_markers",
+        link_marker_count(index)?,
+    )?;
     assert_count(connection, "standard_strings", string_value_count(index))?;
     assert_count(connection, "standard_code_baseline", index.cards.len())?;
     assert_count(
@@ -708,6 +891,62 @@ fn card_text_count(index: &StandardPackIndexFile) -> usize {
         .sum()
 }
 
+fn monster_flag_count(index: &StandardPackIndexFile) -> AppResult<usize> {
+    index
+        .cards
+        .iter()
+        .map(|record| {
+            unique_serialized_values(
+                "monster_flag",
+                record.card.monster_flags.as_deref().unwrap_or_default(),
+            )
+            .map(|values| values.len())
+        })
+        .sum()
+}
+
+fn setcode_count(index: &StandardPackIndexFile) -> usize {
+    index
+        .cards
+        .iter()
+        .map(|record| unique_nonzero_setcodes(&record.card.setcodes).len())
+        .sum()
+}
+
+fn pendulum_count(index: &StandardPackIndexFile) -> usize {
+    index
+        .cards
+        .iter()
+        .filter(|record| record.card.pendulum.is_some())
+        .count()
+}
+
+fn link_marker_count(index: &StandardPackIndexFile) -> AppResult<usize> {
+    index
+        .cards
+        .iter()
+        .map(|record| {
+            record
+                .card
+                .link
+                .as_ref()
+                .map(|link| unique_serialized_values("link_marker", &link.markers))
+                .transpose()
+                .map(|values| values.map(|values| values.len()).unwrap_or_default())
+        })
+        .sum()
+}
+
+fn unique_nonzero_setcodes(values: &[u16]) -> Vec<u16> {
+    values
+        .iter()
+        .copied()
+        .filter(|value| *value != 0)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 fn string_value_count(index: &StandardPackIndexFile) -> usize {
     index
         .strings
@@ -731,6 +970,15 @@ fn serialize_json<T: Serialize>(field: &str, value: &T) -> AppResult<String> {
     })
 }
 
+fn serialize_optional_enum_text<T: Serialize>(
+    field: &str,
+    value: Option<&T>,
+) -> AppResult<Option<String>> {
+    value
+        .map(|value| serialize_enum_text(field, value))
+        .transpose()
+}
+
 fn serialize_enum_text<T: Serialize>(field: &str, value: &T) -> AppResult<String> {
     match serde_json::to_value(value).map_err(|source| {
         AppError::new("standard_pack.sqlite_serialize_failed", source.to_string())
@@ -744,6 +992,14 @@ fn serialize_enum_text<T: Serialize>(field: &str, value: &T) -> AppResult<String
         .with_detail("field", field)
         .with_detail("value", other)),
     }
+}
+
+fn unique_serialized_values<T: Serialize>(field: &str, values: &[T]) -> AppResult<Vec<String>> {
+    values
+        .iter()
+        .map(|value| serialize_enum_text(field, value))
+        .collect::<AppResult<BTreeSet<_>>>()
+        .map(|values| values.into_iter().collect())
 }
 
 fn bool_int(value: bool) -> i64 {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CardListRow, SortDirection } from "../../shared/contracts/card";
@@ -37,10 +37,14 @@ export interface CardBrowserSortOption {
 interface CardBrowserPanelProps {
   enabled: boolean;
   queryKeyBase: readonly unknown[];
+  queryKeyExtra?: readonly unknown[];
+  resetKey?: unknown;
   loadPage: (query: CardBrowserQuery) => Promise<CardBrowserPage>;
   onOpenCard: (card: CardListRow) => void;
   onNewCard?: () => void;
   newCardLabel?: string;
+  toolbarExtra?: ReactNode;
+  toolbarPanel?: ReactNode;
   sortOptions?: CardBrowserSortOption[];
   emptyTitle: string;
   emptyHint?: string;
@@ -95,13 +99,28 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(handle);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
 export function CardBrowserPanel({
   enabled,
   queryKeyBase,
+  queryKeyExtra = [],
+  resetKey,
   loadPage,
   onOpenCard,
   onNewCard,
   newCardLabel,
+  toolbarExtra,
+  toolbarPanel,
   sortOptions,
   emptyTitle,
   emptyHint,
@@ -110,15 +129,20 @@ export function CardBrowserPanel({
 }: CardBrowserPanelProps) {
   const { t } = useAppI18n();
   const [keyword, setKeyword] = useState("");
+  const debouncedKeyword = useDebouncedValue(keyword, 250);
   const [sortBy, setSortBy] = useState<BrowserSortField>("code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
 
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey]);
+
   const { data, isLoading, error } = useQuery<CardBrowserPage>({
-    queryKey: [...queryKeyBase, keyword, sortBy, sortDirection, page],
+    queryKey: [...queryKeyBase, debouncedKeyword, sortBy, sortDirection, page, ...queryKeyExtra],
     queryFn: () =>
       loadPage({
-        keyword,
+        keyword: debouncedKeyword,
         sortBy,
         sortDirection,
         page,
@@ -177,12 +201,14 @@ export function CardBrowserPanel({
             </option>
           ))}
         </select>
+        {toolbarExtra}
         {onNewCard && (
           <button type="button" className={shared.primaryButton} onClick={onNewCard}>
             {newCardLabel ?? t("card.list.newCard")}
           </button>
         )}
       </div>
+      {toolbarPanel}
 
       {isLoading && items.length === 0 ? (
         <div className={shared.cardListEmpty}>

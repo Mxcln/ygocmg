@@ -30,6 +30,17 @@ import {
   hasCardCategoryMask,
   normalizeCardCategoryMask,
 } from "../../shared/constants/cardCategories";
+import {
+  ALL_ATTRIBUTES,
+  ALL_MONSTER_FLAGS,
+  ALL_OT,
+  ALL_PRIMARY_TYPES,
+  ALL_RACES,
+  ALL_SPELL_SUBTYPES,
+  ALL_TRAP_SUBTYPES,
+  LINK_MARKER_ARROWS,
+  LINK_MARKER_POSITIONS,
+} from "../../shared/constants/cardOptions";
 
 import styles from "./CardInfoForm.module.css";
 
@@ -45,46 +56,6 @@ interface CardInfoFormProps {
   readonly?: boolean;
   setnameEntries?: SetnameEntry[];
 }
-
-const ALL_OT: Ot[] = ["ocg", "tcg", "custom"];
-
-const ALL_MONSTER_FLAGS: MonsterFlag[] = [
-  "normal", "effect", "fusion", "ritual", "synchro", "xyz",
-  "pendulum", "link", "tuner", "token", "gemini", "spirit",
-  "union", "flip", "toon",
-];
-
-const ALL_RACES: Race[] = [
-  "warrior", "spellcaster", "fairy", "fiend", "zombie", "machine",
-  "aqua", "pyro", "rock", "winged_beast", "plant", "insect",
-  "thunder", "dragon", "beast", "beast_warrior", "dinosaur",
-  "fish", "sea_serpent", "reptile", "psychic", "divine_beast",
-  "creator_god", "wyrm", "cyberse", "illusion",
-];
-
-const ALL_ATTRIBUTES: Attribute[] = [
-  "light", "dark", "earth", "water", "fire", "wind", "divine",
-];
-
-const ALL_SPELL_SUBTYPES: SpellSubtype[] = [
-  "normal", "continuous", "quick_play", "ritual", "field", "equip",
-];
-
-const ALL_TRAP_SUBTYPES: TrapSubtype[] = [
-  "normal", "continuous", "counter",
-];
-
-const LINK_MARKER_POSITIONS: (LinkMarker | null)[][] = [
-  ["top_left", "top", "top_right"],
-  ["left", null, "right"],
-  ["bottom_left", "bottom", "bottom_right"],
-];
-
-const LINK_MARKER_ARROWS: Record<LinkMarker, string> = {
-  top_left: "\u2196", top: "\u2191", top_right: "\u2197",
-  left: "\u2190", right: "\u2192",
-  bottom_left: "\u2199", bottom: "\u2193", bottom_right: "\u2198",
-};
 
 function formatSetcodeHex(value: number): string {
   return `0x${value.toString(16).toUpperCase()}`;
@@ -422,7 +393,7 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
       <div className={styles.cardInfoField}>
         <label className={styles.cardInfoLabel}>{t("card.info.primaryType")}</label>
         <div className={styles.cardTypeRadioGroup}>
-          {(["monster", "spell", "trap"] as PrimaryType[]).map((pt) => (
+          {ALL_PRIMARY_TYPES.map((pt) => (
             <button
               key={pt}
               type="button"

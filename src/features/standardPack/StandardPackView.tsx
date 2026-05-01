@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { standardPackApi } from "../../shared/api/standardPackApi";
 import { jobApi } from "../../shared/api/jobApi";
@@ -8,7 +8,7 @@ import { formatJobError, formatJobStage, formatJobStatus } from "../../shared/ut
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardListRow } from "../../shared/contracts/card";
 import type { JobSnapshot } from "../../shared/contracts/job";
-import type { StandardCardSortField } from "../../shared/contracts/standardPack";
+import type { StandardCardSearchFilters, StandardCardSortField } from "../../shared/contracts/standardPack";
 import { languageLabel } from "../../shared/utils/language";
 import type { PrimitiveType } from "react-intl";
 import { useAppI18n, type AppMessageId } from "../../shared/i18n";
@@ -17,6 +17,11 @@ import type { CardBrowserQuery } from "../card/CardBrowserPanel";
 import { StringsBrowserPanel } from "../strings/StringsBrowserPanel";
 import type { StringsBrowserQuery } from "../strings/StringsBrowserPanel";
 import { StandardCardInspector } from "./StandardCardInspector";
+import {
+  StandardCardAdvancedSearchPanel,
+  countStandardCardFilters,
+  standardCardFiltersKey,
+} from "./StandardCardAdvancedSearchPanel";
 import drawerStyles from "../card/CardEditDrawer.module.css";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StandardPackView.module.css";
@@ -56,6 +61,8 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [lastJob, setLastJob] = useState<JobSnapshot | null>(null);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<StandardCardSearchFilters | null>(null);
   const queryClient = useQueryClient();
   const openModal = useShellStore((s) => s.openModal);
 
@@ -87,6 +94,8 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   const rebuilding = activeJobId !== null;
   const canBrowseCards = Boolean(status?.index_exists && status.source_language);
   const canRebuild = Boolean(status?.configured && config.standard_pack_source_language);
+  const activeFilterCount = countStandardCardFilters(advancedFilters);
+  const filterKey = useMemo(() => standardCardFiltersKey(advancedFilters), [advancedFilters]);
   const standardSortOptions = [
     { field: "code" as const, direction: "asc" as const, label: t("card.sort.codeAsc") },
     { field: "code" as const, direction: "desc" as const, label: t("card.sort.codeDesc") },
@@ -110,6 +119,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   async function loadStandardPage(query: CardBrowserQuery) {
     const page = await standardPackApi.searchCards({
       keyword: query.keyword || null,
+      filters: advancedFilters,
       sortBy: query.sortBy as StandardCardSortField,
       sortDirection: query.sortDirection,
       page: query.page,
@@ -240,11 +250,34 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
             <CardBrowserPanel
               enabled={canBrowseCards}
               queryKeyBase={["standard-cards"]}
+              queryKeyExtra={[filterKey]}
+              resetKey={filterKey}
               loadPage={loadStandardPage}
               onOpenCard={handleOpenCard}
               sortOptions={standardSortOptions}
               emptyTitle={t("standard.noCards")}
-              emptyHint={t("standard.tryAnotherSearch")}
+              emptyHint={activeFilterCount > 0 ? t("standard.tryAnotherFilter") : t("standard.tryAnotherSearch")}
+              toolbarExtra={
+                <button
+                  type="button"
+                  className={shared.ghostButton}
+                  onClick={() => setAdvancedSearchOpen((open) => !open)}
+                  aria-expanded={advancedSearchOpen}
+                >
+                  {activeFilterCount > 0
+                    ? t("standard.search.filtersWithCount", { count: activeFilterCount })
+                    : t("standard.search.filters")}
+                </button>
+              }
+              toolbarPanel={
+                <StandardCardAdvancedSearchPanel
+                  open={advancedSearchOpen}
+                  filters={advancedFilters}
+                  sourceLanguage={status?.source_language ?? null}
+                  onChange={setAdvancedFilters}
+                  onClose={() => setAdvancedSearchOpen(false)}
+                />
+              }
             />
           ) : (
             <div className={shared.cardListEmpty}>

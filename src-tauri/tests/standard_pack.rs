@@ -8,8 +8,9 @@ use ygocmg_core::application::dto::card::{CreateCardInput, SortDirectionDto};
 use ygocmg_core::application::dto::export::PreviewExportBundleInput;
 use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
 use ygocmg_core::application::dto::standard_pack::{
-    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
-    SearchStandardStringsInput, StandardCardSortFieldDto, StandardPackIndexStateDto,
+    CardFilterMatchModeDto, GetStandardCardInput, ListStandardSetnamesInput, NumericRangeFilterDto,
+    SearchStandardCardsInput, SearchStandardStringsInput, SetcodeFilterModeDto,
+    StandardCardSearchFiltersDto, StandardCardSortFieldDto, StandardPackIndexStateDto,
     StandardStringSortFieldDto,
 };
 use ygocmg_core::application::dto::strings::{
@@ -21,7 +22,8 @@ use ygocmg_core::application::standard_pack::repository::{
 use ygocmg_core::application::standard_pack::service::StandardPackService;
 use ygocmg_core::bootstrap::AppState;
 use ygocmg_core::domain::card::model::{
-    Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race,
+    Attribute, CardTexts, CardUpdateInput, LinkMarker, MonsterFlag, Ot, PrimaryType, Race,
+    SpellSubtype, TrapSubtype,
 };
 use ygocmg_core::domain::common::issue::IssueLevel;
 use ygocmg_core::domain::strings::model::PackStringKind;
@@ -70,6 +72,7 @@ fn rebuild_index_reads_cdb_and_supports_search_and_detail() {
     let page = service
         .search_cards(SearchStandardCardsInput {
             keyword: Some("dragon".to_string()),
+            filters: None,
             sort_by: StandardCardSortFieldDto::Name,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -962,6 +965,7 @@ fn sqlite_repository_search_cards_matches_existing_behavior() {
     let effect_page = service
         .search_cards(SearchStandardCardsInput {
             keyword: Some("effect".to_string()),
+            filters: None,
             sort_by: StandardCardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -974,6 +978,7 @@ fn sqlite_repository_search_cards_matches_existing_behavior() {
     let name_page = service
         .search_cards(SearchStandardCardsInput {
             keyword: None,
+            filters: None,
             sort_by: StandardCardSortFieldDto::Name,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -993,6 +998,7 @@ fn sqlite_repository_search_cards_matches_existing_behavior() {
     let type_page = service
         .search_cards(SearchStandardCardsInput {
             keyword: None,
+            filters: None,
             sort_by: StandardCardSortFieldDto::Type,
             sort_direction: SortDirectionDto::Desc,
             page: 1,
@@ -1041,6 +1047,7 @@ fn sqlite_repository_search_cards_uses_fts_keyword_path() {
         &state,
         SearchStandardCardsInput {
             keyword: Some("dragon".to_string()),
+            filters: None,
             sort_by: StandardCardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -1052,6 +1059,239 @@ fn sqlite_repository_search_cards_uses_fts_keyword_path() {
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].code, 100);
     assert_eq!(page.items[0].name, "No direct match");
+}
+
+#[test]
+fn sqlite_v3_index_contains_advanced_search_tables() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_advanced_search_cdb(&root.path().join("cards.cdb")).unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let connection = Connection::open(
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::standard_pack_sqlite_path(
+            app.path(),
+        ),
+    )
+    .unwrap();
+    let (schema_version,): (i64,) = connection
+        .query_row(
+            "select schema_version from standard_manifest where id = 1",
+            [],
+            |row| Ok((row.get(0)?,)),
+        )
+        .unwrap();
+    assert_eq!(
+        schema_version,
+        ygocmg_core::infrastructure::standard_pack::sqlite_store::STANDARD_SQLITE_SCHEMA_VERSION
+            as i64
+    );
+
+    let (race, attribute, spell_subtype, trap_subtype): (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) = connection
+        .query_row(
+            "select race, attribute, spell_subtype, trap_subtype
+             from standard_cards
+             where code = 100",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(race.as_deref(), Some("dragon"));
+    assert_eq!(attribute.as_deref(), Some("dark"));
+    assert_eq!(spell_subtype, None);
+    assert_eq!(trap_subtype, None);
+
+    let setcode_base: i64 = connection
+        .query_row(
+            "select base from standard_card_setcodes where code = 101 and setcode = 0x1345",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(setcode_base, 0x345);
+
+    let effect_flag_count: i64 = connection
+        .query_row(
+            "select count(*) from standard_card_monster_flags where code = 500 and flag in ('effect', 'link')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(effect_flag_count, 2);
+
+    let (left_scale, right_scale): (i64, i64) = connection
+        .query_row(
+            "select left_scale, right_scale from standard_card_pendulum where code = 400",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!((left_scale, right_scale), (2, 7));
+
+    let link_marker_count: i64 = connection
+        .query_row(
+            "select count(*) from standard_card_link_markers where code = 500",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(link_marker_count, 3);
+}
+
+#[test]
+fn sqlite_repository_search_cards_applies_advanced_filters() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_advanced_search_cdb(&root.path().join("cards.cdb")).unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let service = StandardPackService::new(&state);
+
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                races: Some(vec![Race::Dragon]),
+                attributes: Some(vec![Attribute::Dark]),
+                ..Default::default()
+            }
+        ),
+        vec![100]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                category_masks: Some(vec![0x00000200, 0x00040000]),
+                category_match: Some(CardFilterMatchModeDto::All),
+                ..Default::default()
+            }
+        ),
+        vec![100]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                setcodes: Some(vec![0x345]),
+                setcode_mode: Some(SetcodeFilterModeDto::Exact),
+                ..Default::default()
+            }
+        ),
+        vec![100]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                setcodes: Some(vec![0x345]),
+                setcode_mode: Some(SetcodeFilterModeDto::Base),
+                ..Default::default()
+            }
+        ),
+        vec![100, 101]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                monster_flags: Some(vec![MonsterFlag::Effect, MonsterFlag::Link]),
+                monster_flag_match: Some(CardFilterMatchModeDto::All),
+                link_markers: Some(vec![LinkMarker::Top, LinkMarker::Left]),
+                link_marker_match: Some(CardFilterMatchModeDto::All),
+                ..Default::default()
+            }
+        ),
+        vec![500]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                spell_subtypes: Some(vec![SpellSubtype::QuickPlay]),
+                ..Default::default()
+            }
+        ),
+        vec![200]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                trap_subtypes: Some(vec![TrapSubtype::Counter]),
+                ..Default::default()
+            }
+        ),
+        vec![300]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                aliases: Some(vec![100]),
+                ..Default::default()
+            }
+        ),
+        vec![101]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            None,
+            StandardCardSearchFiltersDto {
+                pendulum_left_scale: Some(NumericRangeFilterDto {
+                    min: Some(2),
+                    max: Some(2),
+                }),
+                pendulum_right_scale: Some(NumericRangeFilterDto {
+                    min: Some(7),
+                    max: Some(7),
+                }),
+                ..Default::default()
+            }
+        ),
+        vec![400]
+    );
+    assert_eq!(
+        search_standard_codes(
+            &service,
+            Some("dragon"),
+            StandardCardSearchFiltersDto {
+                primary_types: Some(vec![PrimaryType::Monster]),
+                desc_contains: Some("special summon".to_string()),
+                atk: Some(NumericRangeFilterDto {
+                    min: Some(2000),
+                    max: Some(2600),
+                }),
+                level: Some(NumericRangeFilterDto {
+                    min: Some(4),
+                    max: Some(4),
+                }),
+                ..Default::default()
+            }
+        ),
+        vec![100]
+    );
 }
 
 #[test]
@@ -1342,6 +1582,7 @@ fn source_missing_keeps_existing_index_browsable() {
     let cards = service
         .search_cards(SearchStandardCardsInput {
             keyword: None,
+            filters: None,
             sort_by: StandardCardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -1392,6 +1633,7 @@ fn source_change_marks_stale_without_auto_rebuild() {
     let cards = service
         .search_cards(SearchStandardCardsInput {
             keyword: None,
+            filters: None,
             sort_by: StandardCardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -1569,6 +1811,185 @@ fn create_test_cdb(path: &Path, rows: &[(u32, &str, u64)]) -> rusqlite::Result<(
             .map(|(code, name, card_type)| (*code, *name, *card_type, 0))
             .collect::<Vec<_>>(),
     )
+}
+
+const TEST_TYPE_MONSTER: u64 = 0x1;
+const TEST_TYPE_SPELL: u64 = 0x2;
+const TEST_TYPE_TRAP: u64 = 0x4;
+const TEST_TYPE_NORMAL: u64 = 0x10;
+const TEST_TYPE_EFFECT: u64 = 0x20;
+const TEST_TYPE_QUICKPLAY: u64 = 0x10000;
+const TEST_TYPE_COUNTER: u64 = 0x100000;
+const TEST_TYPE_PENDULUM: u64 = 0x1000000;
+const TEST_TYPE_LINK: u64 = 0x4000000;
+const TEST_RACE_WARRIOR: i64 = 0x1;
+const TEST_RACE_DRAGON: i64 = 0x2000;
+const TEST_ATTRIBUTE_LIGHT: i64 = 0x10;
+const TEST_ATTRIBUTE_DARK: i64 = 0x20;
+const TEST_LINK_MARKER_LEFT: i64 = 0x008;
+const TEST_LINK_MARKER_BOTTOM: i64 = 0x002;
+const TEST_LINK_MARKER_TOP: i64 = 0x080;
+
+struct AdvancedCdbRow {
+    code: u32,
+    name: &'static str,
+    desc: &'static str,
+    ot: i64,
+    alias: i64,
+    setcode: i64,
+    card_type: i64,
+    atk: i64,
+    def: i64,
+    level: i64,
+    race: i64,
+    attribute: i64,
+    category: i64,
+}
+
+fn create_advanced_search_cdb(path: &Path) -> rusqlite::Result<()> {
+    let connection = Connection::open(path)?;
+    connection.execute_batch(
+        "create table datas(id integer primary key, ot integer, alias integer, setcode integer, type integer, atk integer, def integer, level integer, race integer, attribute integer, category integer);
+         create table texts(id integer primary key, name text, desc text, str1 text, str2 text, str3 text, str4 text, str5 text, str6 text, str7 text, str8 text, str9 text, str10 text, str11 text, str12 text, str13 text, str14 text, str15 text, str16 text);",
+    )?;
+    let rows = [
+        AdvancedCdbRow {
+            code: 100,
+            name: "Dark Dragon Search",
+            desc: "Can special summon and search a card.",
+            ot: 1,
+            alias: 0,
+            setcode: 0x345,
+            card_type: (TEST_TYPE_MONSTER | TEST_TYPE_EFFECT) as i64,
+            atk: 2400,
+            def: 1800,
+            level: 4,
+            race: TEST_RACE_DRAGON,
+            attribute: TEST_ATTRIBUTE_DARK,
+            category: 0x00000200 | 0x00040000,
+        },
+        AdvancedCdbRow {
+            code: 101,
+            name: "Light Warrior Normal",
+            desc: "A normal reference monster.",
+            ot: 2,
+            alias: 100,
+            setcode: 0x1345,
+            card_type: (TEST_TYPE_MONSTER | TEST_TYPE_NORMAL) as i64,
+            atk: 1500,
+            def: 1200,
+            level: 4,
+            race: TEST_RACE_WARRIOR,
+            attribute: TEST_ATTRIBUTE_LIGHT,
+            category: 0,
+        },
+        AdvancedCdbRow {
+            code: 200,
+            name: "Swift Spell",
+            desc: "A quick-play spell.",
+            ot: 1,
+            alias: 0,
+            setcode: 0,
+            card_type: (TEST_TYPE_SPELL | TEST_TYPE_QUICKPLAY) as i64,
+            atk: 0,
+            def: 0,
+            level: 0,
+            race: 0,
+            attribute: 0,
+            category: 0,
+        },
+        AdvancedCdbRow {
+            code: 300,
+            name: "Counter Trap",
+            desc: "A counter trap.",
+            ot: 1,
+            alias: 0,
+            setcode: 0,
+            card_type: (TEST_TYPE_TRAP | TEST_TYPE_COUNTER) as i64,
+            atk: 0,
+            def: 0,
+            level: 0,
+            race: 0,
+            attribute: 0,
+            category: 0,
+        },
+        AdvancedCdbRow {
+            code: 400,
+            name: "Scale Pair",
+            desc: "A pendulum monster.",
+            ot: 1,
+            alias: 0,
+            setcode: 0,
+            card_type: (TEST_TYPE_MONSTER | TEST_TYPE_EFFECT | TEST_TYPE_PENDULUM) as i64,
+            atk: 1800,
+            def: 1000,
+            level: (2 << 24) | (7 << 16) | 4,
+            race: TEST_RACE_DRAGON,
+            attribute: TEST_ATTRIBUTE_LIGHT,
+            category: 0,
+        },
+        AdvancedCdbRow {
+            code: 500,
+            name: "Link Arrow",
+            desc: "A link monster.",
+            ot: 1,
+            alias: 0,
+            setcode: 0,
+            card_type: (TEST_TYPE_MONSTER | TEST_TYPE_EFFECT | TEST_TYPE_LINK) as i64,
+            atk: 2300,
+            def: TEST_LINK_MARKER_TOP | TEST_LINK_MARKER_LEFT | TEST_LINK_MARKER_BOTTOM,
+            level: 0,
+            race: TEST_RACE_WARRIOR,
+            attribute: TEST_ATTRIBUTE_DARK,
+            category: 0,
+        },
+    ];
+    for row in rows {
+        connection.execute(
+            "insert into datas(id, ot, alias, setcode, type, atk, def, level, race, attribute, category)
+             values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            rusqlite::params![
+                row.code,
+                row.ot,
+                row.alias,
+                row.setcode,
+                row.card_type,
+                row.atk,
+                row.def,
+                row.level,
+                row.race,
+                row.attribute,
+                row.category,
+            ],
+        )?;
+        connection.execute(
+            "insert into texts(id, name, desc, str1, str2, str3, str4, str5, str6, str7, str8, str9, str10, str11, str12, str13, str14, str15, str16)
+             values (?1, ?2, ?3, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '')",
+            rusqlite::params![row.code, row.name, row.desc],
+        )?;
+    }
+    Ok(())
+}
+
+fn search_standard_codes(
+    service: &StandardPackService<'_>,
+    keyword: Option<&str>,
+    filters: StandardCardSearchFiltersDto,
+) -> Vec<u32> {
+    service
+        .search_cards(SearchStandardCardsInput {
+            keyword: keyword.map(str::to_string),
+            filters: Some(filters),
+            sort_by: StandardCardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 20,
+        })
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|row| row.code)
+        .collect()
 }
 
 fn create_test_cdb_with_category(
