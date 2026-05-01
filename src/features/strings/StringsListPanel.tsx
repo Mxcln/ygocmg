@@ -29,7 +29,10 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
 
   const invalidateStrings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["strings"] });
-  }, [queryClient]);
+    if (activePackId) {
+      void queryClient.invalidateQueries({ queryKey: ["pack-setnames", activePackId] });
+    }
+  }, [activePackId, queryClient]);
 
   function openWarningsDialog(
     warnings: ValidationIssue[],

@@ -118,6 +118,21 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   const canRebuild = Boolean(status?.configured && config.standard_pack_source_language);
   const activeFilterCount = countStandardCardFilters(advancedFilters);
   const filterKey = useMemo(() => standardCardFiltersKey(advancedFilters), [advancedFilters]);
+  const standardSetnamesQuery = useQuery({
+    queryKey: ["standard-setnames", status?.source_language ?? null],
+    queryFn: () => standardPackApi.listSetnames({ language: status?.source_language ?? null }),
+    enabled: advancedSearchOpen && Boolean(status?.source_language),
+    staleTime: 5 * 60 * 1000,
+  });
+  const standardSetnameEntries = useMemo(
+    () =>
+      standardSetnamesQuery.data?.map((entry) => ({
+        key: entry.key,
+        name: entry.value,
+        source: "standard" as const,
+      })) ?? [],
+    [standardSetnamesQuery.data],
+  );
   const standardSortOptions = [
     { field: "code" as const, direction: "asc" as const, label: t("card.sort.codeAsc") },
     { field: "code" as const, direction: "desc" as const, label: t("card.sort.codeDesc") },
@@ -348,7 +363,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
                 <StandardCardAdvancedSearchPanel
                   open={advancedSearchOpen}
                   filters={advancedFilters}
-                  sourceLanguage={status?.source_language ?? null}
+                  setnameEntries={standardSetnameEntries}
                   onChange={setAdvancedFilters}
                   onClose={() => setAdvancedSearchOpen(false)}
                 />

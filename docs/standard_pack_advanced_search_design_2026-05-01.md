@@ -147,6 +147,19 @@ npm run build
 
 `npm run build` 仍有 Vite chunk size warning，但构建成功；该 warning 不影响本功能。
 
+### 0.5 Custom Pack 扩展状态（2026-05-02）
+
+标准包高级搜索已扩展到自定义卡包。扩展后的状态：
+
+1. 前端筛选合同从 `StandardCardSearchFilters` 抽象为通用 `CardSearchFilters`。
+2. Rust 筛选 DTO 从 `standard_pack` DTO 抽象到 `card` DTO，并为标准包保留兼容 alias。
+3. 高级筛选 UI 已抽成通用 `CardAdvancedSearchPanel`，标准包和自定义包共享 modal tabs、chips、clear all、setcode picker 和默认匹配语义。
+4. 标准包仍然使用 SQLite schema v3 和动态 SQL builder。
+5. 自定义卡包使用已打开 `PackSession` 中的 `cards` 与 `card_list_cache` 做内存过滤，不引入 SQLite，不改变 `cards.json` 持久化格式。
+6. 自定义包 setname picker 使用当前 pack setname + 标准包 setname 的合并来源，并与 CardEdit 共用合并逻辑。
+7. `list_cards` 增加可选 `filters` 字段，旧调用不传 filters 时保持兼容。
+8. 已补充自定义包高级筛选集成测试，并通过 `cargo test --offline`、`npm run typecheck`、`npm run build`。
+
 ## 1. 背景
 
 对 custom card 作者来说，标准包高级搜索比自定义包高级搜索更实用。作者在设计新卡时，经常需要从官方卡中查找满足某些结构或文本条件的参考卡，例如：
@@ -1572,16 +1585,28 @@ schema v3 会让旧标准包索引进入 schema mismatch。
 
 ### 16.4 复用到 custom pack
 
-1. 抽象通用 `CardSearchFilters`。
-   - 首版保守命名为 `StandardCardSearchFilters`。
-   - custom pack 若需要复用，应先确认能力差异。
+状态：已在 2026-05-02 完成第一版复用。
 
-2. 给不同来源增加 capability metadata。
+1. 已抽象通用 `CardSearchFilters`。
+   - 前端通用类型位于 card contract，标准包保留 `StandardCardSearchFilters` alias。
+   - Rust 通用 DTO 位于 card DTO，标准包保留 `StandardCardSearchFiltersDto` re-export。
+
+2. 已复用同一套高级筛选 UI。
+   - 标准包和自定义包共享 `CardAdvancedSearchPanel`。
+   - 面板通过 props 接收 setname entries，不再绑定标准包 API。
+   - 自定义包 setname entries 合并当前 pack setnames 与 Standard Pack setnames，pack 来源优先显示。
+
+3. 已保持不同来源的查询执行差异。
+   - Standard Pack 有 SQLite v3 查询表，继续使用 SQL builder。
+   - custom pack 是 JSON/session 模型，使用 `PackSession.cards + card_list_cache` 进行内存过滤。
+   - 两者共享 filter contract，但不强行统一存储模型。
+
+4. capability metadata 暂未落地。
    - Standard Pack 有 SQLite v3 查询表。
    - custom pack 当前是 JSON/session 模型。
    - 前端可根据 capabilities 显示或隐藏某些筛选项。
 
-3. 避免把 custom pack 主存储改成 SQLite。
+5. 已避免把 custom pack 主存储改成 SQLite。
    - custom pack 是 author-state document。
    - Standard Pack 是 read-only reference index。
    - 即使复用 DTO，也不应强行统一存储模型。

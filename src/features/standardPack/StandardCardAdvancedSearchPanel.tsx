@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { standardPackApi } from "../../shared/api/standardPackApi";
 import type {
   Attribute,
+  CardFilterMatchMode,
+  CardSearchFilters,
   LinkMarker,
   MonsterFlag,
+  NumericRangeFilter,
   Ot,
   PrimaryType,
   Race,
+  SetcodeFilterMode,
   SpellSubtype,
   TrapSubtype,
 } from "../../shared/contracts/card";
-import type {
-  CardFilterMatchMode,
-  NumericRangeFilter,
-  SetcodeFilterMode,
-  StandardCardSearchFilters,
-} from "../../shared/contracts/standardPack";
 import {
   ALL_ATTRIBUTES,
   ALL_LINK_MARKERS,
@@ -44,14 +40,15 @@ import {
   formatTrapSubtype,
 } from "../../shared/utils/cardLabels";
 import { useAppI18n } from "../../shared/i18n";
+import { sortSetnameEntries, type SetnameEntry } from "../card/setnameEntries";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StandardCardAdvancedSearchPanel.module.css";
 
-interface StandardCardAdvancedSearchPanelProps {
+interface CardAdvancedSearchPanelProps {
   open: boolean;
-  filters: StandardCardSearchFilters | null;
-  sourceLanguage: string | null;
-  onChange: (filters: StandardCardSearchFilters | null) => void;
+  filters: CardSearchFilters | null;
+  setnameEntries?: SetnameEntry[];
+  onChange: (filters: CardSearchFilters | null) => void;
   onClose: () => void;
 }
 
@@ -78,7 +75,7 @@ const DEFAULT_MATCH_MODE: CardFilterMatchMode = "any";
 type AdvancedSearchTab = "ids" | "text" | "type" | "monsterData" | "setcodes" | "category";
 const SEARCH_TABS: AdvancedSearchTab[] = ["ids", "text", "type", "monsterData", "setcodes", "category"];
 
-export function countStandardCardFilters(filters: StandardCardSearchFilters | null): number {
+export function countCardFilters(filters: CardSearchFilters | null): number {
   const normalized = compactFilters(filters);
   if (!normalized) return 0;
   let count = 0;
@@ -91,15 +88,15 @@ export function countStandardCardFilters(filters: StandardCardSearchFilters | nu
   return count;
 }
 
-export function standardCardFiltersKey(filters: StandardCardSearchFilters | null): string {
+export function cardFiltersKey(filters: CardSearchFilters | null): string {
   return JSON.stringify(compactFilters(filters) ?? {});
 }
 
 export function compactFilters(
-  filters: StandardCardSearchFilters | null | undefined,
-): StandardCardSearchFilters | null {
+  filters: CardSearchFilters | null | undefined,
+): CardSearchFilters | null {
   if (!filters) return null;
-  const next: StandardCardSearchFilters = {};
+  const next: CardSearchFilters = {};
 
   copyNumberArray(next, "codes", filters.codes);
   copyRange(next, "codeRange", filters.codeRange);
@@ -133,24 +130,21 @@ export function compactFilters(
   return Object.keys(next).length > 0 ? next : null;
 }
 
-export function StandardCardAdvancedSearchPanel({
+export const countStandardCardFilters = countCardFilters;
+export const standardCardFiltersKey = cardFiltersKey;
+
+export function CardAdvancedSearchPanel({
   open,
   filters,
-  sourceLanguage,
+  setnameEntries = [],
   onChange,
   onClose,
-}: StandardCardAdvancedSearchPanelProps) {
+}: CardAdvancedSearchPanelProps) {
   const { t } = useAppI18n();
   const [activeTab, setActiveTab] = useState<AdvancedSearchTab>("ids");
   const [nameContains, setNameContains] = useState(filters?.nameContains ?? "");
   const [descContains, setDescContains] = useState(filters?.descContains ?? "");
   const [setnameSearch, setSetnameSearch] = useState("");
-
-  const setnamesQuery = useQuery({
-    queryKey: ["standard-setnames", sourceLanguage],
-    queryFn: () => standardPackApi.listSetnames({ language: sourceLanguage }),
-    enabled: sourceLanguage !== null,
-  });
 
   useEffect(() => {
     setNameContains(filters?.nameContains ?? "");
@@ -193,14 +187,14 @@ export function StandardCardAdvancedSearchPanel({
   }, [onClose, open]);
 
   const selectedSetcodes = filters?.setcodes ?? [];
-  const setnameEntries = setnamesQuery.data ?? [];
   const filteredSetnames = useMemo(() => {
     const query = setnameSearch.trim().toLowerCase();
     const hexQuery = query.replace(/^0x/i, "");
-    if (!query) return setnameEntries.slice(0, 24);
-    return setnameEntries
+    const entries = sortSetnameEntries(setnameEntries);
+    if (!query) return entries.slice(0, 24);
+    return entries
       .filter((entry) => {
-        if (entry.value.toLowerCase().includes(query)) return true;
+        if (entry.name.toLowerCase().includes(query)) return true;
         return entry.key.toString(16).includes(hexQuery);
       })
       .slice(0, 24);
@@ -208,12 +202,12 @@ export function StandardCardAdvancedSearchPanel({
   const customSetcode = useMemo(() => parseHexSetcode(setnameSearch), [setnameSearch]);
   const chips = buildChips();
 
-  function update(patch: Partial<StandardCardSearchFilters>) {
+  function update(patch: Partial<CardSearchFilters>) {
     onChange(compactFilters({ ...(filters ?? {}), ...patch }));
   }
 
-  function clearField(field: keyof StandardCardSearchFilters) {
-    update({ [field]: undefined } as Partial<StandardCardSearchFilters>);
+  function clearField(field: keyof CardSearchFilters) {
+    update({ [field]: undefined } as Partial<CardSearchFilters>);
   }
 
   function toggleArrayValue<T extends string | number>(
@@ -224,12 +218,12 @@ export function StandardCardAdvancedSearchPanel({
     const next = current.includes(value)
       ? current.filter((item) => item !== value)
       : [...current, value];
-    update({ [field]: next } as Partial<StandardCardSearchFilters>);
+    update({ [field]: next } as Partial<CardSearchFilters>);
   }
 
   function setRange(
     field: keyof Pick<
-      StandardCardSearchFilters,
+      CardSearchFilters,
       | "codeRange"
       | "aliasRange"
       | "pendulumLeftScale"
@@ -247,11 +241,11 @@ export function StandardCardAdvancedSearchPanel({
         min: side === "min" ? parseNullableNumber(raw) : current?.min ?? null,
         max: side === "max" ? parseNullableNumber(raw) : current?.max ?? null,
       }),
-    } as Partial<StandardCardSearchFilters>);
+    } as Partial<CardSearchFilters>);
   }
 
   function setNumberList(field: "codes" | "aliases", raw: string) {
-    update({ [field]: parseDecimalList(raw) } as Partial<StandardCardSearchFilters>);
+    update({ [field]: parseDecimalList(raw) } as Partial<CardSearchFilters>);
   }
 
   function selectSetcode(value: number) {
@@ -440,13 +434,16 @@ export function StandardCardAdvancedSearchPanel({
               )}
               {filteredSetnames.map((entry) => (
                 <button
-                  key={entry.key}
+                  key={`${entry.source}-${entry.key}`}
                   type="button"
                   className={`${styles.setnameItem} ${selectedSetcodes.includes(entry.key) ? styles.selected : ""}`}
                   onClick={() => selectSetcode(entry.key)}
                 >
-                  <span>{entry.value}</span>
-                  <small>{formatSetcodeHex(entry.key)}</small>
+                  <span>{entry.name}</span>
+                  <small>
+                    {formatSetcodeHex(entry.key)}
+                    {entry.source === "pack" ? " · Pack" : " · Std"}
+                  </small>
                 </button>
               ))}
             </div>
@@ -531,6 +528,8 @@ export function StandardCardAdvancedSearchPanel({
     </div>
   );
 }
+
+export const StandardCardAdvancedSearchPanel = CardAdvancedSearchPanel;
 
 function TextField({
   label,
@@ -661,8 +660,8 @@ function addLabelChip(
   chips.push({ id, label, onRemove });
 }
 
-function copyText<T extends keyof StandardCardSearchFilters>(
-  target: StandardCardSearchFilters,
+function copyText<T extends keyof CardSearchFilters>(
+  target: CardSearchFilters,
   key: T,
   value: string | null | undefined,
 ) {
@@ -672,8 +671,8 @@ function copyText<T extends keyof StandardCardSearchFilters>(
   }
 }
 
-function copyNumberArray<T extends keyof StandardCardSearchFilters>(
-  target: StandardCardSearchFilters,
+function copyNumberArray<T extends keyof CardSearchFilters>(
+  target: CardSearchFilters,
   key: T,
   value: number[] | null | undefined,
 ) {
@@ -683,8 +682,8 @@ function copyNumberArray<T extends keyof StandardCardSearchFilters>(
   }
 }
 
-function copyStringArray<T extends keyof StandardCardSearchFilters, V extends string>(
-  target: StandardCardSearchFilters,
+function copyStringArray<T extends keyof CardSearchFilters, V extends string>(
+  target: CardSearchFilters,
   key: T,
   value: V[] | null | undefined,
 ) {
@@ -694,8 +693,8 @@ function copyStringArray<T extends keyof StandardCardSearchFilters, V extends st
   }
 }
 
-function copyRange<T extends keyof StandardCardSearchFilters>(
-  target: StandardCardSearchFilters,
+function copyRange<T extends keyof CardSearchFilters>(
+  target: CardSearchFilters,
   key: T,
   value: NumericRangeFilter | null | undefined,
 ) {
@@ -723,11 +722,12 @@ function normalizeText(value: string | null | undefined): string | null {
 }
 
 function uniqueNumbers(value: number[] | null | undefined): number[] {
-  return [...new Set((value ?? []).map((item) => Math.trunc(item)).filter((item) => Number.isFinite(item) && item > 0))];
+  return [...new Set((value ?? []).map((item) => Math.trunc(item)).filter((item) => Number.isFinite(item) && item > 0))]
+    .sort((left, right) => left - right);
 }
 
 function uniqueStrings<T extends string>(value: T[] | null | undefined): T[] {
-  return [...new Set(value ?? [])];
+  return [...new Set(value ?? [])].sort();
 }
 
 function parseNullableNumber(raw: string): number | null {

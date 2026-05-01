@@ -140,6 +140,51 @@ export interface CardDetail {
 
 export type CardSortField = "code" | "name";
 export type SortDirection = "asc" | "desc";
+export type CardFilterMatchMode = "any" | "all";
+export type SetcodeFilterMode = "exact" | "base";
+
+export interface NumericRangeFilter {
+  min: number | null;
+  max: number | null;
+}
+
+export interface CardSearchFilters {
+  codes?: number[];
+  codeRange?: NumericRangeFilter | null;
+  aliases?: number[];
+  aliasRange?: NumericRangeFilter | null;
+  ots?: Ot[];
+
+  nameContains?: string | null;
+  descContains?: string | null;
+
+  primaryTypes?: PrimaryType[];
+  races?: Race[];
+  attributes?: Attribute[];
+
+  monsterFlags?: MonsterFlag[];
+  monsterFlagMatch?: CardFilterMatchMode;
+
+  spellSubtypes?: SpellSubtype[];
+  trapSubtypes?: TrapSubtype[];
+
+  pendulumLeftScale?: NumericRangeFilter | null;
+  pendulumRightScale?: NumericRangeFilter | null;
+
+  linkMarkers?: LinkMarker[];
+  linkMarkerMatch?: CardFilterMatchMode;
+
+  setcodes?: number[];
+  setcodeMode?: SetcodeFilterMode;
+  setcodeMatch?: CardFilterMatchMode;
+
+  categoryMasks?: number[];
+  categoryMatch?: CardFilterMatchMode;
+
+  atk?: NumericRangeFilter | null;
+  def?: NumericRangeFilter | null;
+  level?: NumericRangeFilter | null;
+}
 
 export interface CardListPage {
   items: CardListRow[];
@@ -154,6 +199,7 @@ export interface ListCardsInput {
   workspaceId: string;
   packId: string;
   keyword: string | null;
+  filters?: CardSearchFilters | null;
   sortBy: CardSortField;
   sortDirection: SortDirection;
   page: number;

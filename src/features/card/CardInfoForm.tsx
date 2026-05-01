@@ -41,14 +41,11 @@ import {
   LINK_MARKER_ARROWS,
   LINK_MARKER_POSITIONS,
 } from "../../shared/constants/cardOptions";
+import { sortSetnameEntries, type SetnameEntry } from "./setnameEntries";
 
 import styles from "./CardInfoForm.module.css";
 
-export interface SetnameEntry {
-  key: number;
-  name: string;
-  source: "pack" | "standard";
-}
+export type { SetnameEntry } from "./setnameEntries";
 
 interface CardInfoFormProps {
   draft: CardEntity;
@@ -656,10 +653,7 @@ function SetcodePicker({
   }, [setnameEntries, query]);
 
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      if (a.source !== b.source) return a.source === "pack" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+    return sortSetnameEntries(filtered);
   }, [filtered]);
 
   const parsedCustomHex = useMemo(() => {

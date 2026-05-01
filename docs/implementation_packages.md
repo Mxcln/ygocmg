@@ -1,7 +1,7 @@
 # YGOCMG 最小实现与功能包规划
 
 日期：2026-04-25
-最近更新：2026-04-29
+最近更新：2026-05-02
 
 ## 目标
 
@@ -10,7 +10,7 @@
 1. 一个现在就可以持续实现、测试和演进的最小实现
 2. 一组之后可以在 Plan 模式下顺序推进的功能包
 
-## 进度更新（2026-04-29）
+## 进度更新（2026-05-02）
 
 1. 作者态 Rust 后端最小闭环已继续保持可用
 2. `P0 工程启动包` 已完成，当前仓库已经具备可启动的 Tauri + React 最小应用壳
@@ -74,7 +74,13 @@
    - CDB writer 与 `strings.conf` writer 已补齐，导出时只写目标语言文本
    - 已根据审阅补充 `output_name` 安全校验、重复 `pack_ids` 阻断、输出目录 execute 前二次防御检查和回归测试
    - 前端新增 Export modal：选择已打开 packs、导出语言、输出目录与输出名，展示预检统计/issue，提交 Job 并轮询结果
-12. 下一步建议根据目标选择：
+12. `P9.5 自定义卡包高级搜索` 已完成：
+   - 抽出通用 `CardSearchFilters` / `CardAdvancedSearchPanel`，标准包保留兼容 alias，自定义包和标准包共用高级筛选 UI
+   - 自定义包 `list_cards` 支持结构化 `filters`，在已打开 `PackSession` 内存快照上完成 keyword + filters `AND` 过滤、排序、分页和 total count
+   - 自定义包高级搜索 setname picker 复用 CardEdit 语义，合并当前 pack setname 与 Standard Pack setname，pack 来源优先显示
+   - 标准包继续走 SQLite schema v3 与 SQL builder，不改变只读 reference index 架构
+   - 补充 `minimal_authoring_flow` 回归测试，覆盖自定义包 setcode exact/base、any/all、category、monster/link、range、分页 total 等筛选
+13. 下一步建议根据目标选择：
    - 如果优先补生产效率，推进 `P5 批量编辑`
    - 如果优先收束交付质量，推进 `P10 稳定性收尾`
 
@@ -518,6 +524,33 @@
 依赖：
 1. P8
 
+### P9.5 自定义卡包高级搜索
+
+目标：
+把 Standard Pack 高级搜索能力扩展到作者态 custom pack，同时保持两类卡包 Cards tab 的高级筛选 UI 一致。
+
+当前完成情况：
+1. 前端筛选合同已抽象为通用 `CardSearchFilters`，Standard Pack 保留 `StandardCardSearchFilters` 兼容别名
+2. Rust DTO 已抽象为通用 `CardSearchFiltersDto`，Standard Pack DTO 通过 re-export 兼容旧名称
+3. `CardAdvancedSearchPanel` 已抽成通用高级筛选面板，继续复用现有 `standard.search.*` 三语文案
+4. Custom Pack Cards tab 已接入筛选按钮、modal tabs、active chips、clear all、分页 reset 和 query key 扩展
+5. Custom Pack 后端 `list_cards` 在 `PackSession.cards + card_list_cache` 上做内存筛选，不读取磁盘 JSON，不引入 SQLite
+6. Custom Pack setname picker 已合并当前 pack setnames 与 Standard Pack setnames，并与 CardEdit 共用 `useMergedSetnameEntries`
+7. Pack strings 写入后会同步失效 `pack-setnames` 查询，保证 CardEdit 与高级筛选 picker 刷新
+8. 已补充 `custom_pack_list_cards_applies_advanced_filters` 集成测试，覆盖结构化筛选、keyword 组合和分页 total
+
+本轮未做：
+1. 跨 custom pack 搜索
+2. 搜索所有文本语言
+3. 保存筛选 presets
+4. 自定义包持久化查询索引
+5. 资源状态筛选
+
+依赖：
+1. P3
+2. P4
+3. P7
+
 ### P10 稳定性收尾
 
 目标：
@@ -545,7 +578,8 @@
 7. P7
 8. P8
 9. P9
-10. P10
+10. P9.5
+11. P10
 
 ## 下一步建议
 
@@ -553,6 +587,6 @@
 
 原因：
 
-1. P0–P4 已形成连续可用链路，P6–P9 已全部完成
-2. 单卡编辑、资源管理、strings 管理、标准包只读接入、导入、导出均已具备完整闭环
+1. P0–P4 已形成连续可用链路，P6–P9.5 已全部完成
+2. 单卡编辑、资源管理、strings 管理、标准包只读接入、导入、导出、自定义包高级搜索均已具备完整闭环
 3. 若优先提升编辑效率，推进 P5；若优先交付稳定性，推进 P10

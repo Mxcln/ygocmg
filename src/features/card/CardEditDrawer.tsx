@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardApi } from "../../shared/api/cardApi";
-import { stringsApi } from "../../shared/api/stringsApi";
-import { standardPackApi } from "../../shared/api/standardPackApi";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatValidationIssue } from "../../shared/utils/format";
 import { formatIssueDetail } from "../../shared/utils/messages";
@@ -14,8 +12,9 @@ import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardEditDrawer.module.css";
 import { CardAssetBar } from "./CardAssetBar";
-import { CardInfoForm, type SetnameEntry } from "./CardInfoForm";
+import { CardInfoForm } from "./CardInfoForm";
 import { CardTextForm } from "./CardTextForm";
+import { useMergedSetnameEntries } from "./useMergedSetnameEntries";
 
 interface CardEditDrawerProps {
   packId: string;
@@ -103,42 +102,12 @@ export function CardEditDrawer({
 
   const defaultLang = displayLanguageOrder[0] || "en-US";
 
-  const { data: standardSetnames } = useQuery({
-    queryKey: ["standard-setnames", standardSetnameLanguage],
-    queryFn: () => standardPackApi.listSetnames({ language: standardSetnameLanguage }),
-    staleTime: 5 * 60 * 1000,
+  const { setnameEntries } = useMergedSetnameEntries({
+    workspaceId,
+    packId,
+    language: defaultLang,
+    standardLanguage: standardSetnameLanguage,
   });
-
-  const { data: packSetnamesPage } = useQuery({
-    queryKey: ["pack-setnames", packId],
-    queryFn: () =>
-      stringsApi.listPackStrings({
-        workspaceId,
-        packId,
-        language: defaultLang,
-        kindFilter: "setname",
-        keyword: null,
-        keyFilter: null,
-        page: 1,
-        pageSize: 10000,
-      }),
-    staleTime: 30_000,
-  });
-
-  const setnameEntries = useMemo<SetnameEntry[]>(() => {
-    const entries: SetnameEntry[] = [];
-    if (packSetnamesPage?.items) {
-      for (const item of packSetnamesPage.items) {
-        entries.push({ key: item.key, name: item.value, source: "pack" });
-      }
-    }
-    if (standardSetnames) {
-      for (const item of standardSetnames) {
-        entries.push({ key: item.key, name: item.value, source: "standard" });
-      }
-    }
-    return entries;
-  }, [standardSetnames, packSetnamesPage]);
 
   useEffect(() => {
     if (isCreate) {

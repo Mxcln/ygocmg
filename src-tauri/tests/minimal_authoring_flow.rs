@@ -4,8 +4,9 @@ use std::path::Path;
 
 use tempfile::tempdir;
 use ygocmg_core::application::dto::card::{
-    CardSortFieldDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, GetCardInput,
-    ListCardsInput, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
+    CardFilterMatchModeDto, CardSearchFiltersDto, CardSortFieldDto, ConfirmCardWriteInput,
+    CreateCardInput, DeleteCardInput, GetCardInput, ListCardsInput, NumericRangeFilterDto,
+    SetcodeFilterModeDto, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
 };
 use ygocmg_core::application::dto::common::WriteResultDto;
 use ygocmg_core::application::dto::resource::{
@@ -18,7 +19,8 @@ use ygocmg_core::application::dto::strings::{
 };
 use ygocmg_core::bootstrap::wiring::build_app_state;
 use ygocmg_core::domain::card::model::{
-    Attribute, CardTexts, CardUpdateInput, MonsterFlag, Ot, PrimaryType, Race, SpellSubtype,
+    Attribute, CardTexts, CardUpdateInput, LinkData, LinkMarker, MonsterFlag, Ot, Pendulum,
+    PrimaryType, Race, SpellSubtype, TrapSubtype,
 };
 use ygocmg_core::domain::config::rules::{default_global_config, normalize_global_config};
 use ygocmg_core::domain::language::model::{TextLanguageKind, TextLanguageProfile};
@@ -208,6 +210,7 @@ fn minimal_authoring_flow_persists_and_renames_assets() {
             workspace_id: reopened_workspace.id.clone(),
             pack_id: pack.id.clone(),
             keyword: None,
+            filters: None,
             sort_by: CardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -667,6 +670,7 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
             workspace_id: workspace.id.clone(),
             pack_id: pack.id.clone(),
             keyword: None,
+            filters: None,
             sort_by: CardSortFieldDto::Code,
             sort_direction: SortDirectionDto::Asc,
             page: 1,
@@ -686,6 +690,286 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
     )
     .unwrap_err();
     assert_eq!(mismatch_error.code, "workspace.mismatch");
+}
+
+#[test]
+fn custom_pack_list_cards_applies_advanced_filters() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-custom-search");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Search Pack",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let mut dragon = search_card_input(
+        100_000_100,
+        "Dark Dragon",
+        "Can special summon itself from deck.",
+        PrimaryType::Monster,
+    );
+    dragon.alias = 90_000_001;
+    dragon.setcodes = vec![0x1345];
+    dragon.category = 0x0000_0200 | 0x0004_0000;
+    dragon.monster_flags = Some(vec![MonsterFlag::Effect, MonsterFlag::Pendulum]);
+    dragon.atk = Some(2500);
+    dragon.def = Some(2000);
+    dragon.race = Some(Race::Dragon);
+    dragon.attribute = Some(Attribute::Dark);
+    dragon.level = Some(4);
+    dragon.pendulum = Some(Pendulum {
+        left_scale: 2,
+        right_scale: 7,
+    });
+    create_custom_search_card(&state, &workspace.id, &pack.id, dragon);
+
+    let mut link = search_card_input(
+        100_000_200,
+        "Link Helper",
+        "A link monster.",
+        PrimaryType::Monster,
+    );
+    link.setcodes = vec![0x0345];
+    link.monster_flags = Some(vec![MonsterFlag::Effect, MonsterFlag::Link]);
+    link.atk = Some(1800);
+    link.def = None;
+    link.level = None;
+    link.race = Some(Race::Cyberse);
+    link.attribute = Some(Attribute::Light);
+    link.link = Some(LinkData {
+        markers: vec![LinkMarker::Top, LinkMarker::Left],
+    });
+    create_custom_search_card(&state, &workspace.id, &pack.id, link);
+
+    let mut spell = search_card_input(
+        100_000_300,
+        "Quick Spell",
+        "A fast spell.",
+        PrimaryType::Spell,
+    );
+    spell.spell_subtype = Some(SpellSubtype::QuickPlay);
+    create_custom_search_card(&state, &workspace.id, &pack.id, spell);
+
+    let mut trap = search_card_input(
+        100_000_400,
+        "Counter Trap",
+        "A counter trap.",
+        PrimaryType::Trap,
+    );
+    trap.trap_subtype = Some(TrapSubtype::Counter);
+    create_custom_search_card(&state, &workspace.id, &pack.id, trap);
+
+    assert_eq!(
+        search_custom_codes(&state, &workspace.id, &pack.id, Some("dragon"), None),
+        vec![100_000_100]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                races: Some(vec![Race::Dragon]),
+                attributes: Some(vec![Attribute::Dark]),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                category_masks: Some(vec![0x0000_0200, 0x0004_0000]),
+                category_match: Some(CardFilterMatchModeDto::All),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                setcodes: Some(vec![0x0345]),
+                setcode_mode: Some(SetcodeFilterModeDto::Exact),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_200]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                setcodes: Some(vec![0x0345]),
+                setcode_mode: Some(SetcodeFilterModeDto::Base),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100, 100_000_200]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                monster_flags: Some(vec![MonsterFlag::Effect, MonsterFlag::Link]),
+                monster_flag_match: Some(CardFilterMatchModeDto::All),
+                link_markers: Some(vec![LinkMarker::Top, LinkMarker::Left]),
+                link_marker_match: Some(CardFilterMatchModeDto::All),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_200]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                spell_subtypes: Some(vec![SpellSubtype::QuickPlay]),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_300]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                trap_subtypes: Some(vec![TrapSubtype::Counter]),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_400]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                aliases: Some(vec![90_000_001]),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                pendulum_left_scale: Some(NumericRangeFilterDto {
+                    min: Some(2),
+                    max: Some(2),
+                }),
+                pendulum_right_scale: Some(NumericRangeFilterDto {
+                    min: Some(7),
+                    max: Some(7),
+                }),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100]
+    );
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            Some("special"),
+            Some(CardSearchFiltersDto {
+                primary_types: Some(vec![PrimaryType::Monster]),
+                desc_contains: Some("deck".to_string()),
+                atk: Some(NumericRangeFilterDto {
+                    min: Some(2000),
+                    max: Some(2600),
+                }),
+                level: Some(NumericRangeFilterDto {
+                    min: Some(4),
+                    max: Some(4),
+                }),
+                ..Default::default()
+            }),
+        ),
+        vec![100_000_100]
+    );
+
+    let page = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            keyword: None,
+            filters: Some(CardSearchFiltersDto {
+                primary_types: Some(vec![PrimaryType::Monster]),
+                ..Default::default()
+            }),
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 1,
+        },
+    )
+    .unwrap();
+    assert_eq!(page.total, 2);
+    assert_eq!(page.items.len(), 1);
+    assert_eq!(page.items[0].code, 100_000_100);
+
+    assert_eq!(
+        search_custom_codes(
+            &state,
+            &workspace.id,
+            &pack.id,
+            None,
+            Some(CardSearchFiltersDto {
+                def: Some(NumericRangeFilterDto {
+                    min: Some(1),
+                    max: None,
+                }),
+                monster_flags: Some(vec![MonsterFlag::Link]),
+                ..Default::default()
+            }),
+        ),
+        Vec::<u32>::new()
+    );
 }
 
 #[test]
@@ -1898,6 +2182,104 @@ fn monster_input_with_texts(code: u32, texts: BTreeMap<String, CardTexts>) -> Ca
         spell_subtype: None,
         trap_subtype: None,
     }
+}
+
+fn search_card_input(
+    code: u32,
+    name: &str,
+    desc: &str,
+    primary_type: PrimaryType,
+) -> CardUpdateInput {
+    let is_monster = matches!(primary_type, PrimaryType::Monster);
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: name.to_string(),
+            desc: desc.to_string(),
+            strings: vec![],
+        },
+    );
+
+    CardUpdateInput {
+        code,
+        alias: 0,
+        setcodes: vec![],
+        ot: Ot::Custom,
+        category: 0,
+        primary_type,
+        texts,
+        monster_flags: if is_monster {
+            Some(vec![MonsterFlag::Effect])
+        } else {
+            None
+        },
+        atk: if is_monster { Some(1500) } else { None },
+        def: if is_monster { Some(1200) } else { None },
+        race: if is_monster {
+            Some(Race::Warrior)
+        } else {
+            None
+        },
+        attribute: if is_monster {
+            Some(Attribute::Light)
+        } else {
+            None
+        },
+        level: if is_monster { Some(4) } else { None },
+        pendulum: None,
+        link: None,
+        spell_subtype: None,
+        trap_subtype: None,
+    }
+}
+
+fn create_custom_search_card(
+    state: &ygocmg_core::bootstrap::app_state::AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    card: CardUpdateInput,
+) -> ygocmg_core::application::dto::card::EditableCardDto {
+    match app_commands::create_card(
+        state,
+        CreateCardInput {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            card,
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data.card,
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+fn search_custom_codes(
+    state: &ygocmg_core::bootstrap::app_state::AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    keyword: Option<&str>,
+    filters: Option<CardSearchFiltersDto>,
+) -> Vec<u32> {
+    app_commands::list_cards(
+        state,
+        ListCardsInput {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            keyword: keyword.map(str::to_string),
+            filters,
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 50,
+        },
+    )
+    .unwrap()
+    .items
+    .into_iter()
+    .map(|row| row.code)
+    .collect()
 }
 
 fn create_png(path: &Path, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {

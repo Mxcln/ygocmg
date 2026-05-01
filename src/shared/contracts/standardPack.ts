@@ -1,67 +1,20 @@
 import type {
-  Attribute,
   CardAssetState,
   CardEntity,
+  CardFilterMatchMode,
   CardListRow,
-  LinkMarker,
-  MonsterFlag,
-  Ot,
-  PrimaryType,
-  Race,
-  SpellSubtype,
+  CardSearchFilters,
+  NumericRangeFilter,
+  SetcodeFilterMode,
   SortDirection,
-  TrapSubtype,
 } from "./card";
 import type { JobAccepted } from "./job";
 import type { PackStringEntry, PackStringKind } from "./strings";
 
 export type StandardCardSortField = "code" | "name" | "type";
 export type StandardStringSortField = "kind" | "key" | "value";
-export type CardFilterMatchMode = "any" | "all";
-export type SetcodeFilterMode = "exact" | "base";
-
-export interface NumericRangeFilter {
-  min: number | null;
-  max: number | null;
-}
-
-export interface StandardCardSearchFilters {
-  codes?: number[];
-  codeRange?: NumericRangeFilter | null;
-  aliases?: number[];
-  aliasRange?: NumericRangeFilter | null;
-  ots?: Ot[];
-
-  nameContains?: string | null;
-  descContains?: string | null;
-
-  primaryTypes?: PrimaryType[];
-  races?: Race[];
-  attributes?: Attribute[];
-
-  monsterFlags?: MonsterFlag[];
-  monsterFlagMatch?: CardFilterMatchMode;
-
-  spellSubtypes?: SpellSubtype[];
-  trapSubtypes?: TrapSubtype[];
-
-  pendulumLeftScale?: NumericRangeFilter | null;
-  pendulumRightScale?: NumericRangeFilter | null;
-
-  linkMarkers?: LinkMarker[];
-  linkMarkerMatch?: CardFilterMatchMode;
-
-  setcodes?: number[];
-  setcodeMode?: SetcodeFilterMode;
-  setcodeMatch?: CardFilterMatchMode;
-
-  categoryMasks?: number[];
-  categoryMatch?: CardFilterMatchMode;
-
-  atk?: NumericRangeFilter | null;
-  def?: NumericRangeFilter | null;
-  level?: NumericRangeFilter | null;
-}
+export type { CardFilterMatchMode, NumericRangeFilter, SetcodeFilterMode };
+export type StandardCardSearchFilters = CardSearchFilters;
 
 export type StandardPackIndexState =
   | "not_configured"
