@@ -11,6 +11,7 @@ interface TitleBarProps {
 
 export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarProps) {
   const { t } = useAppI18n();
+  const appIconSrc = `${import.meta.env.BASE_URL}app-icon.png`;
 
   return (
     <header
@@ -19,7 +20,7 @@ export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarP
       onDoubleClick={() => void onWindowAction("toggle-maximize")}
     >
       <div className={styles.titlebarLeft} data-tauri-drag-region>
-        <img className={styles.appIcon} src="/app-icon.png" alt="YGOCMG" draggable={false} />
+        <img className={styles.appIcon} src={appIconSrc} alt="YGOCMG" draggable={false} />
         <span className={styles.titlebarName}>{workspaceName}</span>
       </div>
       <div className={styles.titlebarSpacer} data-tauri-drag-region />

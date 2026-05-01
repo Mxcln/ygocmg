@@ -88,13 +88,13 @@ export function App() {
         setConfig(nextConfig);
         setSidebarWidth(nextConfig.shell_sidebar_width);
         setRecentWorkspaces(nextRecent);
+        setLoading(false);
 
-        await tryRestoreLastSession(nextRecent);
+        void tryRestoreLastSession(nextRecent);
       } catch (err) {
         if (!active) return;
         setError(formatError(err));
-      } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
     }
 
