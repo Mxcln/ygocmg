@@ -59,8 +59,8 @@
 .modalBox {
   position: relative;
   z-index: 1;
-  width: min(920px, calc(100vw - 56px));
-  height: min(680px, calc(100vh - 56px));
+  width: min(720px, calc(100vw - 56px));
+  height: min(520px, calc(100vh - 56px));
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: var(--bg-2);
@@ -74,7 +74,7 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 160px minmax(0, 1fr);
 }
 
 .modalTabs {

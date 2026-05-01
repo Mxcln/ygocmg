@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { standardPackApi } from "../../shared/api/standardPackApi";
 import { jobApi } from "../../shared/api/jobApi";
@@ -61,6 +61,9 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [lastJob, setLastJob] = useState<JobSnapshot | null>(null);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [metaExpanded, setMetaExpanded] = useState(false);
+  const metaBarRef = useRef<HTMLDivElement | null>(null);
+  const [metaBarHeight, setMetaBarHeight] = useState(0);
   const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<StandardCardSearchFilters | null>(null);
   const queryClient = useQueryClient();
@@ -88,6 +91,25 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
     void queryClient.invalidateQueries({ queryKey: ["standard-card"] });
     void queryClient.invalidateQueries({ queryKey: ["standard-setnames"] });
   }, [activeJobId, jobQuery.data, queryClient]);
+
+  useLayoutEffect(() => {
+    const el = metaBarRef.current;
+    if (!el) return;
+
+    const measure = () => setMetaBarHeight(el.getBoundingClientRect().height);
+    measure();
+
+    const w = globalThis as unknown as Window;
+
+    if (!("ResizeObserver" in w)) {
+      w.addEventListener("resize", measure);
+      return () => w.removeEventListener("resize", measure);
+    }
+
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const status = statusQuery.data ?? null;
   const activeJob = jobQuery.data ?? lastJob;
@@ -154,10 +176,10 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
 
   return (
     <div className={styles.standardView}>
-      <div className={styles.standardPackHeader}>
-        <div className={styles.standardPackSummary}>
-          <strong>{t("sidebar.standardPack")}</strong>
-          <span>
+      <div ref={metaBarRef} className={styles.metaBar}>
+        <div className={styles.metaSummary}>
+          <strong className={styles.metaTitle}>{t("sidebar.standardPack")}</strong>
+          <span className={styles.metaDetail}>
             {status
               ? t("standard.summary", {
                   state: stateLabel(status.state, t),
@@ -166,53 +188,106 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               : t("standard.loadingStatus")}
           </span>
         </div>
-        <div className={styles.standardPackActions}>
-          {!status?.configured && (
-            <button type="button" className={shared.ghostButton} onClick={() => openModal("settings")}>
-              {t("action.settings")}
-            </button>
-          )}
-          {status?.state === "missing_language" && (
-            <button type="button" className={shared.ghostButton} onClick={() => openModal("settings")}>
-              {t("action.settings")}
-            </button>
-          )}
-          <button
-            type="button"
-            className={shared.primaryButton}
-            disabled={rebuilding || !canRebuild}
-            onClick={() => void handleRebuild()}
+        <button
+          type="button"
+          className={styles.metaToggle}
+          onClick={() => setMetaExpanded((open) => !open)}
+          aria-label={metaExpanded ? t("pack.metadata.collapse") : t("pack.metadata.expand")}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            style={{ transform: metaExpanded ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
           >
-            {rebuilding ? t("standard.rebuilding") : t("standard.rebuildIndex")}
-          </button>
-        </div>
+            <path d="M2 4l4 4 4-4" />
+          </svg>
+        </button>
       </div>
 
-      <div
-        className={styles.standardStatusStrip}
-        data-status={status?.state ?? "loading"}
-      >
-        {statusQuery.isLoading ? (
-          <span>{t("standard.checkingStatus")}</span>
-        ) : status ? (
-          <>
-            <span className={styles.statusPill}>{stateLabel(status.state, t)}</span>
-            <span title={status.ygopro_path ?? undefined}>{status.ygopro_path ?? t("standard.ygoproNotConfigured")}</span>
-            <span>
-              {t("standard.sourcePrefix")} {status.source_language
-                ? languageLabel(config.text_language_catalog, status.source_language)
-                : config.standard_pack_source_language
-                  ? languageLabel(config.text_language_catalog, config.standard_pack_source_language)
-                  : t("standard.notConfigured")}
-            </span>
-            {status.cdb_path && <span title={status.cdb_path}>{t("standard.cdbPath", { path: status.cdb_path })}</span>}
-            <span>{t("standard.indexedPrefix")} {formatTimestamp(status.indexed_at)}</span>
-            {status.message && <span className={styles.statusMessage}>{status.message}</span>}
-          </>
-        ) : (
-          <span>{t("standard.statusUnavailable")}</span>
-        )}
-      </div>
+      {metaExpanded && (
+        <>
+          <div
+            className={styles.drawerBackdrop}
+            style={{ top: metaBarHeight }}
+            onClick={() => setMetaExpanded(false)}
+          />
+          <div className={styles.metaExpanded} style={{ top: metaBarHeight }}>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaField}>
+                <span className={styles.metaFieldLabel}>{t("standard.statePrefix")}</span>
+                <span className={styles.metaFieldValue}>
+                  {status ? stateLabel(status.state, t) : t("standard.loadingStatus")}
+                </span>
+              </div>
+              <div className={styles.metaField}>
+                <span className={styles.metaFieldLabel}>{t("standard.sourcePrefix")}</span>
+                <span className={styles.metaFieldValue} title={status?.source_language ?? undefined}>
+                  {status?.source_language
+                    ? languageLabel(config.text_language_catalog, status.source_language)
+                    : config.standard_pack_source_language
+                      ? languageLabel(config.text_language_catalog, config.standard_pack_source_language)
+                      : t("standard.notConfigured")}
+                </span>
+              </div>
+              <div className={styles.metaField}>
+                <span className={styles.metaFieldLabel}>{t("standard.indexedPrefix")}</span>
+                <span className={styles.metaFieldValue}>
+                  {status?.indexed_at ? formatTimestamp(status.indexed_at) : t("common.none")}
+                </span>
+              </div>
+
+              <div className={styles.metaFieldRow}>
+                <div className={styles.metaFieldStack}>
+                  <span className={styles.metaFieldLabel}>{t("standard.ygoproPathLabel")}</span>
+                  <span className={styles.metaFieldValueInline} title={status?.ygopro_path ?? undefined}>
+                    {status?.ygopro_path ?? t("standard.ygoproNotConfigured")}
+                  </span>
+                </div>
+                {status?.cdb_path ? (
+                  <div className={styles.metaFieldStack}>
+                    <span className={styles.metaFieldLabel}>CDB</span>
+                    <span className={styles.metaFieldValueInline} title={status.cdb_path}>
+                      {status.cdb_path}
+                    </span>
+                  </div>
+                ) : (
+                  <div className={styles.metaFieldStack} />
+                )}
+              </div>
+              {status?.message && (
+                <div className={styles.metaFieldWide}>
+                  <span className={styles.metaFieldLabel}>{t("standard.statusMessageLabel")}</span>
+                  <span className={styles.metaFieldValueDescription}>{status.message}</span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.metaActions}>
+              {(!status?.configured || status?.state === "missing_language") && (
+                <button
+                  type="button"
+                  className={shared.ghostButton}
+                  onClick={() => openModal("settings")}
+                >
+                  {t("action.settings")}
+                </button>
+              )}
+              <button
+                type="button"
+                className={`${shared.primaryButton} ${styles.rebuildButton}`}
+                disabled={rebuilding || !canRebuild}
+                onClick={() => void handleRebuild()}
+              >
+                {rebuilding ? t("standard.rebuilding") : t("standard.rebuildIndex")}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {activeJob && (
         <div className={styles.standardJobStrip} data-status={activeJob.status}>

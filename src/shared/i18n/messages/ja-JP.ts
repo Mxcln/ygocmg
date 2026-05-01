@@ -144,6 +144,10 @@ export const JA_MESSAGES: AppMessages = {
   "card.list.next": "次へ",
   "card.list.noCards": "カードはまだありません。",
   "card.list.prev": "前へ",
+  "pagination.jumpToPage": "ページへ移動",
+  "pagination.pageNumber": "ページ番号",
+  "pagination.pageSize": "表示件数",
+  "pagination.pageSizeWithValue": "{count}件/ページ",
   "card.list.search": "カードを検索…",
   "card.list.subtype": "サブタイプ",
   "card.list.type": "タイプ",
@@ -630,6 +634,9 @@ export const JA_MESSAGES: AppMessages = {
   "standard.tryAnotherFilter": "現在のフィルタを調整またはクリアしてください。",
   "standard.tryAnotherSearch": "別の検索語をお試しください。",
   "standard.ygoproNotConfigured": "YGOProパスが設定されていません",
+  "standard.ygoproPathLabel": "YGOPro パス",
+  "standard.statusMessageLabel": "ステータス",
+  "standard.statePrefix": "状態",
 
   // ── Strings ──
   "strings.addDisplayLanguagesHint": "表示言語を追加するにはパックのメタデータを編集してください。",

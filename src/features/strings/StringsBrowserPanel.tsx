@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatStringKeyHex, parseHexInput } from "../../shared/utils/format";
 import type { TextLanguageProfile } from "../../shared/contracts/config";
@@ -13,6 +13,36 @@ import shared from "../../shared/styles/shared.module.css";
 import styles from "./StringsBrowserPanel.module.css";
 
 const PAGE_SIZE = 50;
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+function buildPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages: (number | "...")[] = [1];
+
+  let rangeStart = Math.max(2, current - 1);
+  let rangeEnd = Math.min(total - 1, current + 1);
+
+  if (current <= 3) {
+    rangeStart = 2;
+    rangeEnd = Math.min(5, total - 1);
+  } else if (current >= total - 2) {
+    rangeStart = Math.max(2, total - 4);
+    rangeEnd = total - 1;
+  }
+
+  if (rangeStart > 2) pages.push("...");
+  for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
+  if (rangeEnd < total - 1) pages.push("...");
+
+  pages.push(total);
+  return pages;
+}
 
 interface EditingCell {
   kind: PackStringKind;
@@ -79,12 +109,17 @@ export function StringsBrowserPanel({
   const [kindFilter, setKindFilter] = useState<PackStringKind | "">("");
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
+  const [pageDraft, setPageDraft] = useState(String(page));
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [newRow, setNewRow] = useState<NewRow | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const newKeyRef = useRef<HTMLInputElement>(null);
   const previousHadNewRow = useRef(false);
+
+  useEffect(() => {
+    setPageDraft(String(page));
+  }, [page]);
 
   useEffect(() => {
     if (languages.length > 0 && !languages.includes(language)) {
@@ -121,6 +156,7 @@ export function StringsBrowserPanel({
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
   const shownError = errorMessage ?? localError;
   const kindOptions: { value: PackStringKind | ""; label: string }[] = [
     { value: "", label: t("strings.kind.all") },
@@ -132,6 +168,16 @@ export function StringsBrowserPanel({
 
   function entryKey(entry: Pick<PackStringEntry, "kind" | "key">): string {
     return `${entry.kind}:${entry.key}`;
+  }
+
+  function commitPageDraft() {
+    const raw = pageDraft.trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      setPageDraft(String(page));
+      return;
+    }
+    setPage(clampInt(parsed, 1, totalPages));
   }
 
   function handleStartEdit(entry: PackStringEntry) {
@@ -410,9 +456,20 @@ export function StringsBrowserPanel({
               >
                 {t("card.list.prev")}
               </button>
-              <span>
-                {page} / {totalPages}
-              </span>
+              {pageNumbers.map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className={shared.pageEllipsis}>...</span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`${shared.pageNum} ${item === page ? "active" : ""}`}
+                    onClick={() => setPage(item as number)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
               <button
                 type="button"
                 disabled={page >= totalPages}
@@ -420,6 +477,23 @@ export function StringsBrowserPanel({
               >
                 {t("card.list.next")}
               </button>
+              <span className={shared.pageJump}>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={totalPages}
+                  value={pageDraft}
+                  onChange={(e) => setPageDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitPageDraft();
+                    if (e.key === "Escape") setPageDraft(String(page));
+                  }}
+                  onBlur={commitPageDraft}
+                  aria-label={t("pagination.jumpToPage")}
+                  placeholder={t("pagination.pageNumber")}
+                />
+              </span>
             </div>
           )}
         </>

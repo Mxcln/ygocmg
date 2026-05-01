@@ -142,6 +142,10 @@ export const EN_MESSAGES = {
   "card.list.next": "Next",
   "card.list.noCards": "No cards yet.",
   "card.list.prev": "Prev",
+  "pagination.jumpToPage": "Jump to page",
+  "pagination.pageNumber": "Page #",
+  "pagination.pageSize": "Page size",
+  "pagination.pageSizeWithValue": "{count}/page",
   "card.list.search": "Search cards...",
   "card.list.subtype": "Subtype",
   "card.list.type": "Type",
@@ -628,6 +632,9 @@ export const EN_MESSAGES = {
   "standard.tryAnotherFilter": "Adjust or clear the active filters.",
   "standard.tryAnotherSearch": "Try another search term.",
   "standard.ygoproNotConfigured": "YGOPro path is not configured",
+  "standard.ygoproPathLabel": "YGOPro Path",
+  "standard.statusMessageLabel": "Status Message",
+  "standard.statePrefix": "State",
 
   // ── Strings ──
   "strings.addDisplayLanguagesHint": "Edit pack metadata to add display languages.",

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CardListRow, SortDirection } from "../../shared/contracts/card";
@@ -7,7 +7,14 @@ import { formatPrimaryType, formatSubtypeDisplayPart } from "../../shared/utils/
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./CardBrowserPanel.module.css";
 
-const PAGE_SIZE = 6;
+const DEFAULT_PAGE_SIZE = 8;
+const PAGE_SIZE_STORAGE_KEY = "ui.card_list_page_size";
+const MIN_PAGE_SIZE = 4;
+const MAX_PAGE_SIZE = 50;
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
 
 export type BrowserSortField = "code" | "name" | "type";
 
@@ -133,20 +140,44 @@ export function CardBrowserPanel({
   const [sortBy, setSortBy] = useState<BrowserSortField>("code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+      if (!raw) return DEFAULT_PAGE_SIZE;
+      const parsed = Number.parseInt(raw, 10);
+      if (!Number.isFinite(parsed)) return DEFAULT_PAGE_SIZE;
+      return clampInt(parsed, MIN_PAGE_SIZE, MAX_PAGE_SIZE);
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [pageDraft, setPageDraft] = useState(String(page));
+
+  useEffect(() => {
+    setPageDraft(String(page));
+  }, [page]);
 
   useEffect(() => {
     setPage(1);
   }, [resetKey]);
 
   const { data, isLoading, error } = useQuery<CardBrowserPage>({
-    queryKey: [...queryKeyBase, debouncedKeyword, sortBy, sortDirection, page, ...queryKeyExtra],
+    queryKey: [
+      ...queryKeyBase,
+      debouncedKeyword,
+      sortBy,
+      sortDirection,
+      page,
+      pageSize,
+      ...queryKeyExtra,
+    ],
     queryFn: () =>
       loadPage({
         keyword: debouncedKeyword,
         sortBy,
         sortDirection,
         page,
-        pageSize: PAGE_SIZE,
+        pageSize,
       }),
     enabled,
     placeholderData: keepPreviousData,
@@ -156,7 +187,7 @@ export function CardBrowserPanel({
   const total = data?.total ?? 0;
   const imageBasePath = data?.image_base_path ?? null;
   const revision = data?.revision ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const displaySortOptions: CardBrowserSortOption[] =
     sortOptions ?? [
       { field: "code", direction: "asc", label: t("card.sort.codeAsc") },
@@ -164,6 +195,18 @@ export function CardBrowserPanel({
       { field: "name", direction: "asc", label: t("card.sort.nameAsc") },
       { field: "name", direction: "desc", label: t("card.sort.nameDesc") },
     ];
+
+  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
+
+  function commitPageDraft() {
+    const raw = pageDraft.trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      setPageDraft(String(page));
+      return;
+    }
+    setPage(clampInt(parsed, 1, totalPages));
+  }
 
   function handleSearchChange(value: string) {
     setKeyword(value);
@@ -177,8 +220,22 @@ export function CardBrowserPanel({
     setPage(1);
   }
 
+  function handlePageSizeChange(raw: string) {
+    const parsed = Number.parseInt(raw, 10);
+    const next = Number.isFinite(parsed)
+      ? clampInt(parsed, MIN_PAGE_SIZE, MAX_PAGE_SIZE)
+      : DEFAULT_PAGE_SIZE;
+    setPageSize(next);
+    setPage(1);
+    try {
+      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(next));
+    } catch {
+      // ignore persistence failures
+    }
+  }
+
   return (
-    <>
+    <div className={styles.browserPanel}>
       <div className={styles.cardListToolbar}>
         <input
           className={styles.cardSearchInput}
@@ -198,6 +255,19 @@ export function CardBrowserPanel({
               value={sortValue(option.field, option.direction)}
             >
               {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.cardSortSelect}
+          value={String(pageSize)}
+          onChange={(e) => handlePageSizeChange(e.target.value)}
+          aria-label={t("pagination.pageSize")}
+          title={t("pagination.pageSize")}
+        >
+          {[6, 8, 10, 12, 16].map((size) => (
+            <option key={size} value={String(size)}>
+              {t("pagination.pageSizeWithValue", { count: size })}
             </option>
           ))}
         </select>
@@ -225,109 +295,131 @@ export function CardBrowserPanel({
         </div>
       ) : (
         <>
-          <div className={styles.cardListHeader}>
-            <span />
-            <span>{t("card.list.code")}</span>
-            <span>{t("card.list.name")}</span>
-            <span>{t("card.list.type")}</span>
-            <span>{t("card.list.subtype")}</span>
-            <span>{t("card.list.atk")}</span>
-            <span>{t("card.list.def")}</span>
-            <span>{t("card.list.levelShort")}</span>
-            <span />
-          </div>
-          <div className={styles.cardListBody}>
-            {items.map((card) => (
-              <div
-                key={card.id}
-                className={styles.cardListRow}
-                onClick={() => onOpenCard(card)}
-              >
-                <div className={styles.cardListThumb}>
-                  {card.has_image && imageBasePath ? (
-                    <img
-                      src={cardImageSrc(imageBasePath, card.code, revision)}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1">
-                      <rect x="1" y="1" width="14" height="18" rx="1.5" />
-                      <rect x="3" y="3" width="10" height="8" rx="0.5" />
+          <div className={styles.cardListScrollArea}>
+            <div className={styles.cardListHeader}>
+              <span />
+              <span>{t("card.list.code")}</span>
+              <span>{t("card.list.name")}</span>
+              <span>{t("card.list.type")}</span>
+              <span>{t("card.list.subtype")}</span>
+              <span>{t("card.list.atk")}</span>
+              <span>{t("card.list.def")}</span>
+              <span>{t("card.list.levelShort")}</span>
+              <span />
+            </div>
+            <div className={styles.cardListBody}>
+              {items.map((card) => (
+                <div
+                  key={card.id}
+                  className={styles.cardListRow}
+                  onClick={() => onOpenCard(card)}
+                >
+                  <div className={styles.cardListThumb}>
+                    {card.has_image && imageBasePath ? (
+                      <img
+                        src={cardImageSrc(imageBasePath, card.code, revision)}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1">
+                        <rect x="1" y="1" width="14" height="18" rx="1.5" />
+                        <rect x="3" y="3" width="10" height="8" rx="0.5" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={styles.cardListCode}>{card.code}</span>
+                  <span className={styles.cardListName} title={card.name}>
+                    {card.name || t("card.noName")}
+                  </span>
+                  <span className={styles.cardTypeBadge} data-type={card.primary_type}>
+                    {formatPrimaryType(card.primary_type)}
+                  </span>
+                  <span className={styles.cardListSubtype}>
+                    {card.subtype_display.split(" / ").map((tag) => (
+                      <span
+                        key={tag}
+                        className={styles.subtypeTag}
+                        data-flag={subtypeTagDataFlag(tag, card.primary_type)}
+                      >
+                        {formatSubtypeDisplayPart(tag)}
+                      </span>
+                    ))}
+                  </span>
+                  <span className={styles.cardListStat}>{card.atk !== null ? formatStat(card.atk) : ""}</span>
+                  <span className={styles.cardListStat}>{card.def !== null ? formatStat(card.def) : ""}</span>
+                  <span className={styles.cardListStat}>{card.level !== null ? String(card.level) : ""}</span>
+                  <span className={styles.cardListAssets}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" className={card.has_image ? "active" : ""}>
+                      <rect x="0.5" y="0.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1" />
+                      <circle cx="4" cy="4.5" r="1.2" fill="currentColor" />
+                      <path d="M1 10l3-4 2 2 2-3 3 5H1z" fill="currentColor" opacity="0.5" />
                     </svg>
-                  )}
+                    <svg width="12" height="12" viewBox="0 0 12 12" className={card.has_script ? "active" : ""}>
+                      <path d="M2 1h5l3 3v7a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z" fill="none" stroke="currentColor" strokeWidth="1" />
+                      <path d="M3.5 6h5M3.5 8h3" stroke="currentColor" strokeWidth="0.8" />
+                    </svg>
+                  </span>
                 </div>
-                <span className={styles.cardListCode}>{card.code}</span>
-                <span className={styles.cardListName} title={card.name}>
-                  {card.name || t("card.noName")}
-                </span>
-                <span className={styles.cardTypeBadge} data-type={card.primary_type}>
-                  {formatPrimaryType(card.primary_type)}
-                </span>
-                <span className={styles.cardListSubtype}>
-                  {card.subtype_display.split(" / ").map((tag) => (
-                    <span
-                      key={tag}
-                      className={styles.subtypeTag}
-                      data-flag={subtypeTagDataFlag(tag, card.primary_type)}
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className={`${shared.cardListPagination} ${styles.paginationSticky}`}>
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  {t("card.list.prev")}
+                </button>
+                {pageNumbers.map((item, idx) =>
+                  item === "..." ? (
+                    <span key={`ellipsis-${idx}`} className={shared.pageEllipsis}>...</span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`${shared.pageNum} ${item === page ? "active" : ""}`}
+                      onClick={() => setPage(item as number)}
                     >
-                      {formatSubtypeDisplayPart(tag)}
-                    </span>
-                  ))}
+                      {item}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  {t("card.list.next")}
+                </button>
+                <span className={shared.pageEllipsis}>
+                  {items.length}/{pageSize}
                 </span>
-                <span className={styles.cardListStat}>{card.atk !== null ? formatStat(card.atk) : ""}</span>
-                <span className={styles.cardListStat}>{card.def !== null ? formatStat(card.def) : ""}</span>
-                <span className={styles.cardListStat}>{card.level !== null ? String(card.level) : ""}</span>
-                <span className={styles.cardListAssets}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" className={card.has_image ? "active" : ""}>
-                    <rect x="0.5" y="0.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1" />
-                    <circle cx="4" cy="4.5" r="1.2" fill="currentColor" />
-                    <path d="M1 10l3-4 2 2 2-3 3 5H1z" fill="currentColor" opacity="0.5" />
-                  </svg>
-                  <svg width="12" height="12" viewBox="0 0 12 12" className={card.has_script ? "active" : ""}>
-                    <path d="M2 1h5l3 3v7a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z" fill="none" stroke="currentColor" strokeWidth="1" />
-                    <path d="M3.5 6h5M3.5 8h3" stroke="currentColor" strokeWidth="0.8" />
-                  </svg>
+                <span className={shared.pageJump}>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={totalPages}
+                    value={pageDraft}
+                    onChange={(e) => setPageDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitPageDraft();
+                      if (e.key === "Escape") setPageDraft(String(page));
+                    }}
+                    onBlur={commitPageDraft}
+                    aria-label={t("pagination.jumpToPage")}
+                    placeholder={t("pagination.pageNumber")}
+                  />
                 </span>
               </div>
-            ))}
+            )}
           </div>
-
-          {totalPages > 1 && (
-            <div className={shared.cardListPagination}>
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                {t("card.list.prev")}
-              </button>
-              {buildPageNumbers(page, totalPages).map((item, idx) =>
-                item === "..." ? (
-                  <span key={`ellipsis-${idx}`} className={shared.pageEllipsis}>...</span>
-                ) : (
-                  <button
-                    key={item}
-                    type="button"
-                    className={`${shared.pageNum} ${item === page ? "active" : ""}`}
-                    onClick={() => setPage(item as number)}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                {t("card.list.next")}
-              </button>
-            </div>
-          )}
         </>
       )}
-    </>
+    </div>
   );
 }

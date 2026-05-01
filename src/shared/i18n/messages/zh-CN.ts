@@ -144,6 +144,10 @@ export const ZH_MESSAGES: AppMessages = {
   "card.list.next": "下一页",
   "card.list.noCards": "暂无卡片。",
   "card.list.prev": "上一页",
+  "pagination.jumpToPage": "跳转到页码",
+  "pagination.pageNumber": "页码",
+  "pagination.pageSize": "每页数量",
+  "pagination.pageSizeWithValue": "每页 {count}",
   "card.list.search": "搜索卡片…",
   "card.list.subtype": "子类型",
   "card.list.type": "类型",
@@ -630,6 +634,9 @@ export const ZH_MESSAGES: AppMessages = {
   "standard.tryAnotherFilter": "请调整或清空当前筛选。",
   "standard.tryAnotherSearch": "请尝试其他搜索词。",
   "standard.ygoproNotConfigured": "未配置 YGOPro 路径",
+  "standard.ygoproPathLabel": "YGOPro 路径",
+  "standard.statusMessageLabel": "状态信息",
+  "standard.statePrefix": "状态",
 
   // ── Strings ──
   "strings.addDisplayLanguagesHint": "编辑卡包元数据以添加显示语言。",
