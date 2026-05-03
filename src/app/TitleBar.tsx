@@ -11,7 +11,7 @@ interface TitleBarProps {
 
 export function TitleBar({ workspaceName, maximized, onWindowAction }: TitleBarProps) {
   const { t } = useAppI18n();
-  const appIconSrc = `${import.meta.env.BASE_URL}app-icon.png`;
+  const appIconSrc = `${import.meta.env.BASE_URL}32x32.png`;
 
   return (
     <header
