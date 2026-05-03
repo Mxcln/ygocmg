@@ -17,6 +17,7 @@ import { StandardPackView } from "../features/standardPack/StandardPackView";
 import { ExportModal } from "../features/export/ExportModal";
 import { useAppWindow } from "./hooks/useAppWindow";
 import { useSidebarResize } from "./hooks/useSidebarResize";
+import { requestClose, useGlobalBackNavigation, useBackNavigation } from "./hooks/useBackNavigation";
 import { TitleBar } from "./TitleBar";
 import { AppSidebar } from "./AppSidebar";
 import { NoticeBanner } from "./NoticeBanner";
@@ -246,6 +247,18 @@ function AppShell({
   const setPackOverviews = useShellStore((s) => s.setPackOverviews);
   const setWorkspace = useShellStore((s) => s.setWorkspace);
 
+  useGlobalBackNavigation();
+
+  useBackNavigation({
+    enabled: modal !== null,
+    priority: 800,
+    onBack: () => {
+      if (!requestClose()) {
+        closeModal();
+      }
+    },
+  });
+
   function handleNotice(tone: NoticeTone, title: string, detail: string) {
     const id = nextNoticeId.current;
     nextNoticeId.current += 1;
@@ -384,7 +397,14 @@ function AppShell({
 
       {modal && (
         <div className={styles.modalLayer}>
-          <div className={styles.modalBackdrop} onClick={closeModal} />
+          <div
+            className={styles.modalBackdrop}
+            onClick={() => {
+              if (!requestClose()) {
+                closeModal();
+              }
+            }}
+          />
           <section className={styles.modalBox} role="dialog" aria-modal="true">
             {modal.type === "workspace" && (
               <WorkspaceModal

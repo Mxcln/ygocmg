@@ -11,6 +11,8 @@ import shared from "../../shared/styles/shared.module.css";
 import addPackStyles from "./AddPackModal.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import { ImportPackPanel } from "./ImportPackPanel";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
+import { requestClose, useCloseRequest } from "../../app/hooks/useBackNavigation";
 
 type AddPackTab = "openPack" | "createPack" | "importPack";
 
@@ -56,6 +58,8 @@ export function AddPackModal({
 }: AddPackModalProps) {
   const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
   const addPackTab = useShellStore((s) => s.modal?.addPackTab ?? "openPack");
   const setAddPackTab = useShellStore((s) => s.setAddPackTab);
   const openPackIds = useShellStore((s) => s.openPackIds);
@@ -65,6 +69,29 @@ export function AddPackModal({
   const [loadingOverviews, setLoadingOverviews] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<CreatePackForm>(() => emptyCreateForm(config));
+  const createFormDirty = JSON.stringify(createForm) !== JSON.stringify(emptyCreateForm(config));
+
+  function requestAddPackClose() {
+    if (busyAction !== null) return;
+    if (!createFormDirty) {
+      closeModal();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: closeModal,
+    });
+  }
+
+  useCloseRequest({
+    priority: 500,
+    onRequestClose: requestAddPackClose,
+  });
 
   useEffect(() => {
     if (!hasWorkspace) return;
@@ -142,7 +169,7 @@ export function AddPackModal({
     <>
       <header className={shared.modalHeader}>
         <h2>{t("pack.addTitle")}</h2>
-        <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
+        <button className={shared.modalCloseButton} type="button" onClick={() => requestClose()}>
           {t("action.close")}
         </button>
       </header>

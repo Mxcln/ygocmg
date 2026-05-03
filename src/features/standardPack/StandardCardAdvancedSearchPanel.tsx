@@ -43,6 +43,7 @@ import { useAppI18n } from "../../shared/i18n";
 import { sortSetnameEntries, type SetnameEntry } from "../card/setnameEntries";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StandardCardAdvancedSearchPanel.module.css";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
 
 interface CardAdvancedSearchPanelProps {
   open: boolean;
@@ -174,17 +175,13 @@ export function CardAdvancedSearchPanel({
     return () => window.clearTimeout(handle);
   }, [descContains, filters]);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+  useBackNavigation({
+    enabled: open,
+    priority: 650,
+    onBack: () => {
+      onClose();
+    },
+  });
 
   const selectedSetcodes = filters?.setcodes ?? [];
   const filteredSetnames = useMemo(() => {

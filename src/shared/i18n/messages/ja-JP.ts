@@ -10,6 +10,7 @@ export const JA_MESSAGES: AppMessages = {
   "action.close": "閉じる",
   "action.create": "作成",
   "action.delete": "削除",
+  "action.discard": "破棄",
   "action.edit": "編集",
   "action.export": "エクスポート",
   "action.import": "インポート",
@@ -17,6 +18,7 @@ export const JA_MESSAGES: AppMessages = {
   "action.reload": "再読み込み",
   "action.save": "保存",
   "action.settings": "設定",
+  "action.keepEditing": "編集を続ける",
   "action.working": "処理中…",
 
   // ── App ──
@@ -220,6 +222,8 @@ export const JA_MESSAGES: AppMessages = {
   "common.base": "ベース {base}",
   "common.cardCode": "カードNo. {code}",
   "common.count": "件数 {count}",
+  "common.discardChangesMessage": "ここで戻ると、未保存の変更は失われます。",
+  "common.discardChangesTitle": "未保存の変更を破棄しますか？",
   "common.error": "エラー",
   "common.key": "キー {key}",
   "common.language": "言語 {language}",

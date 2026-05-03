@@ -16,6 +16,8 @@ import {
 import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./WorkspaceModal.module.css";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
+import { requestClose, useCloseRequest } from "../../app/hooks/useBackNavigation";
 
 type WorkspaceView = "recent" | "create";
 
@@ -44,6 +46,8 @@ export function WorkspaceModal({
 }: WorkspaceModalProps) {
   const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
 
   const [view, setView] = useState<WorkspaceView>(currentWorkspace ? "recent" : "create");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -52,6 +56,33 @@ export function WorkspaceModal({
     name: "",
     description: "",
     path: "",
+  });
+  const hasUnsavedChanges =
+    openPath.trim().length > 0 ||
+    createForm.name.trim().length > 0 ||
+    createForm.description.trim().length > 0 ||
+    createForm.path.trim().length > 0;
+
+  function requestWorkspaceClose() {
+    if (busyAction !== null) return;
+    if (!hasUnsavedChanges) {
+      closeModal();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: closeModal,
+    });
+  }
+
+  useCloseRequest({
+    priority: 500,
+    onRequestClose: requestWorkspaceClose,
   });
 
   async function refreshRecent() {
@@ -113,7 +144,7 @@ export function WorkspaceModal({
     <>
       <header className={shared.modalHeader}>
         <h2>{t("workspace.title")}</h2>
-        <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
+        <button className={shared.modalCloseButton} type="button" onClick={() => requestClose()}>
           {t("action.close")}
         </button>
       </header>

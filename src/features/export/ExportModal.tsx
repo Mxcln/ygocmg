@@ -20,6 +20,8 @@ import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import exportStyles from "./ExportModal.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
+import { requestClose, useBackNavigation, useCloseRequest } from "../../app/hooks/useBackNavigation";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -35,6 +37,8 @@ export interface ExportModalProps {
 export function ExportModal({ config, onNotice }: ExportModalProps) {
   const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
   const workspaceId = useShellStore((s) => s.workspaceId);
   const openPackIds = useShellStore((s) => s.openPackIds);
   const packMetadataMap = useShellStore((s) => s.packMetadataMap);
@@ -167,6 +171,54 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
   const jobSucceeded = lastJob?.status === "succeeded";
   const jobFailed = lastJob?.status === "failed";
   const displayJob = activeJob ?? lastJob;
+  const canBackFromStep3 = !exporting && (!jobDone || jobFailed);
+  const hasUnsavedChanges =
+    !jobSucceeded &&
+    (step > 1 ||
+      selectedPackIds.length > 0 ||
+      exportLanguage.trim().length > 0 ||
+      outputDir.trim().length > 0 ||
+      outputName.trim().length > 0 ||
+      previewResult !== null ||
+      previewError !== null ||
+      activeJobId !== null ||
+      lastJob !== null);
+
+  function requestExportClose() {
+    if (busy !== null || exporting) return;
+    if (!hasUnsavedChanges) {
+      closeModal();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: closeModal,
+    });
+  }
+
+  useCloseRequest({
+    priority: 500,
+    onRequestClose: requestExportClose,
+  });
+
+  useBackNavigation({
+    enabled: step === 2 || (step === 3 && canBackFromStep3),
+    priority: 900,
+    onBack: () => {
+      if (step === 3) {
+        if (canBackFromStep3) {
+          handleBackFromStep3();
+        }
+        return;
+      }
+      handleBackFromStep2();
+    },
+  });
 
   return (
     <>
@@ -182,11 +234,11 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               2. {t("export.step.preview")}
             </span>
             <span className={shared.wizardStepSep}>&rsaquo;</span>
-            <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>
+          <span className={`${shared.wizardStep} ${step >= 3 ? "active" : ""} ${step === 3 ? "current" : ""}`}>
               3. {t("action.export")}
             </span>
           </div>
-          <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
+          <button className={shared.modalCloseButton} type="button" onClick={() => requestClose()}>
             {t("action.close")}
           </button>
         </div>
@@ -293,7 +345,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
             {previewError && <div className={shared.importErrorBanner}>{previewError}</div>}
 
             <div className={shared.formActions}>
-              <button type="button" className={shared.ghostButton} onClick={closeModal}>
+              <button type="button" className={shared.ghostButton} onClick={() => requestClose()}>
                 {t("action.cancel")}
               </button>
               <button
@@ -456,7 +508,7 @@ export function ExportModal({ config, onNotice }: ExportModalProps) {
               )}
 
               {jobSucceeded && (
-                <button type="button" className={shared.primaryButton} onClick={closeModal}>
+                <button type="button" className={shared.primaryButton} onClick={() => requestClose()}>
                   {t("job.status.succeeded")}
                 </button>
               )}

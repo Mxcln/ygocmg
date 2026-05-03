@@ -8,6 +8,7 @@ export const EN_MESSAGES = {
   "action.close": "Close",
   "action.create": "Create",
   "action.delete": "Delete",
+  "action.discard": "Discard",
   "action.edit": "Edit",
   "action.export": "Export",
   "action.import": "Import",
@@ -15,6 +16,7 @@ export const EN_MESSAGES = {
   "action.reload": "Reload",
   "action.save": "Save",
   "action.settings": "Settings",
+  "action.keepEditing": "Keep Editing",
   "action.working": "Working...",
 
   // ── App ──
@@ -218,6 +220,8 @@ export const EN_MESSAGES = {
   "common.base": "Base {base}",
   "common.cardCode": "Card code {code}",
   "common.count": "Count {count}",
+  "common.discardChangesMessage": "Your unsaved changes will be lost if you go back now.",
+  "common.discardChangesTitle": "Discard unsaved changes?",
   "common.error": "Error",
   "common.key": "Key {key}",
   "common.language": "Language {language}",

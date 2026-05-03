@@ -5,6 +5,7 @@ import { formatIssueDetail } from "../../shared/utils/messages";
 import { useAppI18n } from "../../shared/i18n";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./AppDialog.module.css";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
 
 export function AppDialog() {
   const { t } = useAppI18n();
@@ -31,16 +32,17 @@ export function AppDialog() {
 
   const canClose = !busy;
 
+  useBackNavigation({
+    priority: 1000,
+    onBack: () => {
+      if (canClose) {
+        closeDialog();
+      }
+    },
+  });
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        if (canClose) {
-          event.preventDefault();
-          closeDialog();
-        }
-        return;
-      }
-
       if (event.key === "Enter") {
         const target = event.target;
         if (
@@ -58,7 +60,7 @@ export function AppDialog() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canClose, closeDialog, dialog]);
+  }, [dialog]);
 
   return (
     <div className={styles.dialogLayer}>

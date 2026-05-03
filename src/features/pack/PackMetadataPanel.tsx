@@ -12,6 +12,8 @@ import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import type { NoticeTone } from "../../app/NoticeBanner";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./PackMetadataPanel.module.css";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
 
 interface PackMetadataPanelProps {
   config: GlobalConfig;
@@ -60,6 +62,26 @@ export function PackMetadataPanel({
   const summaryDetail = metadata
     ? `${metadata.author} · v${metadata.version} · ${preferredTextLanguages}`
     : t("pack.metadata.loading");
+  const metaDraftDirty =
+    Boolean(metaEditing && metaDraft && metadata) &&
+    JSON.stringify({
+      name: metaDraft?.name ?? "",
+      packCode: metaDraft?.packCode ?? "",
+      author: metaDraft?.author ?? "",
+      version: metaDraft?.version ?? "",
+      description: metaDraft?.description ?? "",
+      displayLanguageOrder: metaDraft?.displayLanguageOrder ?? [],
+      defaultExportLanguage: metaDraft?.defaultExportLanguage ?? "",
+    }) !==
+      JSON.stringify({
+        name: metadata?.name ?? "",
+        packCode: metadata?.pack_code ?? "",
+        author: metadata?.author ?? "",
+        version: metadata?.version ?? "",
+        description: metadata?.description ?? "",
+        displayLanguageOrder: metadata?.display_language_order ?? [],
+        defaultExportLanguage: metadata?.default_export_language ?? "",
+      });
 
   function handleStartEdit() {
     if (!metadata) return;
@@ -79,6 +101,35 @@ export function PackMetadataPanel({
     setMetaEditing(false);
     setMetaDraft(null);
   }
+
+  function requestMetadataClose() {
+    if (!metaExpanded) return;
+    if (!metaEditing) {
+      setMetaExpanded(false);
+      return;
+    }
+    if (!metaDraftDirty) {
+      handleCancelEdit();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: handleCancelEdit,
+    });
+  }
+
+  useBackNavigation({
+    enabled: metaExpanded,
+    priority: 600,
+    onBack: () => {
+      requestMetadataClose();
+    },
+  });
 
   async function handleSave() {
     if (!packId || !metaDraft) return;
@@ -157,7 +208,13 @@ export function PackMetadataPanel({
         <button
           type="button"
           className={styles.metaToggle}
-          onClick={() => setMetaExpanded(!metaExpanded)}
+          onClick={() => {
+            if (metaExpanded) {
+              requestMetadataClose();
+              return;
+            }
+            setMetaExpanded(true);
+          }}
           aria-label={metaExpanded ? t("pack.metadata.collapse") : t("pack.metadata.expand")}
         >
           <svg
@@ -180,7 +237,7 @@ export function PackMetadataPanel({
             <div
               className={styles.drawerBackdrop}
               onClick={() => {
-                if (!metaEditing) setMetaExpanded(false);
+                requestMetadataClose();
               }}
             />
             <div className={styles.expanded}>

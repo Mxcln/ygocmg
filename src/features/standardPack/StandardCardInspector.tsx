@@ -11,6 +11,7 @@ import drawerStyles from "../card/CardEditDrawer.module.css";
 import assetStyles from "../card/CardAssetBar.module.css";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StandardCardInspector.module.css";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
 
 interface StandardCardInspectorProps {
   code: number;
@@ -26,6 +27,13 @@ function textLanguages(card: CardEntity, available: string[]): string[] {
 export function StandardCardInspector({ code, onClose }: StandardCardInspectorProps) {
   const { t } = useAppI18n();
   const [activeTab, setActiveTab] = useState<InspectorTab>("text");
+
+  useBackNavigation({
+    priority: 500,
+    onBack: () => {
+      onClose();
+    },
+  });
 
   const { data: detail, isLoading, error } = useQuery({
     queryKey: ["standard-card", code],

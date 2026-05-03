@@ -44,6 +44,7 @@ import {
 import { sortSetnameEntries, type SetnameEntry } from "./setnameEntries";
 
 import styles from "./CardInfoForm.module.css";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
 
 export type { SetnameEntry } from "./setnameEntries";
 
@@ -94,6 +95,21 @@ export function CardInfoForm({ draft, onChange, readonly = false, setnameEntries
   const selectedCategoryOptions = CARD_CATEGORY_OPTIONS.filter((option) =>
     hasCardCategoryMask(normalizedCategory, option.mask),
   );
+
+  useBackNavigation({
+    enabled: setcodePickerOpen || categoryPickerOpen,
+    priority: 700,
+    onBack: () => {
+      if (setcodePickerOpen) {
+        setSetcodePickerOpen(false);
+        setSetcodeSearch("");
+        return;
+      }
+      if (categoryPickerOpen) {
+        setCategoryPickerOpen(false);
+      }
+    },
+  });
 
   useEffect(() => {
     setCategoryRawInput(categoryRawDisplay);

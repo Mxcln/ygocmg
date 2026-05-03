@@ -15,6 +15,8 @@ import { CardAssetBar } from "./CardAssetBar";
 import { CardInfoForm } from "./CardInfoForm";
 import { CardTextForm } from "./CardTextForm";
 import { useMergedSetnameEntries } from "./useMergedSetnameEntries";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
 
 interface CardEditDrawerProps {
   packId: string;
@@ -34,6 +36,28 @@ const EMPTY_ASSET_STATE: CardAssetState = {
 };
 
 const EMPTY_STRINGS = Array.from({ length: 16 }, () => "");
+
+function serializeEditableCard(card: CardEntity): string {
+  return JSON.stringify({
+    code: card.code,
+    alias: card.alias,
+    setcodes: card.setcodes,
+    ot: card.ot,
+    category: card.category,
+    primary_type: card.primary_type,
+    texts: card.texts,
+    monster_flags: card.monster_flags,
+    atk: card.atk,
+    def: card.def,
+    race: card.race,
+    attribute: card.attribute,
+    level: card.level,
+    pendulum: card.pendulum,
+    link: card.link,
+    spell_subtype: card.spell_subtype,
+    trap_subtype: card.trap_subtype,
+  });
+}
 
 function makeBlankCard(suggestedCode: number, defaultLang: string): CardEntity {
   return {
@@ -82,6 +106,7 @@ export function CardEditDrawer({
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [closing, setClosing] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const initialDraftSnapshotRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
 
   const activeMeta = useShellStore((s) =>
@@ -114,11 +139,15 @@ export function CardEditDrawer({
       cardApi
         .suggestCardCode({ workspaceId, packId, preferredStart: null })
         .then((result) => {
-          setDraft(makeBlankCard(result.suggested_code ?? 100000000, defaultLang));
+          const blank = makeBlankCard(result.suggested_code ?? 100000000, defaultLang);
+          initialDraftSnapshotRef.current = serializeEditableCard(blank);
+          setDraft(blank);
           if (result.warnings.length > 0) setWarnings(result.warnings);
         })
         .catch((err) => {
-          setDraft(makeBlankCard(100000000, defaultLang));
+          const blank = makeBlankCard(100000000, defaultLang);
+          initialDraftSnapshotRef.current = serializeEditableCard(blank);
+          setDraft(blank);
           setErrorMsg(formatError(err));
         });
     }
@@ -129,6 +158,7 @@ export function CardEditDrawer({
       setDraft(cardDetail.card);
       setAssetState(cardDetail.asset_state);
       setPackPath(cardDetail.pack_path);
+      initialDraftSnapshotRef.current = serializeEditableCard(cardDetail.card);
     }
   }, [cardDetail]);
 
@@ -153,6 +183,35 @@ export function CardEditDrawer({
       onClose();
     }, 180);
   }
+
+  const draftDirty =
+    draft !== null &&
+    initialDraftSnapshotRef.current !== null &&
+    serializeEditableCard(draft) !== initialDraftSnapshotRef.current;
+
+  function requestDrawerClose() {
+    if (saving || deleting || closing) return;
+    if (!draftDirty) {
+      handleAnimatedClose();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: handleAnimatedClose,
+    });
+  }
+
+  useBackNavigation({
+    priority: 500,
+    onBack: () => {
+      requestDrawerClose();
+    },
+  });
 
   function applySavedDetail(detail: CardDetail) {
     setDraft(detail.card);
@@ -207,6 +266,7 @@ export function CardEditDrawer({
           setWarnings(result.warnings);
         }
         applySavedDetail(result.data);
+        initialDraftSnapshotRef.current = serializeEditableCard(result.data.card);
         onSaved();
         handleAnimatedClose();
       } else {
@@ -225,6 +285,7 @@ export function CardEditDrawer({
               });
               setWarnings([]);
               applySavedDetail(detail);
+              initialDraftSnapshotRef.current = serializeEditableCard(detail.card);
               closeDialog();
               onSaved();
               handleAnimatedClose();
@@ -257,7 +318,7 @@ export function CardEditDrawer({
       onConfirm: async () => {
         setDeleting(true);
         setErrorMsg(null);
-        try {
+      try {
           const result = await cardApi.deleteCard({ workspaceId, packId, cardId: deleteCardId });
           if (result.status !== "ok") {
             throw new Error(t("card.delete.unsupportedState"));
@@ -278,7 +339,7 @@ export function CardEditDrawer({
 
   return (
     <>
-      <div className={styles.cardEditBackdrop} onClick={handleAnimatedClose} />
+      <div className={styles.cardEditBackdrop} onClick={requestDrawerClose} />
       <div
         ref={drawerRef}
         className={`${styles.cardEditDrawer} ${closing ? "closing" : ""}`}
@@ -288,7 +349,7 @@ export function CardEditDrawer({
             <button
               type="button"
               className={shared.ghostButton}
-              onClick={handleAnimatedClose}
+              onClick={requestDrawerClose}
             >
               {t("action.close")}
             </button>

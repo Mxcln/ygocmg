@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { importApi } from "../../shared/api/importApi";
 import { packApi } from "../../shared/api/packApi";
 import { jobApi } from "../../shared/api/jobApi";
+import { useShellStore } from "../../shared/stores/shellStore";
 import { formatError, formatValidationIssue } from "../../shared/utils/format";
 import {
   formatIssueDetail,
@@ -22,6 +23,8 @@ import shared from "../../shared/styles/shared.module.css";
 import styles from "./ImportPackPanel.module.css";
 import { LanguageOrderEditor } from "../language/LanguageOrderEditor";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
+import { useBackNavigation, useCloseRequest } from "../../app/hooks/useBackNavigation";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -100,6 +103,8 @@ export function ImportPackPanel({
   closeModal,
 }: ImportPackPanelProps) {
   const { t } = useAppI18n();
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
   const [step, setStep] = useState<WizardStep>(1);
   const [sourceForm, setSourceForm] = useState<SourceForm>(() => emptySource(config));
   const [metadataForm, setMetadataForm] = useState<MetadataForm>(EMPTY_METADATA);
@@ -268,6 +273,52 @@ export function ImportPackPanel({
   const jobSucceeded = lastJob?.status === "succeeded";
   const jobFailed = lastJob?.status === "failed";
   const displayJob = activeJob ?? lastJob;
+  const canBackFromStep3 = !importing && lastJob?.status !== "succeeded";
+  const sourceDirty = JSON.stringify(sourceForm) !== JSON.stringify(emptySource(config));
+  const hasUnsavedChanges =
+    sourceDirty ||
+    step > 1 ||
+    previewResult !== null ||
+    previewError !== null ||
+    activeJobId !== null ||
+    lastJob !== null ||
+    openingPack;
+
+  function requestImportClose() {
+    if (busy !== null || openingPack || importing) return;
+    if (!hasUnsavedChanges) {
+      closeModal();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: closeModal,
+    });
+  }
+
+  useCloseRequest({
+    priority: 700,
+    onRequestClose: requestImportClose,
+  });
+
+  useBackNavigation({
+    enabled: step === 2 || (step === 3 && canBackFromStep3),
+    priority: 900,
+    onBack: () => {
+      if (step === 3) {
+        if (canBackFromStep3) {
+          handleBackFromStep3();
+        }
+        return;
+      }
+      setStep(1);
+    },
+  });
 
   return (
     <section className={styles.importPanel}>

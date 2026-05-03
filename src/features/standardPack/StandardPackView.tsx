@@ -22,6 +22,7 @@ import {
   countStandardCardFilters,
   standardCardFiltersKey,
 } from "./StandardCardAdvancedSearchPanel";
+import { useBackNavigation } from "../../app/hooks/useBackNavigation";
 import drawerStyles from "../card/CardEditDrawer.module.css";
 import shared from "../../shared/styles/shared.module.css";
 import styles from "./StandardPackView.module.css";
@@ -141,6 +142,14 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
     { field: "type" as const, direction: "asc" as const, label: t("card.sort.typeAsc") },
     { field: "type" as const, direction: "desc" as const, label: t("card.sort.typeDesc") },
   ];
+
+  useBackNavigation({
+    enabled: metaExpanded,
+    priority: 600,
+    onBack: () => {
+      setMetaExpanded(false);
+    },
+  });
 
   async function handleRebuild() {
     setRebuildError(null);

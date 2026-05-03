@@ -487,7 +487,11 @@ export function StringsBrowserPanel({
                   onChange={(e) => setPageDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitPageDraft();
-                    if (e.key === "Escape") setPageDraft(String(page));
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setPageDraft(String(page));
+                    }
                   }}
                   onBlur={commitPageDraft}
                   aria-label={t("pagination.jumpToPage")}

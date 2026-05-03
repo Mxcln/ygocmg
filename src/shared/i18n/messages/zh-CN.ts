@@ -10,6 +10,7 @@ export const ZH_MESSAGES: AppMessages = {
   "action.close": "关闭",
   "action.create": "创建",
   "action.delete": "删除",
+  "action.discard": "丢弃",
   "action.edit": "编辑",
   "action.export": "导出",
   "action.import": "导入",
@@ -17,6 +18,7 @@ export const ZH_MESSAGES: AppMessages = {
   "action.reload": "重新加载",
   "action.save": "保存",
   "action.settings": "设置",
+  "action.keepEditing": "继续编辑",
   "action.working": "处理中…",
 
   // ── App ──
@@ -220,6 +222,8 @@ export const ZH_MESSAGES: AppMessages = {
   "common.base": "基值 {base}",
   "common.cardCode": "卡片密码 {code}",
   "common.count": "数量 {count}",
+  "common.discardChangesMessage": "如果现在返回，未保存的更改将会丢失。",
+  "common.discardChangesTitle": "丢弃未保存的更改？",
   "common.error": "错误",
   "common.key": "键 {key}",
   "common.language": "语言 {language}",

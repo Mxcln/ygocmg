@@ -15,6 +15,8 @@ import {
 import shared from "../../shared/styles/shared.module.css";
 import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import styles from "./SettingsModal.module.css";
+import { promptDiscardChanges } from "../../shared/utils/discardChanges";
+import { requestClose, useCloseRequest } from "../../app/hooks/useBackNavigation";
 
 type SettingsTab = "general" | "languages" | "standardPack" | "codePolicy";
 
@@ -33,6 +35,8 @@ export interface SettingsModalProps {
 export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModalProps) {
   const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
+  const openDialog = useShellStore((s) => s.openDialog);
+  const closeDialog = useShellStore((s) => s.closeDialog);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [draft, setDraft] = useState<GlobalConfig>(config);
@@ -44,7 +48,32 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
   });
 
   const dirty = JSON.stringify(config) !== JSON.stringify(draft);
+  const pendingCustomLanguage =
+    customLanguage.id.trim().length > 0 || customLanguage.label.trim().length > 0;
+  const hasUnsavedChanges = dirty || pendingCustomLanguage;
   const visibleLanguages = visibleTextLanguages(draft.text_language_catalog);
+
+  function requestSettingsClose() {
+    if (busyAction !== null) return;
+    if (!hasUnsavedChanges) {
+      closeModal();
+      return;
+    }
+    promptDiscardChanges({
+      title: t("common.discardChangesTitle"),
+      message: t("common.discardChangesMessage"),
+      confirmLabel: t("action.discard"),
+      cancelLabel: t("action.keepEditing"),
+      openDialog,
+      closeDialog,
+      onDiscard: closeModal,
+    });
+  }
+
+  useCloseRequest({
+    priority: 500,
+    onRequestClose: requestSettingsClose,
+  });
 
   async function handleSave() {
     setBusyAction("save");
@@ -126,7 +155,7 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
           >
             {busyAction === "save" ? t("settings.saving") : t("settings.save")}
           </button>
-          <button className={shared.modalCloseButton} type="button" onClick={closeModal}>
+          <button className={shared.modalCloseButton} type="button" onClick={() => requestClose()}>
             {t("action.close")}
           </button>
         </div>
