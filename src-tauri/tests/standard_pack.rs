@@ -9,9 +9,9 @@ use ygocmg_core::application::dto::export::PreviewExportBundleInput;
 use ygocmg_core::application::dto::job::{GetJobStatusInput, JobStatusDto};
 use ygocmg_core::application::dto::standard_pack::{
     CardFilterMatchModeDto, GetStandardCardInput, ListStandardSetnamesInput, NumericRangeFilterDto,
-    SearchStandardCardsInput, SearchStandardStringsInput, SetcodeFilterModeDto,
-    StandardCardSearchFiltersDto, StandardCardSortFieldDto, StandardPackIndexStateDto,
-    StandardStringSortFieldDto,
+    OpenStandardScriptExternalInput, SearchStandardCardsInput, SearchStandardStringsInput,
+    SetcodeFilterModeDto, StandardCardSearchFiltersDto, StandardCardSortFieldDto,
+    StandardPackIndexStateDto, StandardStringSortFieldDto,
 };
 use ygocmg_core::application::dto::strings::{
     PackStringRecordDto, PackStringValueDto, UpsertPackStringRecordInput,
@@ -87,6 +87,34 @@ fn rebuild_index_reads_cdb_and_supports_search_and_detail() {
         .unwrap();
     assert_eq!(detail.card.texts["zh-CN"].name, "Alpha Dragon");
     assert!(detail.asset_state.has_script);
+}
+
+#[test]
+fn standard_script_can_be_opened_in_external_editor() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_test_cdb(
+        &root.path().join("cards.cdb"),
+        &[(100, "Alpha Dragon", 0x1 | 0x20)],
+    )
+    .unwrap();
+    fs::create_dir_all(root.path().join("script")).unwrap();
+    fs::write(root.path().join("script").join("c100.lua"), "-- test").unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let mut config = ygocmg_core::domain::config::rules::default_global_config();
+    config.external_text_editor_path = Some(std::env::current_exe().unwrap());
+    app_commands::save_config(&state, &config).unwrap();
+
+    app_commands::open_standard_script_external(
+        &state,
+        OpenStandardScriptExternalInput { code: 100 },
+    )
+    .unwrap();
 }
 
 #[test]

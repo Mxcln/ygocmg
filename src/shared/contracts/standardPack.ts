@@ -61,6 +61,10 @@ export interface GetStandardCardInput {
   code: number;
 }
 
+export interface OpenStandardScriptExternalInput {
+  code: number;
+}
+
 export interface StandardCardDetail {
   card: CardEntity;
   asset_state: CardAssetState;

@@ -16,8 +16,8 @@ use crate::application::dto::resource::{
     ImportFieldImageInput, ImportMainImageInput, ImportScriptInput, OpenScriptExternalInput,
 };
 use crate::application::dto::standard_pack::{
-    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
-    SearchStandardStringsInput,
+    GetStandardCardInput, ListStandardSetnamesInput, OpenStandardScriptExternalInput,
+    SearchStandardCardsInput, SearchStandardStringsInput,
 };
 use crate::application::dto::strings::{
     ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
@@ -484,6 +484,14 @@ pub fn get_standard_card(
     input: GetStandardCardInput,
 ) -> CommandResult<crate::application::dto::standard_pack::StandardCardDetailDto> {
     crate::presentation::commands::app_commands::get_standard_card(&state, input)
+}
+
+#[tauri::command]
+pub fn open_standard_script_external(
+    state: State<'_, AppState>,
+    input: OpenStandardScriptExternalInput,
+) -> CommandResult<()> {
+    crate::presentation::commands::app_commands::open_standard_script_external(&state, input)
 }
 
 #[tauri::command]

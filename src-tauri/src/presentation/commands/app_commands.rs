@@ -18,8 +18,9 @@ use crate::application::dto::resource::{
     OpenScriptExternalInput,
 };
 use crate::application::dto::standard_pack::{
-    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
-    StandardCardDetailDto, StandardCardPageDto, StandardPackStatusDto, StandardSetnameEntryDto,
+    GetStandardCardInput, ListStandardSetnamesInput, OpenStandardScriptExternalInput,
+    SearchStandardCardsInput, StandardCardDetailDto, StandardCardPageDto, StandardPackStatusDto,
+    StandardSetnameEntryDto,
 };
 use crate::application::dto::strings::{
     ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
@@ -412,6 +413,14 @@ pub fn get_standard_card(
     input: GetStandardCardInput,
 ) -> AppResult<StandardCardDetailDto> {
     crate::application::standard_pack::service::StandardPackService::new(state).get_card(input)
+}
+
+pub fn open_standard_script_external(
+    state: &AppState,
+    input: OpenStandardScriptExternalInput,
+) -> AppResult<()> {
+    crate::application::standard_pack::service::StandardPackService::new(state)
+        .open_script_external(input)
 }
 
 pub fn list_standard_setnames(

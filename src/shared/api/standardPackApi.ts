@@ -2,6 +2,7 @@ import { invokeApi } from "./invoke";
 import type {
   GetStandardCardInput,
   ListStandardSetnamesInput,
+  OpenStandardScriptExternalInput,
   SearchStandardCardsInput,
   SearchStandardStringsInput,
   StandardCardDetail,
@@ -31,6 +32,10 @@ export const standardPackApi = {
 
   getCard(input: GetStandardCardInput) {
     return invokeApi<StandardCardDetail>("get_standard_card", { input });
+  },
+
+  openScriptExternal(input: OpenStandardScriptExternalInput) {
+    return invokeApi<void>("open_standard_script_external", { input });
   },
 
   listSetnames(input: ListStandardSetnamesInput) {

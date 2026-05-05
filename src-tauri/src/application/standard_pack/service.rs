@@ -1,8 +1,8 @@
 use crate::application::dto::job::{JobAcceptedDto, JobKindDto};
 use crate::application::dto::standard_pack::{
-    GetStandardCardInput, ListStandardSetnamesInput, SearchStandardCardsInput,
-    SearchStandardStringsInput, StandardCardDetailDto, StandardCardPageDto, StandardPackStatusDto,
-    StandardSetnameEntryDto, StandardStringsPageDto,
+    GetStandardCardInput, ListStandardSetnamesInput, OpenStandardScriptExternalInput,
+    SearchStandardCardsInput, SearchStandardStringsInput, StandardCardDetailDto,
+    StandardCardPageDto, StandardPackStatusDto, StandardSetnameEntryDto, StandardStringsPageDto,
 };
 use crate::application::standard_pack::repository::{
     SqliteStandardPackRepository, StandardPackRepository,
@@ -88,6 +88,29 @@ impl<'a> StandardPackService<'a> {
 
     pub fn get_card(&self, input: GetStandardCardInput) -> AppResult<StandardCardDetailDto> {
         self.repository().get_card(input)
+    }
+
+    pub fn open_script_external(&self, input: OpenStandardScriptExternalInput) -> AppResult<()> {
+        let detail = self
+            .repository()
+            .get_card(GetStandardCardInput { code: input.code })?;
+        let ygopro_path = std::path::PathBuf::from(&detail.ygopro_path);
+        let source = crate::infrastructure::standard_pack::discover_source(&ygopro_path)?;
+        let script_path = source
+            .ygopro_path
+            .join("script")
+            .join(format!("c{}.lua", input.code));
+        if !script_path.exists() {
+            return Err(
+                AppError::new("resource.script_missing", "script file does not exist")
+                    .with_detail("path", script_path.display().to_string()),
+            );
+        }
+
+        crate::application::resource::service::open_script_in_external_editor(
+            self.state,
+            &script_path,
+        )
     }
 
     pub fn search_strings(

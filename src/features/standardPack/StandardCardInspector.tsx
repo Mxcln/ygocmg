@@ -4,6 +4,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { standardPackApi } from "../../shared/api/standardPackApi";
 import { configApi } from "../../shared/api/configApi";
 import type { CardEntity } from "../../shared/contracts/card";
+import { formatError } from "../../shared/utils/format";
 import { CardInfoForm } from "../card/CardInfoForm";
 import { CardTextForm } from "../card/CardTextForm";
 import { useAppI18n } from "../../shared/i18n";
@@ -27,11 +28,26 @@ function textLanguages(card: CardEntity, available: string[]): string[] {
 export function StandardCardInspector({ code, onClose }: StandardCardInspectorProps) {
   const { t } = useAppI18n();
   const [activeTab, setActiveTab] = useState<InspectorTab>("text");
+  const [closing, setClosing] = useState(false);
+  const [openingScript, setOpeningScript] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function handleAnimatedClose() {
+    setClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 180);
+  }
+
+  function requestInspectorClose() {
+    if (closing) return;
+    handleAnimatedClose();
+  }
 
   useBackNavigation({
     priority: 500,
     onBack: () => {
-      onClose();
+      requestInspectorClose();
     },
   });
 
@@ -51,13 +67,27 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
     ? `${convertFileSrc(`${detail.ygopro_path}/pics/${code}.jpg`)}?standard=${code}`
     : null;
 
+  async function handleOpenScript() {
+    setOpeningScript(true);
+    setActionError(null);
+    try {
+      await standardPackApi.openScriptExternal({ code });
+    } catch (err) {
+      setActionError(formatError(err));
+    } finally {
+      setOpeningScript(false);
+    }
+  }
+
   return (
     <>
-      <div className={drawerStyles.cardEditBackdrop} onClick={onClose} />
-      <div className={drawerStyles.cardEditDrawer}>
+      <div className={drawerStyles.cardEditBackdrop} onClick={requestInspectorClose} />
+      <div
+        className={`${drawerStyles.cardEditDrawer} ${closing ? "closing" : ""}`}
+      >
         <div className={drawerStyles.cardEditHeader}>
           <div className={drawerStyles.cardEditHeaderLeft}>
-            <button type="button" className={shared.ghostButton} onClick={onClose}>
+            <button type="button" className={shared.ghostButton} onClick={requestInspectorClose}>
               {t("action.close")}
             </button>
             <div className={styles.inspectorTitle}>
@@ -71,6 +101,9 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
 
         {error && (
           <div className={drawerStyles.cardEditError}>{t("standard.card.failed")}</div>
+        )}
+        {actionError && (
+          <div className={drawerStyles.cardEditError}>{actionError}</div>
         )}
 
         {isLoading && !card ? (
@@ -86,10 +119,22 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
               <div className={styles.assetReadonlyGrid}>
                 <span>{t("card.asset.image")}</span>
                 <strong>{detail.asset_state.has_image ? t("common.present") : t("common.missing")}</strong>
+                <span className={styles.assetActionSpacer} aria-hidden="true" />
+
                 <span>{t("card.asset.script")}</span>
                 <strong>{detail.asset_state.has_script ? t("common.present") : t("common.missing")}</strong>
+                <button
+                  type="button"
+                  className={styles.assetInlineButton}
+                  onClick={() => void handleOpenScript()}
+                  disabled={!detail.asset_state.has_script || openingScript}
+                >
+                  {openingScript ? t("action.working") : t("action.open")}
+                </button>
+
                 <span>{t("card.asset.field")}</span>
                 <strong>{detail.asset_state.has_field_image ? t("common.present") : t("common.missing")}</strong>
+                <span className={styles.assetActionSpacer} aria-hidden="true" />
               </div>
             </div>
 

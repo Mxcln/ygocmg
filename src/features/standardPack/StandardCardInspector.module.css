@@ -38,7 +38,7 @@
 
 .assetReadonlyGrid {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr) auto;
   gap: 7px 10px;
   padding: 10px;
   border: 1px solid var(--line);
@@ -56,4 +56,34 @@
 .assetReadonlyGrid strong {
   color: var(--text-1);
   font-size: 12px;
+}
+
+.assetActionSpacer {
+  min-width: 0;
+}
+
+.assetInlineButton {
+  justify-self: end;
+  min-width: 54px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 80ms, border-color 80ms, color 80ms;
+}
+
+.assetInlineButton:hover:not(:disabled) {
+  background: var(--bg-2);
+  border-color: var(--line-strong);
+  color: var(--text-0);
+}
+
+.assetInlineButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

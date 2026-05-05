@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::Command;
 
 use crate::application::dto::common::WriteResultDto;
@@ -112,21 +113,6 @@ impl<'a> ResourceService<'a> {
             .find(|card| card.id == input.card_id)
             .ok_or_else(|| AppError::new("card.not_found", "card was not found"))?;
 
-        let config = crate::application::config::service::ConfigService::new(self.state).load()?;
-        let editor_path = config.external_text_editor_path.ok_or_else(|| {
-            AppError::new(
-                "resource.external_editor_not_configured",
-                "external text editor path is not configured",
-            )
-        })?;
-        if !editor_path.exists() {
-            return Err(AppError::new(
-                "resource.external_editor_missing",
-                "external text editor executable does not exist",
-            )
-            .with_detail("path", editor_path.display().to_string()));
-        }
-
         let script_path =
             crate::domain::resource::path_rules::script_path(&snapshot.pack_path, card.code);
         if !script_path.exists() {
@@ -136,16 +122,38 @@ impl<'a> ResourceService<'a> {
             );
         }
 
-        Command::new(&editor_path)
-            .arg(&script_path)
-            .spawn()
-            .map_err(|source| {
-                AppError::from_io("resource.external_editor_launch_failed", source)
-                    .with_detail("editor_path", editor_path.display().to_string())
-                    .with_detail("script_path", script_path.display().to_string())
-            })?;
-        Ok(())
+        open_script_in_external_editor(self.state, &script_path)
     }
+}
+
+pub(crate) fn open_script_in_external_editor(
+    state: &AppState,
+    script_path: &Path,
+) -> AppResult<()> {
+    let config = crate::application::config::service::ConfigService::new(state).load()?;
+    let editor_path = config.external_text_editor_path.ok_or_else(|| {
+        AppError::new(
+            "resource.external_editor_not_configured",
+            "external text editor path is not configured",
+        )
+    })?;
+    if !editor_path.exists() {
+        return Err(AppError::new(
+            "resource.external_editor_missing",
+            "external text editor executable does not exist",
+        )
+        .with_detail("path", editor_path.display().to_string()));
+    }
+
+    Command::new(&editor_path)
+        .arg(script_path)
+        .spawn()
+        .map_err(|source| {
+            AppError::from_io("resource.external_editor_launch_failed", source)
+                .with_detail("editor_path", editor_path.display().to_string())
+                .with_detail("script_path", script_path.display().to_string())
+        })?;
+    Ok(())
 }
 
 fn ok_state(

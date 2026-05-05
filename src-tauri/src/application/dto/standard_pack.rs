@@ -82,6 +82,12 @@ pub struct GetStandardCardInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenStandardScriptExternalInput {
+    pub code: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StandardCardDetailDto {
     pub card: EditableCardDto,
     pub asset_state: CardAssetState,
