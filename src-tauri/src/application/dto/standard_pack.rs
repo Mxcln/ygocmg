@@ -16,6 +16,9 @@ pub enum StandardCardSortFieldDto {
     Code,
     Name,
     Type,
+    Atk,
+    Def,
+    Level,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

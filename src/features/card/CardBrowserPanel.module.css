@@ -65,6 +65,43 @@
   background: var(--bg-2);
 }
 
+.sortHeaderButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sortHeaderButton:hover,
+.sortHeaderButton[data-active] {
+  color: var(--text-1);
+}
+
+.sortHeaderButton:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sortHeaderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 8px;
+  height: 8px;
+  color: var(--brand);
+}
+
 .cardListScrollArea {
   flex: 1;
   min-height: 0;

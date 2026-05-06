@@ -3,6 +3,7 @@ import type {
   CardEntity,
   CardFilterMatchMode,
   CardListRow,
+  CardSortField,
   CardSearchFilters,
   NumericRangeFilter,
   SetcodeFilterMode,
@@ -11,7 +12,7 @@ import type {
 import type { JobAccepted } from "./job";
 import type { PackStringEntry, PackStringKind } from "./strings";
 
-export type StandardCardSortField = "code" | "name" | "type";
+export type StandardCardSortField = CardSortField;
 export type StandardStringSortField = "kind" | "key" | "value";
 export type { CardFilterMatchMode, NumericRangeFilter, SetcodeFilterMode };
 export type StandardCardSearchFilters = CardSearchFilters;

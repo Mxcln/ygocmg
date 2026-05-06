@@ -14,6 +14,10 @@ use crate::domain::resource::model::CardAssetState;
 pub enum CardSortFieldDto {
     Code,
     Name,
+    Type,
+    Atk,
+    Def,
+    Level,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::application::dto::card::{
@@ -58,14 +59,9 @@ impl<'a> CardService<'a> {
             .map(|(row, _)| CardListRowDto::from(row.clone()))
             .collect::<Vec<_>>();
 
-        match input.sort_by {
-            CardSortFieldDto::Code => rows.sort_by(|left, right| left.code.cmp(&right.code)),
-            CardSortFieldDto::Name => rows.sort_by(|left, right| left.name.cmp(&right.name)),
-        }
-
-        if matches!(input.sort_direction, SortDirectionDto::Desc) {
-            rows.reverse();
-        }
+        rows.sort_by(|left, right| {
+            compare_card_list_rows(left, right, &input.sort_by, &input.sort_direction)
+        });
 
         let page_size = input.page_size.max(1);
         let page = input.page.max(1);
@@ -228,6 +224,93 @@ impl<'a> CardService<'a> {
                 )
             })
             .collect()
+    }
+}
+
+fn compare_card_list_rows(
+    left: &CardListRowDto,
+    right: &CardListRowDto,
+    sort_by: &CardSortFieldDto,
+    sort_direction: &SortDirectionDto,
+) -> Ordering {
+    match sort_by {
+        CardSortFieldDto::Code => compare_u32(left.code, right.code, sort_direction),
+        CardSortFieldDto::Name => compare_text(&left.name, &right.name, sort_direction)
+            .then_with(|| compare_u32(left.code, right.code, sort_direction)),
+        CardSortFieldDto::Type => {
+            compare_primary_type(&left.primary_type, &right.primary_type, sort_direction)
+                .then_with(|| {
+                    compare_text(
+                        &left.subtype_display,
+                        &right.subtype_display,
+                        sort_direction,
+                    )
+                })
+                .then_with(|| compare_u32(left.code, right.code, sort_direction))
+        }
+        CardSortFieldDto::Atk => compare_nullable_i32(left.atk, right.atk, sort_direction)
+            .then_with(|| compare_u32(left.code, right.code, sort_direction)),
+        CardSortFieldDto::Def => compare_nullable_i32(left.def, right.def, sort_direction)
+            .then_with(|| compare_u32(left.code, right.code, sort_direction)),
+        CardSortFieldDto::Level => compare_nullable_i32(left.level, right.level, sort_direction)
+            .then_with(|| compare_u32(left.code, right.code, sort_direction)),
+    }
+}
+
+fn compare_u32(left: u32, right: u32, sort_direction: &SortDirectionDto) -> Ordering {
+    match sort_direction {
+        SortDirectionDto::Asc => left.cmp(&right),
+        SortDirectionDto::Desc => right.cmp(&left),
+    }
+}
+
+fn compare_u8(left: u8, right: u8, sort_direction: &SortDirectionDto) -> Ordering {
+    match sort_direction {
+        SortDirectionDto::Asc => left.cmp(&right),
+        SortDirectionDto::Desc => right.cmp(&left),
+    }
+}
+
+fn compare_text(left: &str, right: &str, sort_direction: &SortDirectionDto) -> Ordering {
+    match sort_direction {
+        SortDirectionDto::Asc => left.cmp(right),
+        SortDirectionDto::Desc => right.cmp(left),
+    }
+}
+
+fn compare_primary_type(
+    left: &crate::domain::card::model::PrimaryType,
+    right: &crate::domain::card::model::PrimaryType,
+    sort_direction: &SortDirectionDto,
+) -> Ordering {
+    compare_u8(
+        primary_type_rank(left),
+        primary_type_rank(right),
+        sort_direction,
+    )
+}
+
+fn primary_type_rank(value: &crate::domain::card::model::PrimaryType) -> u8 {
+    match value {
+        crate::domain::card::model::PrimaryType::Monster => 0,
+        crate::domain::card::model::PrimaryType::Spell => 1,
+        crate::domain::card::model::PrimaryType::Trap => 2,
+    }
+}
+
+fn compare_nullable_i32(
+    left: Option<i32>,
+    right: Option<i32>,
+    sort_direction: &SortDirectionDto,
+) -> Ordering {
+    match (left, right) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(_), None) => Ordering::Less,
+        (Some(left), Some(right)) => match sort_direction {
+            SortDirectionDto::Asc => left.cmp(&right),
+            SortDirectionDto::Desc => right.cmp(&left),
+        },
     }
 }
 

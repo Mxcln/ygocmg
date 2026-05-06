@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { CardListRow, SortDirection } from "../../shared/contracts/card";
+import type { CardListRow, CardSortField, SortDirection } from "../../shared/contracts/card";
 import { useAppI18n } from "../../shared/i18n";
 import { formatPrimaryType, formatSubtypeDisplayPart } from "../../shared/utils/cardLabels";
 import shared from "../../shared/styles/shared.module.css";
@@ -16,7 +16,7 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
-export type BrowserSortField = "code" | "name" | "type";
+export type BrowserSortField = CardSortField;
 
 export interface CardBrowserQuery {
   keyword: string;
@@ -78,6 +78,10 @@ function cardImageSrc(basePath: string, code: number, revision: number): string 
 
 function sortValue(field: BrowserSortField, direction: SortDirection): string {
   return `${field}:${direction}`;
+}
+
+function sortIconPath(direction: SortDirection): string {
+  return direction === "asc" ? "M4 1L1.5 4h5L4 1z" : "M1.5 4L4 7l2.5-3h-5z";
 }
 
 function buildPageNumbers(current: number, total: number): (number | "...")[] {
@@ -194,6 +198,14 @@ export function CardBrowserPanel({
       { field: "code", direction: "desc", label: t("card.sort.codeDesc") },
       { field: "name", direction: "asc", label: t("card.sort.nameAsc") },
       { field: "name", direction: "desc", label: t("card.sort.nameDesc") },
+      { field: "type", direction: "asc", label: t("card.sort.typeAsc") },
+      { field: "type", direction: "desc", label: t("card.sort.typeDesc") },
+      { field: "atk", direction: "asc", label: t("card.sort.atkAsc") },
+      { field: "atk", direction: "desc", label: t("card.sort.atkDesc") },
+      { field: "def", direction: "asc", label: t("card.sort.defAsc") },
+      { field: "def", direction: "desc", label: t("card.sort.defDesc") },
+      { field: "level", direction: "asc", label: t("card.sort.levelAsc") },
+      { field: "level", direction: "desc", label: t("card.sort.levelDesc") },
     ];
 
   const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
@@ -218,6 +230,38 @@ export function CardBrowserPanel({
     setSortBy(field);
     setSortDirection(direction);
     setPage(1);
+  }
+
+  function handleSortHeaderClick(field: BrowserSortField) {
+    setPage(1);
+    if (sortBy === field) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(field);
+    setSortDirection("asc");
+  }
+
+  function renderSortHeader(field: BrowserSortField, label: string) {
+    const active = sortBy === field;
+    return (
+      <button
+        type="button"
+        className={styles.sortHeaderButton}
+        data-active={active || undefined}
+        onClick={() => handleSortHeaderClick(field)}
+        title={label}
+      >
+        <span>{label}</span>
+        <span className={styles.sortHeaderIcon} aria-hidden="true">
+          {active ? (
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+              <path d={sortIconPath(sortDirection)} />
+            </svg>
+          ) : null}
+        </span>
+      </button>
+    );
   }
 
   function handlePageSizeChange(raw: string) {
@@ -298,13 +342,13 @@ export function CardBrowserPanel({
           <div className={styles.cardListScrollArea}>
             <div className={styles.cardListHeader}>
               <span />
-              <span>{t("card.list.code")}</span>
-              <span>{t("card.list.name")}</span>
-              <span>{t("card.list.type")}</span>
+              {renderSortHeader("code", t("card.list.code"))}
+              {renderSortHeader("name", t("card.list.name"))}
+              {renderSortHeader("type", t("card.list.type"))}
               <span>{t("card.list.subtype")}</span>
-              <span>{t("card.list.atk")}</span>
-              <span>{t("card.list.def")}</span>
-              <span>{t("card.list.levelShort")}</span>
+              {renderSortHeader("atk", t("card.list.atk"))}
+              {renderSortHeader("def", t("card.list.def"))}
+              {renderSortHeader("level", t("card.list.levelShort"))}
               <span />
             </div>
             <div className={styles.cardListBody}>

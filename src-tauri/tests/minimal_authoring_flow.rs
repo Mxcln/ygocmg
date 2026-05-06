@@ -973,6 +973,120 @@ fn custom_pack_list_cards_applies_advanced_filters() {
 }
 
 #[test]
+fn custom_pack_list_cards_supports_extended_sort_fields() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-custom-sort");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Sort Pack",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+
+    let mut dragon = search_card_input(
+        100_000_100,
+        "Dark Dragon Search",
+        "Can special summon.",
+        PrimaryType::Monster,
+    );
+    dragon.atk = Some(2400);
+    dragon.def = Some(1800);
+    dragon.level = Some(4);
+    dragon.monster_flags = Some(vec![MonsterFlag::Effect]);
+    create_custom_search_card(&state, &workspace.id, &pack.id, dragon);
+
+    let mut warrior = search_card_input(
+        100_000_200,
+        "Light Warrior Normal",
+        "A normal monster.",
+        PrimaryType::Monster,
+    );
+    warrior.atk = Some(1500);
+    warrior.def = Some(1200);
+    warrior.level = Some(4);
+    warrior.monster_flags = Some(vec![MonsterFlag::Normal]);
+    create_custom_search_card(&state, &workspace.id, &pack.id, warrior);
+
+    let mut spell = search_card_input(
+        100_000_300,
+        "Swift Spell",
+        "A quick-play spell.",
+        PrimaryType::Spell,
+    );
+    spell.spell_subtype = Some(SpellSubtype::QuickPlay);
+    create_custom_search_card(&state, &workspace.id, &pack.id, spell);
+
+    let mut trap = search_card_input(
+        100_000_400,
+        "Counter Trap",
+        "A counter trap.",
+        PrimaryType::Trap,
+    );
+    trap.trap_subtype = Some(TrapSubtype::Counter);
+    create_custom_search_card(&state, &workspace.id, &pack.id, trap);
+
+    let atk_page = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            keyword: None,
+            filters: None,
+            sort_by: CardSortFieldDto::Atk,
+            sort_direction: SortDirectionDto::Desc,
+            page: 1,
+            page_size: 10,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        atk_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![100_000_100, 100_000_200, 100_000_400, 100_000_300]
+    );
+
+    let type_page = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            keyword: None,
+            filters: None,
+            sort_by: CardSortFieldDto::Type,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 10,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        type_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![100_000_100, 100_000_200, 100_000_300, 100_000_400]
+    );
+}
+
+#[test]
 fn create_pack_uses_readable_storage_name_and_handles_collisions() {
     let app_dir = tempdir().unwrap();
     let workspace_root = tempdir().unwrap();

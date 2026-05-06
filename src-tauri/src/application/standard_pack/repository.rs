@@ -1069,6 +1069,24 @@ fn card_order_by(
         (StandardCardSortFieldDto::Type, SortDirectionDto::Desc) => {
             "r.primary_type desc, r.subtype_display desc, r.code desc"
         }
+        (StandardCardSortFieldDto::Atk, SortDirectionDto::Asc) => {
+            "case when r.atk is null then 1 else 0 end asc, r.atk asc, r.code asc"
+        }
+        (StandardCardSortFieldDto::Atk, SortDirectionDto::Desc) => {
+            "case when r.atk is null then 1 else 0 end asc, r.atk desc, r.code desc"
+        }
+        (StandardCardSortFieldDto::Def, SortDirectionDto::Asc) => {
+            "case when r.def is null then 1 else 0 end asc, r.def asc, r.code asc"
+        }
+        (StandardCardSortFieldDto::Def, SortDirectionDto::Desc) => {
+            "case when r.def is null then 1 else 0 end asc, r.def desc, r.code desc"
+        }
+        (StandardCardSortFieldDto::Level, SortDirectionDto::Asc) => {
+            "case when r.level is null then 1 else 0 end asc, r.level asc, r.code asc"
+        }
+        (StandardCardSortFieldDto::Level, SortDirectionDto::Desc) => {
+            "case when r.level is null then 1 else 0 end asc, r.level desc, r.code desc"
+        }
     }
 }
 

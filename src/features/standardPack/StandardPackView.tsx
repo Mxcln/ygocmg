@@ -8,7 +8,7 @@ import { formatJobError, formatJobStage, formatJobStatus } from "../../shared/ut
 import type { GlobalConfig } from "../../shared/contracts/config";
 import type { CardListRow } from "../../shared/contracts/card";
 import type { JobSnapshot } from "../../shared/contracts/job";
-import type { StandardCardSearchFilters, StandardCardSortField } from "../../shared/contracts/standardPack";
+import type { StandardCardSearchFilters } from "../../shared/contracts/standardPack";
 import { languageLabel } from "../../shared/utils/language";
 import type { PrimitiveType } from "react-intl";
 import { useAppI18n, type AppMessageId } from "../../shared/i18n";
@@ -134,15 +134,6 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
       })) ?? [],
     [standardSetnamesQuery.data],
   );
-  const standardSortOptions = [
-    { field: "code" as const, direction: "asc" as const, label: t("card.sort.codeAsc") },
-    { field: "code" as const, direction: "desc" as const, label: t("card.sort.codeDesc") },
-    { field: "name" as const, direction: "asc" as const, label: t("card.sort.nameAsc") },
-    { field: "name" as const, direction: "desc" as const, label: t("card.sort.nameDesc") },
-    { field: "type" as const, direction: "asc" as const, label: t("card.sort.typeAsc") },
-    { field: "type" as const, direction: "desc" as const, label: t("card.sort.typeDesc") },
-  ];
-
   useBackNavigation({
     enabled: metaExpanded,
     priority: 600,
@@ -166,7 +157,7 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
     const page = await standardPackApi.searchCards({
       keyword: query.keyword || null,
       filters: advancedFilters,
-      sortBy: query.sortBy as StandardCardSortField,
+      sortBy: query.sortBy,
       sortDirection: query.sortDirection,
       page: query.page,
       pageSize: query.pageSize,
@@ -353,7 +344,6 @@ export function StandardPackView({ config }: { config: GlobalConfig }) {
               resetKey={filterKey}
               loadPage={loadStandardPage}
               onOpenCard={handleOpenCard}
-              sortOptions={standardSortOptions}
               emptyTitle={t("standard.noCards")}
               emptyHint={activeFilterCount > 0 ? t("standard.tryAnotherFilter") : t("standard.tryAnotherSearch")}
               toolbarExtra={

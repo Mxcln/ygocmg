@@ -1054,6 +1054,77 @@ fn sqlite_repository_search_cards_matches_existing_behavior() {
 }
 
 #[test]
+fn sqlite_repository_search_cards_supports_stat_sorting() {
+    let app = tempdir().unwrap();
+    let root = tempdir().unwrap();
+    create_advanced_search_cdb(&root.path().join("cards.cdb")).unwrap();
+
+    let index =
+        ygocmg_core::infrastructure::standard_pack::rebuild_index(root.path(), "zh-CN").unwrap();
+    ygocmg_core::infrastructure::standard_pack::save_index(app.path(), &index).unwrap();
+
+    let state = AppState::new(app.path().to_path_buf()).unwrap();
+    let service = StandardPackService::new(&state);
+
+    let atk_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: None,
+            filters: None,
+            sort_by: StandardCardSortFieldDto::Atk,
+            sort_direction: SortDirectionDto::Desc,
+            page: 1,
+            page_size: 6,
+        })
+        .unwrap();
+    assert_eq!(
+        atk_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![100, 500, 400, 101, 300, 200]
+    );
+
+    let def_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: None,
+            filters: None,
+            sort_by: StandardCardSortFieldDto::Def,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 6,
+        })
+        .unwrap();
+    assert_eq!(
+        def_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![400, 101, 100, 200, 300, 500]
+    );
+
+    let level_page = service
+        .search_cards(SearchStandardCardsInput {
+            keyword: None,
+            filters: None,
+            sort_by: StandardCardSortFieldDto::Level,
+            sort_direction: SortDirectionDto::Desc,
+            page: 1,
+            page_size: 6,
+        })
+        .unwrap();
+    assert_eq!(
+        level_page
+            .items
+            .iter()
+            .map(|row| row.code)
+            .collect::<Vec<_>>(),
+        vec![400, 101, 100, 500, 300, 200]
+    );
+}
+
+#[test]
 fn sqlite_repository_search_cards_uses_fts_keyword_path() {
     let app = tempdir().unwrap();
     let root = tempdir().unwrap();

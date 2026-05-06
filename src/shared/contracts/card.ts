@@ -138,7 +138,7 @@ export interface CardDetail {
   pack_path: string;
 }
 
-export type CardSortField = "code" | "name";
+export type CardSortField = "code" | "name" | "type" | "atk" | "def" | "level";
 export type SortDirection = "asc" | "desc";
 export type CardFilterMatchMode = "any" | "all";
 export type SetcodeFilterMode = "exact" | "base";

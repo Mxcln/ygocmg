@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { cardApi } from "../../shared/api/cardApi";
-import type { CardListRow, CardSearchFilters, CardSortField } from "../../shared/contracts/card";
+import type { CardListRow, CardSearchFilters } from "../../shared/contracts/card";
 import type { GlobalConfig } from "../../shared/contracts/config";
 import { useAppI18n } from "../../shared/i18n";
 import { CardBrowserPanel } from "./CardBrowserPanel";
-import type { BrowserSortField, CardBrowserQuery } from "./CardBrowserPanel";
+import type { CardBrowserQuery } from "./CardBrowserPanel";
 import {
   CardAdvancedSearchPanel,
   cardFiltersKey,
@@ -18,10 +18,6 @@ interface CardListPanelProps {
   config: GlobalConfig;
   onEditCard: (cardId: string) => void;
   onNewCard: () => void;
-}
-
-function toCustomSortField(field: BrowserSortField): CardSortField {
-  return field === "name" ? "name" : "code";
 }
 
 export function CardListPanel({ config, onEditCard, onNewCard }: CardListPanelProps) {
@@ -52,7 +48,7 @@ export function CardListPanel({ config, onEditCard, onNewCard }: CardListPanelPr
       packId: activePackId!,
       keyword: query.keyword || null,
       filters: advancedFilters,
-      sortBy: toCustomSortField(query.sortBy),
+      sortBy: query.sortBy,
       sortDirection: query.sortDirection,
       page: query.page,
       pageSize: query.pageSize,
