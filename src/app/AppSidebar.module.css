@@ -33,15 +33,15 @@
   cursor: pointer;
   z-index: 4;
   transform: translateY(-50%);
-  box-shadow: 0 0 0 2px var(--bg-1), 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 2px var(--bg-1), var(--shadow-1);
   transition: background 80ms, color 80ms, border-color 80ms, box-shadow 80ms, transform 80ms;
 }
 
 .sidebarToggle:hover {
   background: var(--panel);
   color: var(--brand);
-  border-color: rgba(17, 94, 95, 0.24);
-  box-shadow: 0 0 0 2px var(--bg-1), 0 3px 8px rgba(0, 0, 0, 0.12);
+  border-color: var(--line-brand-strong);
+  box-shadow: 0 0 0 2px var(--bg-1), var(--shadow-2);
 }
 
 .sidebarToggle:active {
@@ -80,7 +80,7 @@
 .sidebarResizeHandle:active::before {
   left: 2px;
   width: 3px;
-  background: rgba(17, 94, 95, 0.16);
+  background: var(--brand-soft-strong);
 }
 
 .actionBtn {
@@ -103,7 +103,7 @@
 
 .actionBtn:global(.active) {
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
   color: var(--brand);
 }
 
@@ -142,7 +142,7 @@
 
 .packItem:global(.active) {
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.22);
+  border-color: var(--line-brand);
   color: var(--brand);
   font-weight: 600;
 }
@@ -165,7 +165,7 @@
 
 .packItemRow:global(.active) {
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.22);
+  border-color: var(--line-brand);
 }
 
 .packItemRow:global(.active) .packItemName {
@@ -197,7 +197,7 @@
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: rgba(17, 94, 95, 0.08);
+  background: var(--brand-soft);
   color: var(--brand);
   align-items: center;
   justify-content: center;
@@ -248,7 +248,7 @@
 
 .packAdd:hover {
   color: var(--brand);
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
 }
 
 .sidebarBottom {
@@ -277,7 +277,7 @@
 .packStandard:global(.active) {
   color: var(--brand);
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.22);
+  border-color: var(--line-brand);
   font-weight: 700;
 }
 
@@ -327,7 +327,7 @@
   margin-right: 0;
   border-radius: 999px;
   background: var(--bg-2);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-1);
 }
 
 .sidebar[data-collapsed] .packItem {

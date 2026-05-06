@@ -10,7 +10,7 @@
   padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   cursor: pointer;
@@ -28,7 +28,7 @@
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
 }
@@ -128,7 +128,7 @@ button.stringsCellValueDisplay:hover {
   padding: 4px 6px;
   border: 1px solid var(--brand);
   border-radius: 3px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   min-width: 0;

@@ -10,7 +10,7 @@
 .dialogBackdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--overlay);
 }
 
 .dialogBox {
@@ -21,7 +21,7 @@
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: var(--bg-2);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;

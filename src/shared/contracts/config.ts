@@ -2,6 +2,8 @@ import type { LanguageCode } from "./common";
 
 export type TextLanguageKind = "builtin" | "custom";
 
+export type ThemeMode = "system" | "light" | "dark";
+
 export interface TextLanguageProfile {
   id: LanguageCode;
   label: string;
@@ -24,4 +26,7 @@ export interface GlobalConfig {
   shell_window_is_maximized: boolean;
   text_language_catalog: TextLanguageProfile[];
   standard_pack_source_language: LanguageCode | null;
+  theme_mode: ThemeMode;
+  high_contrast: boolean;
+  custom_brand_color: string | null;
 }

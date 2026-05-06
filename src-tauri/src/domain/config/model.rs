@@ -6,6 +6,15 @@ use crate::domain::common::ids::LanguageCode;
 use crate::domain::language::model::TextLanguageProfile;
 use crate::domain::language::rules::default_text_language_catalog;
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GlobalConfig {
     pub app_language: LanguageCode,
@@ -28,6 +37,12 @@ pub struct GlobalConfig {
     pub text_language_catalog: Vec<TextLanguageProfile>,
     #[serde(default)]
     pub standard_pack_source_language: Option<LanguageCode>,
+    #[serde(default)]
+    pub theme_mode: ThemeMode,
+    #[serde(default)]
+    pub high_contrast: bool,
+    #[serde(default)]
+    pub custom_brand_color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

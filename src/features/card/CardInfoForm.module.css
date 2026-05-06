@@ -27,7 +27,7 @@
   padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   font-family: inherit;
@@ -44,7 +44,7 @@
   padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   cursor: pointer;
@@ -82,7 +82,7 @@
 
 .cardTypeRadio:global(.active) {
   background: var(--brand);
-  color: white;
+  color: var(--text-on-brand);
   border-color: var(--brand);
 }
 
@@ -150,7 +150,7 @@
   flex: 0 0 auto;
   max-width: 180px;
   padding: 4px 8px;
-  border: 1px solid rgba(17, 94, 95, 0.3);
+  border: 1px solid var(--line-brand-strong);
   border-radius: 3px;
   background: var(--brand-soft);
   color: var(--brand);
@@ -283,7 +283,7 @@
 
 .monsterFlagChip:global(.selected) {
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.3);
+  border-color: var(--line-brand-strong);
   color: var(--brand);
 }
 
@@ -317,7 +317,7 @@
 .linkMarkerCell:global(.selected) {
   background: var(--brand);
   border-color: var(--brand);
-  color: white;
+  color: var(--text-on-brand);
 }
 
 .linkMarkerCell:global(.center) {
@@ -342,7 +342,7 @@
   flex: 0 0 auto;
   max-width: 260px;
   padding: 4px 8px;
-  border: 1px solid rgba(17, 94, 95, 0.3);
+  border: 1px solid var(--line-brand-strong);
   border-radius: 3px;
   background: var(--brand-soft);
   color: var(--brand);
@@ -415,7 +415,7 @@
   padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   font-family: inherit;

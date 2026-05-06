@@ -24,12 +24,21 @@ import { NoticeBanner } from "./NoticeBanner";
 import type { Notice, NoticeTone } from "./NoticeBanner";
 import { PackWorkArea } from "./PackWorkArea";
 import { AppI18nProvider, formatAppMessageById, useAppI18n } from "../shared/i18n";
+import { applyThemeSettings, watchSystemTheme, writeThemeMirror } from "../shared/theme/theme";
 import shared from "../shared/styles/shared.module.css";
 import styles from "./App.module.css";
 
 interface CurrentWorkspaceRef {
   meta: WorkspaceMeta;
   path: string;
+}
+
+function themeSettingsFromConfig(config: GlobalConfig) {
+  return {
+    mode: config.theme_mode,
+    highContrast: config.high_contrast,
+    customBrandColor: config.custom_brand_color,
+  };
 }
 
 export function App() {
@@ -61,6 +70,15 @@ export function App() {
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    return watchSystemTheme(() => {
+      const current = configRef.current;
+      if (current && current.theme_mode === "system") {
+        applyThemeSettings(themeSettingsFromConfig(current));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!config) return;
@@ -99,6 +117,9 @@ export function App() {
         const nextConfig = await configApi.initialize();
         const nextRecent = await workspaceApi.listRecentWorkspaces();
         if (!active) return;
+        const settings = themeSettingsFromConfig(nextConfig);
+        applyThemeSettings(settings);
+        writeThemeMirror(settings);
         setConfig(nextConfig);
         setSidebarWidth(nextConfig.shell_sidebar_width);
         setSidebarCollapsed(nextConfig.shell_sidebar_collapsed);
@@ -287,6 +308,9 @@ function AppShell({
 
   function handleConfigSaved(nextConfig: GlobalConfig) {
     configRef.current = nextConfig;
+    const settings = themeSettingsFromConfig(nextConfig);
+    applyThemeSettings(settings);
+    writeThemeMirror(settings);
     setConfig(nextConfig);
     void queryClient.invalidateQueries({ queryKey: ["standard-pack-status"] });
     void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
@@ -439,7 +463,12 @@ function AppShell({
               />
             )}
             {modal.type === "settings" && (
-              <SettingsModal config={config} onConfigSaved={handleConfigSaved} onNotice={handleNotice} />
+              <SettingsModal
+                config={config}
+                onConfigSaved={handleConfigSaved}
+                onNotice={handleNotice}
+                onPreviewTheme={applyThemeSettings}
+              />
             )}
             {modal.type === "addPack" && (
               <AddPackModal

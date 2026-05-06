@@ -23,16 +23,16 @@
   border-radius: 8px;
   background: var(--bg-2);
   color: var(--text-1);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-2);
   animation: notice-in 150ms ease-out;
 }
 
 .notice[data-tone="success"] {
-  border-left: 4px solid #216b4c;
+  border-left: 4px solid var(--success);
 }
 
 .notice[data-tone="warning"] {
-  border-left: 4px solid #996216;
+  border-left: 4px solid var(--warning);
 }
 
 .notice[data-tone="error"] {

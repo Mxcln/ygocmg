@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { configApi } from "../../shared/api/configApi";
-import type { GlobalConfig, TextLanguageProfile } from "../../shared/contracts/config";
+import type { GlobalConfig, TextLanguageProfile, ThemeMode } from "../../shared/contracts/config";
 import { normalizeNullablePath, parseNumberInput, formatError } from "../../shared/utils/format";
 import { APP_LOCALE_OPTIONS, useAppI18n } from "../../shared/i18n";
 import {
@@ -17,8 +17,17 @@ import { TextLanguagePicker } from "../language/TextLanguagePicker";
 import styles from "./SettingsModal.module.css";
 import { promptDiscardChanges } from "../../shared/utils/discardChanges";
 import { requestClose, useCloseRequest } from "../../app/hooks/useBackNavigation";
+import type { ThemeSettings } from "../../shared/theme/theme";
+import type { AppMessageId } from "../../shared/i18n";
 
 type SettingsTab = "general" | "languages" | "standardPack" | "codePolicy";
+
+const BRAND_COLOR_PRESETS: ReadonlyArray<{ id: string; color: string; label: AppMessageId }> = [
+  { id: "teal", color: "#115e5f", label: "settings.brandColor.preset.teal" },
+  { id: "blue", color: "#2c5fbf", label: "settings.brandColor.preset.blue" },
+  { id: "purple", color: "#7245b8", label: "settings.brandColor.preset.purple" },
+  { id: "amber", color: "#b87b2c", label: "settings.brandColor.preset.amber" },
+];
 
 interface CustomLanguageDraft {
   id: string;
@@ -30,9 +39,10 @@ export interface SettingsModalProps {
   config: GlobalConfig;
   onConfigSaved: (next: GlobalConfig) => void;
   onNotice: (tone: "success" | "warning" | "error", title: string, detail: string) => void;
+  onPreviewTheme?: (settings: ThemeSettings) => void;
 }
 
-export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModalProps) {
+export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme }: SettingsModalProps) {
   const { t } = useAppI18n();
   const closeModal = useShellStore((s) => s.closeModal);
   const openDialog = useShellStore((s) => s.openDialog);
@@ -46,6 +56,31 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
     label: "",
     error: null,
   });
+
+  useEffect(() => {
+    if (!onPreviewTheme) return;
+    onPreviewTheme({
+      mode: draft.theme_mode,
+      highContrast: draft.high_contrast,
+      customBrandColor: draft.custom_brand_color,
+    });
+  }, [draft.theme_mode, draft.high_contrast, draft.custom_brand_color, onPreviewTheme]);
+
+  const committedConfigRef = useRef(config);
+  committedConfigRef.current = config;
+
+  useEffect(() => {
+    return () => {
+      if (!onPreviewTheme) return;
+      const committed = committedConfigRef.current;
+      onPreviewTheme({
+        mode: committed.theme_mode,
+        highContrast: committed.high_contrast,
+        customBrandColor: committed.custom_brand_color,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dirty = JSON.stringify(config) !== JSON.stringify(draft);
   const pendingCustomLanguage =
@@ -180,6 +215,76 @@ export function SettingsModal({ config, onConfigSaved, onNotice }: SettingsModal
         <div className={shared.modalPanel}>
           {activeTab === "general" && (
             <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>{t("settings.group.appearance")}</h4>
+
+                <label className={shared.field}>
+                  <span>{t("settings.themeMode")}</span>
+                  <select
+                    value={draft.theme_mode}
+                    onChange={(event) =>
+                      setDraft({ ...draft, theme_mode: event.target.value as ThemeMode })
+                    }
+                  >
+                    <option value="system">{t("settings.themeMode.system")}</option>
+                    <option value="light">{t("settings.themeMode.light")}</option>
+                    <option value="dark">{t("settings.themeMode.dark")}</option>
+                  </select>
+                </label>
+                <span className={shared.fieldHint}>{t("settings.themeMode.help")}</span>
+
+                <label className={styles.themeCheckRow}>
+                  <input
+                    type="checkbox"
+                    checked={draft.high_contrast}
+                    onChange={(event) =>
+                      setDraft({ ...draft, high_contrast: event.target.checked })
+                    }
+                  />
+                  <span>{t("settings.highContrast")}</span>
+                </label>
+                <span className={shared.fieldHint}>{t("settings.highContrast.help")}</span>
+
+                <div className={shared.field}>
+                  <span>{t("settings.brandColor")}</span>
+                  <div className={styles.brandColorRow}>
+                    <input
+                      type="color"
+                      className={styles.brandColorInput}
+                      value={draft.custom_brand_color ?? "#115e5f"}
+                      onChange={(event) =>
+                        setDraft({ ...draft, custom_brand_color: event.target.value })
+                      }
+                    />
+                    <div className={styles.brandColorPresets}>
+                      {BRAND_COLOR_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className={styles.brandColorSwatch}
+                          style={{ background: preset.color }}
+                          aria-label={t(preset.label)}
+                          title={t(preset.label)}
+                          onClick={() =>
+                            setDraft({ ...draft, custom_brand_color: preset.color })
+                          }
+                        />
+                      ))}
+                    </div>
+                    {draft.custom_brand_color && (
+                      <button
+                        type="button"
+                        className={shared.ghostButton}
+                        onClick={() => setDraft({ ...draft, custom_brand_color: null })}
+                      >
+                        {t("settings.brandColor.reset")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <span className={shared.fieldHint}>{t("settings.brandColor.help")}</span>
+              </section>
+
               <section className={styles.settingsGroup}>
                 <h4 className={styles.groupTitle}>{t("settings.group.language")}</h4>
 

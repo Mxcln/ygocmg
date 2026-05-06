@@ -2,7 +2,7 @@
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--overlay);
   animation: card-backdrop-fade 150ms ease-out;
 }
 
@@ -72,10 +72,10 @@
 
 .cardEditWarnings {
   padding: 8px 12px;
-  background: rgba(153, 98, 22, 0.08);
-  border-bottom: 1px solid rgba(153, 98, 22, 0.15);
+  background: var(--warning-soft);
+  border-bottom: 1px solid var(--warning-line);
   font-size: 12px;
-  color: #6a4411;
+  color: var(--warning-strong);
 }
 
 .cardEditWarnings ul {
@@ -90,16 +90,17 @@
 }
 
 .cardEditWarnings small {
-  color: rgba(106, 68, 17, 0.78);
+  color: var(--warning-strong);
+  opacity: 0.78;
   font-size: 11px;
 }
 
 .cardEditError {
   padding: 8px 12px;
-  background: rgba(171, 67, 56, 0.08);
-  border-bottom: 1px solid rgba(171, 67, 56, 0.15);
+  background: var(--danger-soft);
+  border-bottom: 1px solid var(--danger-line);
   font-size: 12px;
-  color: #7e3029;
+  color: var(--danger-strong);
 }
 
 .cardEditBody {

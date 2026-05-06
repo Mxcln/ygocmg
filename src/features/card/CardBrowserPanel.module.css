@@ -19,7 +19,7 @@
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
 }
@@ -34,7 +34,7 @@
   padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   cursor: pointer;
@@ -120,7 +120,7 @@
   bottom: 0;
   z-index: 2;
   padding: 10px 0 0;
-  background: linear-gradient(to bottom, rgba(250, 250, 250, 0), var(--bg-2) 36%);
+  background: linear-gradient(to bottom, transparent, var(--bg-2) 36%);
 }
 
 .cardListRow {
@@ -205,90 +205,90 @@
 }
 
 .subtypeTag[data-flag="normal"] {
-  color: #8b7020;
-  border-color: rgba(139, 112, 32, 0.25);
-  background: rgba(139, 112, 32, 0.08);
+  color: var(--chip-normal-fg);
+  border-color: var(--chip-normal-line);
+  background: var(--chip-normal-bg);
 }
 .subtypeTag[data-flag="effect"] {
-  color: #9e5520;
-  border-color: rgba(158, 85, 32, 0.25);
-  background: rgba(158, 85, 32, 0.08);
+  color: var(--chip-effect-fg);
+  border-color: var(--chip-effect-line);
+  background: var(--chip-effect-bg);
 }
 .subtypeTag[data-flag="fusion"] {
-  color: #6b3a8a;
-  border-color: rgba(107, 58, 138, 0.25);
-  background: rgba(107, 58, 138, 0.08);
+  color: var(--chip-fusion-fg);
+  border-color: var(--chip-fusion-line);
+  background: var(--chip-fusion-bg);
 }
 .subtypeTag[data-flag="ritual"] {
-  color: #3a5e9e;
-  border-color: rgba(58, 94, 158, 0.25);
-  background: rgba(58, 94, 158, 0.08);
+  color: var(--chip-ritual-fg);
+  border-color: var(--chip-ritual-line);
+  background: var(--chip-ritual-bg);
 }
 .subtypeTag[data-flag="synchro"] {
-  color: #555;
-  border-color: rgba(160, 160, 160, 0.5);
-  background: rgba(220, 220, 220, 0.3);
+  color: var(--chip-synchro-fg);
+  border-color: var(--chip-synchro-line);
+  background: var(--chip-synchro-bg);
 }
 .subtypeTag[data-flag="xyz"] {
-  color: #fff;
-  border-color: rgba(30, 30, 30, 0.6);
-  background: rgba(20, 20, 20, 0.85);
+  color: var(--chip-xyz-fg);
+  border-color: var(--chip-xyz-line);
+  background: var(--chip-xyz-bg);
 }
 .subtypeTag[data-flag="pendulum"] {
-  color: #2a7a5a;
-  border-color: rgba(42, 122, 90, 0.25);
-  background: rgba(42, 122, 90, 0.08);
+  color: var(--chip-pendulum-fg);
+  border-color: var(--chip-pendulum-line);
+  background: var(--chip-pendulum-bg);
 }
 .subtypeTag[data-flag="link"] {
-  color: #1a5ea0;
-  border-color: rgba(26, 94, 160, 0.25);
-  background: rgba(26, 94, 160, 0.1);
+  color: var(--chip-link-fg);
+  border-color: var(--chip-link-line);
+  background: var(--chip-link-bg);
 }
 .subtypeTag[data-flag="tuner"] {
-  color: #8b5e16;
-  border-color: rgba(139, 94, 22, 0.2);
-  background: rgba(139, 94, 22, 0.06);
+  color: var(--chip-tuner-fg);
+  border-color: var(--chip-tuner-line);
+  background: var(--chip-tuner-bg);
 }
 .subtypeTag[data-flag="token"] {
-  color: #777;
-  border-color: rgba(120, 120, 120, 0.2);
-  background: rgba(120, 120, 120, 0.06);
+  color: var(--chip-token-fg);
+  border-color: var(--chip-token-line);
+  background: var(--chip-token-bg);
 }
 .subtypeTag[data-flag="gemini"] {
-  color: #8b6e20;
-  border-color: rgba(139, 110, 32, 0.2);
-  background: rgba(139, 110, 32, 0.06);
+  color: var(--chip-other-fg);
+  border-color: var(--chip-other-line);
+  background: var(--chip-other-bg);
 }
 .subtypeTag[data-flag="spirit"] {
-  color: #8b6e20;
-  border-color: rgba(139, 110, 32, 0.2);
-  background: rgba(139, 110, 32, 0.06);
+  color: var(--chip-other-fg);
+  border-color: var(--chip-other-line);
+  background: var(--chip-other-bg);
 }
 .subtypeTag[data-flag="union"] {
-  color: #8b6e20;
-  border-color: rgba(139, 110, 32, 0.2);
-  background: rgba(139, 110, 32, 0.06);
+  color: var(--chip-other-fg);
+  border-color: var(--chip-other-line);
+  background: var(--chip-other-bg);
 }
 .subtypeTag[data-flag="flip"] {
-  color: #8b5e16;
-  border-color: rgba(139, 94, 22, 0.2);
-  background: rgba(139, 94, 22, 0.06);
+  color: var(--chip-tuner-fg);
+  border-color: var(--chip-tuner-line);
+  background: var(--chip-tuner-bg);
 }
 .subtypeTag[data-flag="toon"] {
-  color: #8b5e16;
-  border-color: rgba(139, 94, 22, 0.2);
-  background: rgba(139, 94, 22, 0.06);
+  color: var(--chip-tuner-fg);
+  border-color: var(--chip-tuner-line);
+  background: var(--chip-tuner-bg);
 }
 
 .subtypeTag[data-flag="spell"] {
-  color: #1a6b5a;
-  border-color: rgba(26, 107, 90, 0.15);
-  background: rgba(26, 107, 90, 0.05);
+  color: var(--chip-spell-fg);
+  border-color: var(--chip-spell-line);
+  background: var(--chip-spell-bg);
 }
 .subtypeTag[data-flag="trap"] {
-  color: #8b2252;
-  border-color: rgba(139, 34, 82, 0.15);
-  background: rgba(139, 34, 82, 0.05);
+  color: var(--chip-trap-fg);
+  border-color: var(--chip-trap-line);
+  background: var(--chip-trap-bg);
 }
 
 .cardListStat {
@@ -315,19 +315,19 @@
 }
 
 .cardTypeBadge[data-type="monster"] {
-  color: #8b5e16;
-  border-color: rgba(139, 94, 22, 0.2);
-  background: rgba(139, 94, 22, 0.06);
+  color: var(--chip-monster-fg);
+  border-color: var(--chip-monster-line);
+  background: var(--chip-monster-bg);
 }
 .cardTypeBadge[data-type="spell"] {
-  color: #1a6b5a;
-  border-color: rgba(26, 107, 90, 0.2);
-  background: rgba(26, 107, 90, 0.06);
+  color: var(--chip-spell-fg);
+  border-color: var(--chip-spell-line);
+  background: var(--chip-spell-bg);
 }
 .cardTypeBadge[data-type="trap"] {
-  color: #8b2252;
-  border-color: rgba(139, 34, 82, 0.2);
-  background: rgba(139, 34, 82, 0.06);
+  color: var(--chip-trap-fg);
+  border-color: var(--chip-trap-line);
+  background: var(--chip-trap-bg);
 }
 
 .cardListAssets {

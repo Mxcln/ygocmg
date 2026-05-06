@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
-use crate::domain::config::model::GlobalConfig;
+use crate::domain::config::model::{GlobalConfig, ThemeMode};
 use crate::domain::language::rules::{
     LanguageValidationContext, default_text_language_catalog, is_catalog_language,
     normalize_language_id, normalize_text_language_catalog, validate_language_id,
@@ -25,6 +25,9 @@ pub fn default_global_config() -> GlobalConfig {
         shell_window_is_maximized: false,
         text_language_catalog: default_text_language_catalog(),
         standard_pack_source_language: None,
+        theme_mode: ThemeMode::System,
+        high_contrast: false,
+        custom_brand_color: None,
     }
 }
 
@@ -152,6 +155,18 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
         }
     }
 
+    if let Some(value) = &config.custom_brand_color {
+        if normalize_brand_color(value).is_none() {
+            issues.push(
+                ValidationIssue::error(
+                    "config.invalid_custom_brand_color",
+                    target.clone().with_field("custom_brand_color"),
+                )
+                .with_param("value", value),
+            );
+        }
+    }
+
     issues
 }
 
@@ -165,7 +180,26 @@ pub fn normalize_global_config(config: &GlobalConfig) -> GlobalConfig {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string);
+    next.custom_brand_color = next
+        .custom_brand_color
+        .as_deref()
+        .and_then(normalize_brand_color);
     next
+}
+
+fn normalize_brand_color(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let bytes = trimmed.as_bytes();
+    if bytes.len() != 7 || bytes[0] != b'#' {
+        return None;
+    }
+    if !bytes[1..].iter().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(trimmed.to_ascii_lowercase())
 }
 
 fn normalize_app_language(language: &str) -> String {

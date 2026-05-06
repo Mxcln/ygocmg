@@ -18,7 +18,7 @@
 }
 
 .workspaceListItem:global(.current-workspace) {
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
   background: var(--brand-soft);
 }
 

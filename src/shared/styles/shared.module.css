@@ -13,12 +13,12 @@
 
 .primaryButton {
   background: var(--brand);
-  color: white;
+  color: var(--text-on-brand);
   border-color: var(--brand);
 }
 
 .primaryButton:hover {
-  background: #0e5051;
+  background: var(--brand-hover);
 }
 
 .ghostButton {
@@ -47,7 +47,7 @@
   font-weight: 600;
   cursor: pointer;
   background: var(--danger);
-  color: #fff;
+  color: var(--text-on-brand);
 }
 
 .dangerButton:hover:not(:disabled) {
@@ -73,7 +73,7 @@
   padding: 7px 10px;
   border-radius: 4px;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
   transition: border-color 80ms, box-shadow 80ms;
@@ -185,7 +185,7 @@
 
 .modalTabs button:global(.active) {
   background: var(--brand-soft);
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
   color: var(--brand);
 }
 
@@ -307,7 +307,7 @@
 
 .pageNum:global(.active) {
   background: var(--brand);
-  color: #fff;
+  color: var(--text-on-brand);
   border-color: var(--brand);
 }
 
@@ -332,7 +332,7 @@
   padding: 0 8px;
   border-radius: 4px;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 12px;
   font-weight: 600;
@@ -411,7 +411,7 @@
 }
 
 .hintChip:global(.dirty) {
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
   color: var(--brand);
   background: var(--brand-soft);
 }
@@ -424,7 +424,7 @@
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  border-color: rgba(17, 94, 95, 0.2);
+  border-color: var(--line-brand);
   color: var(--brand);
   background: var(--brand-soft);
 }
@@ -462,7 +462,7 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: var(--input);
+  background: var(--surface-input-disabled);
   color: var(--text-0);
   font-size: 13px;
   cursor: default;
@@ -510,7 +510,7 @@
 }
 
 .importStatValue[data-level="warning"] {
-  color: #996216;
+  color: var(--warning);
 }
 
 .importStatLabel {
@@ -572,13 +572,13 @@
 }
 
 .importIssue[data-level="error"] .importIssueBadge {
-  background: rgba(171, 67, 56, 0.12);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
 .importIssue[data-level="warning"] .importIssueBadge {
-  background: rgba(153, 98, 22, 0.12);
-  color: #996216;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .importIssueMessage {
@@ -607,17 +607,17 @@
   border-radius: 6px;
   font-size: 12px;
   color: var(--text-1);
-  background: rgba(17, 94, 95, 0.08);
+  background: var(--brand-soft);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .importJobStrip[data-status="succeeded"] {
-  background: rgba(33, 107, 76, 0.08);
+  background: var(--success-soft);
 }
 
 .importJobStrip[data-status="failed"] {
-  background: rgba(171, 67, 56, 0.08);
+  background: var(--danger-soft);
 }
 
 .importJobStatus {
@@ -633,21 +633,21 @@
 .importErrorBanner {
   padding: 8px 12px;
   border-radius: 4px;
-  background: rgba(171, 67, 56, 0.08);
+  background: var(--danger-soft);
   color: var(--danger);
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid rgba(171, 67, 56, 0.15);
+  border: 1px solid var(--danger-line);
 }
 
 .importSuccessBanner {
   padding: 8px 12px;
   border-radius: 4px;
-  background: rgba(33, 107, 76, 0.08);
-  color: #174b35;
+  background: var(--success-soft);
+  color: var(--success-strong);
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid rgba(33, 107, 76, 0.15);
+  border: 1px solid var(--success-line);
 }
 
 .importFailHint {

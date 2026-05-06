@@ -19,7 +19,7 @@
   padding: 3px 5px 3px 8px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--panel);
   color: var(--text-1);
   font-size: 12px;
   font-weight: 600;

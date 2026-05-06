@@ -53,13 +53,13 @@
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-input);
   color: var(--text-0);
   font-size: 13px;
 }
 
 .languageCatalogRow input:disabled {
-  background: var(--input);
+  background: var(--surface-input-disabled);
   color: var(--text-2);
 }
 
@@ -86,6 +86,68 @@
   background: var(--danger-soft);
   color: var(--danger);
   font-size: 12px;
+}
+
+.themeCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.themeCheckRow input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.brandColorRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.brandColorInput {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-input);
+  cursor: pointer;
+}
+
+.brandColorInput::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.brandColorInput::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+.brandColorPresets {
+  display: flex;
+  gap: 4px;
+}
+
+.brandColorSwatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 80ms;
+}
+
+.brandColorSwatch:hover {
+  transform: scale(1.1);
 }
 
 @media (max-width: 900px) {
