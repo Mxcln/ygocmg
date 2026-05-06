@@ -18,6 +18,7 @@ export interface GlobalConfig {
   custom_code_recommended_max: number;
   custom_code_min_gap: number;
   shell_sidebar_width: number;
+  shell_sidebar_collapsed: boolean;
   shell_window_width: number;
   shell_window_height: number;
   shell_window_is_maximized: boolean;

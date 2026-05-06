@@ -567,6 +567,8 @@ export const ZH_MESSAGES: AppMessages = {
 
   // ── Sidebar ──
   "sidebar.closePack": "关闭卡包",
+  "sidebar.collapse": "收起侧边栏",
+  "sidebar.expand": "展开侧边栏",
   "sidebar.export": "导出扩展包",
   "sidebar.openOrCreatePack": "打开或创建卡包",
   "sidebar.openWorkspaceFirst": "请先打开工作区",

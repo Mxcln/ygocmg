@@ -567,6 +567,8 @@ export const JA_MESSAGES: AppMessages = {
 
   // ── Sidebar ──
   "sidebar.closePack": "パックを閉じる",
+  "sidebar.collapse": "サイドバーを折りたたむ",
+  "sidebar.expand": "サイドバーを展開",
   "sidebar.export": "拡張パックをエクスポート",
   "sidebar.openOrCreatePack": "パックを開くまたは作成",
   "sidebar.openWorkspaceFirst": "先にワークスペースを開いてください",

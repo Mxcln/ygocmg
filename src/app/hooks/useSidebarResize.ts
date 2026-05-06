@@ -6,14 +6,17 @@ import { persistConfig } from "./persistConfig";
 const SIDEBAR_MIN_WIDTH = 140;
 const SIDEBAR_MAX_WIDTH = 280;
 const SIDEBAR_DEFAULT_WIDTH = 150;
+export const SIDEBAR_COLLAPSED_WIDTH = 56;
 
 export function useSidebarResize(
   configRef: MutableRefObject<GlobalConfig | null>,
   setConfig: (config: GlobalConfig) => void,
 ) {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   function beginSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (sidebarCollapsed) return;
     const startX = event.clientX;
     const startWidth = sidebarWidth;
     let latestWidth = startWidth;
@@ -41,5 +44,22 @@ export function useSidebarResize(
     window.addEventListener("pointercancel", handleUp);
   }
 
-  return { sidebarWidth, setSidebarWidth, beginSidebarResize };
+  function updateSidebarCollapsed(collapsed: boolean) {
+    setSidebarCollapsed(collapsed);
+    void persistConfig(configRef, { shell_sidebar_collapsed: collapsed }, setConfig);
+  }
+
+  function toggleSidebarCollapsed() {
+    updateSidebarCollapsed(!sidebarCollapsed);
+  }
+
+  return {
+    sidebarWidth,
+    setSidebarWidth,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebarCollapsed,
+    beginSidebarResize,
+    effectiveSidebarWidth: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth,
+  };
 }

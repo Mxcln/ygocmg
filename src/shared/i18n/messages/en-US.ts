@@ -565,6 +565,8 @@ export const EN_MESSAGES = {
 
   // ── Sidebar ──
   "sidebar.closePack": "Close pack",
+  "sidebar.collapse": "Collapse sidebar",
+  "sidebar.expand": "Expand sidebar",
   "sidebar.export": "Export Expansions",
   "sidebar.openOrCreatePack": "Open or create a pack",
   "sidebar.openWorkspaceFirst": "Open a workspace first",

@@ -19,6 +19,7 @@ pub fn default_global_config() -> GlobalConfig {
         custom_code_recommended_max: 200_000_000,
         custom_code_min_gap: 5,
         shell_sidebar_width: 150,
+        shell_sidebar_collapsed: false,
         shell_window_width: 960,
         shell_window_height: 640,
         shell_window_is_maximized: false,

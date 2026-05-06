@@ -7,6 +7,8 @@ import styles from "./AppSidebar.module.css";
 interface AppSidebarProps {
   hasWorkspace: boolean;
   isStandardView: boolean;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
   onPackClick: (packId: string) => void;
   onClosePack: (packId: string) => void;
   onOpenStandardPack: () => void;
@@ -16,6 +18,8 @@ interface AppSidebarProps {
 export function AppSidebar({
   hasWorkspace,
   isStandardView,
+  collapsed,
+  onToggleCollapsed,
   onPackClick,
   onClosePack,
   onOpenStandardPack,
@@ -32,8 +36,47 @@ export function AppSidebar({
     return `${styles.actionBtn} ${modal?.type === type ? "active" : ""}`;
   }
 
+  function packGlyph(name: string | undefined, fallback: string): string {
+    const source = (name ?? fallback).trim();
+    if (!source) return "?";
+    const words = source.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return words
+        .slice(0, 2)
+        .map((word) => Array.from(word)[0] ?? "")
+        .join("")
+        .toUpperCase();
+    }
+    return Array.from(source.replace(/\s+/g, ""))
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }
+
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} data-collapsed={collapsed || undefined}>
+      <button
+        type="button"
+        className={styles.sidebarToggle}
+        onClick={onToggleCollapsed}
+        aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+        aria-expanded={!collapsed}
+        title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+      >
+        <svg
+          width="6"
+          height="6"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {collapsed ? <path d="M3 1l4 4-4 4" /> : <path d="M7 1L3 5l4 4" />}
+        </svg>
+      </button>
+
       <div className={styles.sidebarActions}>
         <button type="button" className={actionBtnClass("workspace")} title={t("sidebar.workspace")} onClick={() => openModal("workspace")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -67,13 +110,18 @@ export function AppSidebar({
                 className={styles.packItemName}
                 onClick={() => onPackClick(packId)}
                 title={meta?.name ?? packId}
+                aria-label={meta?.name ?? packId}
               >
-                {meta?.name ?? packId}
+                <span className={styles.packGlyph} aria-hidden="true">
+                  {packGlyph(meta?.name, packId)}
+                </span>
+                <span className={styles.packLabel}>{meta?.name ?? packId}</span>
               </button>
               <button
                 type="button"
                 className={styles.packCloseBtn}
                 title={t("sidebar.closePack")}
+                aria-label={t("sidebar.closePack")}
                 onClick={(event) => {
                   event.stopPropagation();
                   onClosePack(packId);
@@ -94,6 +142,7 @@ export function AppSidebar({
           onClick={() => openModal("addPack")}
           disabled={!hasWorkspace}
           title={hasWorkspace ? t("sidebar.openOrCreatePack") : t("sidebar.openWorkspaceFirst")}
+          aria-label={hasWorkspace ? t("sidebar.openOrCreatePack") : t("sidebar.openWorkspaceFirst")}
         >
           +
         </button>
@@ -104,18 +153,28 @@ export function AppSidebar({
           type="button"
           className={`${styles.packItem} ${styles.packStandard} ${isStandardView ? "active" : ""}`}
           onClick={onOpenStandardPack}
+          title={t("sidebar.standardPack")}
+          aria-label={t("sidebar.standardPack")}
         >
-          {t("sidebar.standardPack")}
+          <span className={styles.standardGlyph} aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <rect x="2.5" y="4" width="8.5" height="9" rx="1.4" />
+              <path d="M5 3h8.5v9" />
+            </svg>
+          </span>
+          <span className={styles.standardLabel}>{t("sidebar.standardPack")}</span>
         </button>
       </div>
 
-      <div
-        className={styles.sidebarResizeHandle}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t("sidebar.resize")}
-        onPointerDown={onBeginResize}
-      />
+      {!collapsed && (
+        <div
+          className={styles.sidebarResizeHandle}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("sidebar.resize")}
+          onPointerDown={onBeginResize}
+        />
+      )}
     </aside>
   );
 }

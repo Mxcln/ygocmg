@@ -1894,6 +1894,7 @@ fn config_injects_and_validates_text_language_catalog() {
 
     let initialized = app_commands::initialize(&state).unwrap();
     assert_eq!(initialized.app_language, "en-US");
+    assert!(!initialized.shell_sidebar_collapsed);
     assert!(
         initialized
             .text_language_catalog

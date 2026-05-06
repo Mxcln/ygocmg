@@ -44,7 +44,14 @@ export function App() {
   const queryClient = useQueryClient();
 
   const { maximized, shellReady, handleWindowAction } = useAppWindow(configRef, setConfig);
-  const { sidebarWidth, setSidebarWidth, beginSidebarResize } = useSidebarResize(configRef, setConfig);
+  const {
+    setSidebarWidth,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebarCollapsed,
+    beginSidebarResize,
+    effectiveSidebarWidth,
+  } = useSidebarResize(configRef, setConfig);
 
   const setActivePack = useShellStore((s) => s.setActivePack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
@@ -54,6 +61,12 @@ export function App() {
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    if (!config) return;
+    setSidebarWidth(config.shell_sidebar_width);
+    setSidebarCollapsed(config.shell_sidebar_collapsed);
+  }, [config, setSidebarCollapsed, setSidebarWidth]);
 
   function handleNotice(tone: NoticeTone, title: string, detail: string) {
     const id = nextNoticeId.current;
@@ -88,6 +101,7 @@ export function App() {
         if (!active) return;
         setConfig(nextConfig);
         setSidebarWidth(nextConfig.shell_sidebar_width);
+        setSidebarCollapsed(nextConfig.shell_sidebar_collapsed);
         setRecentWorkspaces(nextRecent);
         setLoading(false);
 
@@ -190,7 +204,9 @@ export function App() {
         maximized={maximized}
         shellReady={shellReady}
         handleWindowAction={handleWindowAction}
-        sidebarWidth={sidebarWidth}
+        sidebarCollapsed={sidebarCollapsed}
+        toggleSidebarCollapsed={toggleSidebarCollapsed}
+        effectiveSidebarWidth={effectiveSidebarWidth}
         beginSidebarResize={beginSidebarResize}
       />
     </AppI18nProvider>
@@ -213,7 +229,9 @@ function AppShell({
   maximized,
   shellReady,
   handleWindowAction,
-  sidebarWidth,
+  sidebarCollapsed,
+  toggleSidebarCollapsed,
+  effectiveSidebarWidth,
   beginSidebarResize,
 }: {
   config: GlobalConfig;
@@ -231,7 +249,9 @@ function AppShell({
   maximized: boolean;
   shellReady: boolean;
   handleWindowAction: (action: "minimize" | "toggle-maximize" | "close") => void;
-  sidebarWidth: number;
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
+  effectiveSidebarWidth: number;
   beginSidebarResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useAppI18n();
@@ -353,7 +373,7 @@ function AppShell({
   const activeCustomPackId =
     activeView?.type === "custom_pack" ? activeView.packId : activePackId;
   const isStandardView = activeView?.type === "standard_pack";
-  const shellStyle = { "--sidebar-width": `${sidebarWidth}px` } as CSSProperties;
+  const shellStyle = { "--sidebar-width": `${effectiveSidebarWidth}px` } as CSSProperties;
 
   return (
     <div className={styles.appShell} data-ready={shellReady || undefined} style={shellStyle}>
@@ -367,6 +387,8 @@ function AppShell({
         <AppSidebar
           hasWorkspace={currentWorkspace !== null}
           isStandardView={isStandardView}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebarCollapsed}
           onPackClick={(packId) => void persistActivePack(packId)}
           onClosePack={(packId) => void handleClosePack(packId)}
           onOpenStandardPack={handleOpenStandardPack}

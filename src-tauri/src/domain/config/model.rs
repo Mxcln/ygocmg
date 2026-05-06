@@ -16,6 +16,8 @@ pub struct GlobalConfig {
     pub custom_code_min_gap: u32,
     #[serde(default = "default_shell_sidebar_width")]
     pub shell_sidebar_width: u32,
+    #[serde(default)]
+    pub shell_sidebar_collapsed: bool,
     #[serde(default = "default_shell_window_width")]
     pub shell_window_width: u32,
     #[serde(default = "default_shell_window_height")]
