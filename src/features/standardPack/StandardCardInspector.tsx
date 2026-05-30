@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { standardPackApi } from "../../shared/api/standardPackApi";
@@ -63,6 +63,22 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
   const card = detail?.card ?? null;
   const languages = card ? textLanguages(card, detail?.available_languages ?? []) : [];
   const titleLanguage = languages[0] ?? "";
+  const setnameLanguage = titleLanguage || config?.standard_pack_source_language || null;
+  const { data: standardSetnames } = useQuery({
+    queryKey: ["standard-setnames", setnameLanguage],
+    queryFn: () => standardPackApi.listSetnames({ language: setnameLanguage }),
+    enabled: Boolean(setnameLanguage),
+    staleTime: 5 * 60 * 1000,
+  });
+  const standardSetnameEntries = useMemo(
+    () =>
+      standardSetnames?.map((entry) => ({
+        key: entry.key,
+        name: entry.value,
+        source: "standard" as const,
+      })) ?? [],
+    [standardSetnames],
+  );
   const imageSrc = detail?.asset_state.has_image && detail.ygopro_path
     ? `${convertFileSrc(`${detail.ygopro_path}/pics/${code}.jpg`)}?standard=${code}`
     : null;
@@ -165,7 +181,7 @@ export function StandardCardInspector({ code, onClose }: StandardCardInspectorPr
                     readonly
                   />
                 ) : (
-                  <CardInfoForm draft={card} readonly />
+                  <CardInfoForm draft={card} readonly setnameEntries={standardSetnameEntries} />
                 )}
               </div>
             </div>
