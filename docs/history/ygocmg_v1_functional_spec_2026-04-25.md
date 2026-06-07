@@ -3,6 +3,8 @@
 日期：2026-04-25  
 状态：Draft
 
+> 注意：本文档已偏离当前实现，仅保留为历史草稿。当前功能事实来源请参见 [YGOCMG 当前功能规范](./ygocmg_current_functional_spec_2026-05-15.md)。
+
 关联文档：
 - [项目粗略设计方案](./ygocmg.md)
 - [卡片数据模型语义化重构方案 v1](./card_data_model_refactor_plan_2026-04-17.md)

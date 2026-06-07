@@ -1,0 +1,33 @@
+# YGOCMG 文档入口
+
+本目录保存当前权威文档和历史资料。当前实现事实优先来自代码和本目录下的核心文档；历史文档只作为背景。
+
+## 阅读顺序
+
+1. `functional_spec.md`：了解当前产品功能、用户工作流和领域术语。
+2. `system_architecture.md`：了解前后端职责、后端分层、运行时状态和数据流。
+3. `code_structure_api.md`：了解目录结构、API wrapper、Tauri commands 和 contracts 边界。
+4. `ui_design.md`：了解当前 UI 布局、交互模式、主题和 i18n 约定。
+5. `history/README.md`：需要追溯历史设计、评审或旧计划时再读。
+
+## 当前权威文档
+
+- `functional_spec.md`：功能描述文档。
+- `system_architecture.md`：系统架构文档。
+- `code_structure_api.md`：代码结构与 API 边界文档。
+- `ui_design.md`：UI 设计与交互约定文档。
+
+## 历史文档
+
+`history/` 下的文档来自早期设计、阶段计划、评审、旧规范和 AI 知识草稿。它们可能和当前实现不一致，不能直接作为当前事实来源。
+
+使用历史文档时应先用当前代码或核心文档核对。若历史文档中有仍然有效的稳定事实，应迁移或重写到核心文档，而不是继续引用历史路径。
+
+## 维护规则
+
+- 功能行为变化：更新 `functional_spec.md`。
+- 架构或运行边界变化：更新 `system_architecture.md`。
+- 目录、API wrapper、contract、Tauri command 调用面变化：更新 `code_structure_api.md`。
+- UI 布局、交互、主题或 i18n 约定变化：更新 `ui_design.md`。
+- 只归档历史资料，不在 `history/` 中维护当前事实。
+
