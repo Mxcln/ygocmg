@@ -24,8 +24,11 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 ## Card
 
 - Card 使用 `CardEntity` 表示，核心字段包括 `code`、`alias`、`setcodes`、`ot`、`category`、`primary_type`、多语言 `texts`、怪兽/魔法/陷阱相关字段、Link 和 Pendulum 数据、创建/更新时间。
-- Card 列表支持关键字、分页、排序和高级筛选。
+- Card 列表支持关键字、分页、排序、高级筛选和批量选择；切换搜索、排序或分页时保留已选卡片，列表刷新后会清理当前 pack 中已不存在的选择。
 - Card 编辑通过抽屉完成，支持创建、读取、更新和删除。
+- Custom Pack 中支持批量删除选中卡片；同时删除对应主卡图、场地图和脚本资源（不再提供保留孤儿资源的选项）。
+- Custom Pack 中支持把选中卡片批量移动到当前 workspace 内另一个已打开 custom pack；移动会一并搬运对应主卡图、场地图和脚本资源，并保留卡片 `id`、`code` 和创建时间。
+- 批量移动不支持 standard pack、未打开 pack、同一 pack 或跨 workspace；目标 pack 已有相同 card id 时失败，目标 pack 同 code 和目标资源路径已存在会先以 warning 进入确认流程。
 - 写入可能返回 `needs_confirmation`，前端通过统一确认对话框展示 warning，并使用 confirmation token 完成确认写入。
 - 编号推荐通过后端提供，使用全局配置中的推荐范围和间隔规则。
 
@@ -48,7 +51,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 - 每张卡可以关联主卡图、场地图和脚本。
 - 资源操作包括导入/删除主卡图、导入/删除场地图、创建空脚本、导入/删除脚本、用外部编辑器打开脚本。
 - 资源状态通过 `has_image`、`has_field_image`、`has_script` 暴露给前端。
-- 资源写入和编号一致性由后端负责，前端只通过 API wrapper 发起操作。
+- 资源写入、批量删除资源、批量移动资源和编号一致性由后端负责，前端只通过 API wrapper 发起操作。
 
 ## 导入
 
@@ -87,4 +90,3 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 - 导入、导出和标准包索引重建会返回 job。
 - 前端可查询单个 job 状态，也可列出 active jobs。
 - UI 当前会对标准包重建 job 做轮询，并展示状态、阶段、进度和错误。
-

@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use crate::application::dto::card::{
-    CardDetailDto, CardListPageDto, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput,
-    DeleteCardResultDto, GetCardInput, ListCardsInput, SuggestCodeInput, UpdateCardInput,
+    BulkDeleteCardsInput, BulkDeleteCardsResultDto, CardBatchWriteResultDto, CardDetailDto,
+    CardListPageDto, ConfirmCardBatchWriteInput, ConfirmCardWriteInput, CreateCardInput,
+    DeleteCardInput, DeleteCardResultDto, GetCardInput, ListCardsInput, MoveCardsInput,
+    MoveCardsResultDto, SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::{
@@ -209,12 +211,42 @@ pub fn delete_card(
     })
 }
 
+pub fn bulk_delete_cards(
+    state: &AppState,
+    input: BulkDeleteCardsInput,
+) -> AppResult<WriteResultDto<BulkDeleteCardsResultDto>> {
+    crate::application::card::batch_confirmation_service::CardBatchWriteConfirmationService::new(
+        state,
+    )
+    .bulk_delete_cards(input)
+}
+
+pub fn move_cards(
+    state: &AppState,
+    input: MoveCardsInput,
+) -> AppResult<WriteResultDto<MoveCardsResultDto>> {
+    crate::application::card::batch_confirmation_service::CardBatchWriteConfirmationService::new(
+        state,
+    )
+    .move_cards(input)
+}
+
 pub fn confirm_card_write(
     state: &AppState,
     input: ConfirmCardWriteInput,
 ) -> AppResult<CardDetailDto> {
     crate::application::card::confirmation_service::CardWriteConfirmationService::new(state)
         .confirm_card_write(input)
+}
+
+pub fn confirm_card_batch_write(
+    state: &AppState,
+    input: ConfirmCardBatchWriteInput,
+) -> AppResult<CardBatchWriteResultDto> {
+    crate::application::card::batch_confirmation_service::CardBatchWriteConfirmationService::new(
+        state,
+    )
+    .confirm_card_batch_write(input)
 }
 
 pub fn suggest_card_code(

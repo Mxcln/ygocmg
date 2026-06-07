@@ -4,8 +4,10 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::application::dto::card::{
-    ConfirmCardWriteInput, CreateCardInput, DeleteCardInput, DeleteCardResultDto, GetCardInput,
-    ListCardsInput, SuggestCodeInput, UpdateCardInput,
+    BulkDeleteCardsInput, BulkDeleteCardsResultDto, CardBatchWriteResultDto,
+    ConfirmCardBatchWriteInput, ConfirmCardWriteInput, CreateCardInput, DeleteCardInput,
+    DeleteCardResultDto, GetCardInput, ListCardsInput, MoveCardsInput, MoveCardsResultDto,
+    SuggestCodeInput, UpdateCardInput,
 };
 use crate::application::dto::common::{PreviewResultDto, WriteResultDto};
 use crate::application::dto::export::{ExecuteExportBundleInput, PreviewExportBundleInput};
@@ -273,11 +275,35 @@ pub fn delete_card(
 }
 
 #[tauri::command]
+pub fn bulk_delete_cards(
+    state: State<'_, AppState>,
+    input: BulkDeleteCardsInput,
+) -> CommandResult<WriteResultDto<BulkDeleteCardsResultDto>> {
+    crate::presentation::commands::app_commands::bulk_delete_cards(&state, input)
+}
+
+#[tauri::command]
+pub fn move_cards(
+    state: State<'_, AppState>,
+    input: MoveCardsInput,
+) -> CommandResult<WriteResultDto<MoveCardsResultDto>> {
+    crate::presentation::commands::app_commands::move_cards(&state, input)
+}
+
+#[tauri::command]
 pub fn confirm_card_write(
     state: State<'_, AppState>,
     input: ConfirmCardWriteInput,
 ) -> CommandResult<crate::application::dto::card::CardDetailDto> {
     crate::presentation::commands::app_commands::confirm_card_write(&state, input)
+}
+
+#[tauri::command]
+pub fn confirm_card_batch_write(
+    state: State<'_, AppState>,
+    input: ConfirmCardBatchWriteInput,
+) -> CommandResult<CardBatchWriteResultDto> {
+    crate::presentation::commands::app_commands::confirm_card_batch_write(&state, input)
 }
 
 #[tauri::command]

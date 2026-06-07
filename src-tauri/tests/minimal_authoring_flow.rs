@@ -4,8 +4,9 @@ use std::path::Path;
 
 use tempfile::tempdir;
 use ygocmg_core::application::dto::card::{
-    CardFilterMatchModeDto, CardSearchFiltersDto, CardSortFieldDto, ConfirmCardWriteInput,
-    CreateCardInput, DeleteCardInput, GetCardInput, ListCardsInput, NumericRangeFilterDto,
+    BulkDeleteCardsInput, CardBatchWriteResultDto, CardFilterMatchModeDto, CardSearchFiltersDto,
+    CardSortFieldDto, ConfirmCardBatchWriteInput, ConfirmCardWriteInput, CreateCardInput,
+    DeleteCardInput, GetCardInput, ListCardsInput, MoveCardsInput, NumericRangeFilterDto,
     SetcodeFilterModeDto, SortDirectionDto, SuggestCodeInput, UpdateCardInput,
 };
 use ygocmg_core::application::dto::common::WriteResultDto;
@@ -690,6 +691,594 @@ fn delete_card_returns_write_result_and_rejects_workspace_mismatch() {
     )
     .unwrap_err();
     assert_eq!(mismatch_error.code, "workspace.mismatch");
+}
+
+#[test]
+fn bulk_delete_cards_removes_selected_cards_and_optionally_assets() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-bulk-delete-card");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let pack = app_commands::create_pack(
+        &state,
+        "Bulk Delete Pack",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let pack = app_commands::open_pack(&state, &pack.id).unwrap();
+    let pack_path = pack_locator::resolve_pack_path(
+        &pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap(),
+        &pack.id,
+    )
+    .unwrap();
+
+    let card_a = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_010_000,
+        PrimaryType::Monster,
+        None,
+        "Delete A",
+    );
+    let card_b = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_010_010,
+        PrimaryType::Spell,
+        Some(SpellSubtype::Field),
+        "Delete B",
+    );
+    let card_c = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_010_020,
+        PrimaryType::Monster,
+        None,
+        "Keep C",
+    );
+
+    fs::write(card_image_path(&pack_path, card_a.code), b"image-a").unwrap();
+    fs::write(script_path(&pack_path, card_a.code), b"-- script-a").unwrap();
+    fs::create_dir_all(field_image_path(&pack_path, card_b.code).parent().unwrap()).unwrap();
+    fs::write(field_image_path(&pack_path, card_b.code), b"field-b").unwrap();
+
+    let result = app_commands::bulk_delete_cards(
+        &state,
+        BulkDeleteCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_ids: vec![card_a.id.clone(), card_b.id.clone()],
+            delete_assets: true,
+        },
+    )
+    .unwrap();
+    match result {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(warnings.is_empty());
+            assert_eq!(
+                data.deleted_card_ids,
+                vec![card_a.id.clone(), card_b.id.clone()]
+            );
+            assert_eq!(data.deleted_asset_count, 3);
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    let rows = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            keyword: None,
+            filters: None,
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 50,
+        },
+    )
+    .unwrap();
+    assert_eq!(rows.total, 1);
+    assert_eq!(rows.items[0].id, card_c.id);
+    assert!(!card_image_path(&pack_path, card_a.code).exists());
+    assert!(!script_path(&pack_path, card_a.code).exists());
+    assert!(!field_image_path(&pack_path, card_b.code).exists());
+
+    let card_d = create_card_direct(
+        &state,
+        &workspace.id,
+        &pack.id,
+        100_010_030,
+        PrimaryType::Monster,
+        None,
+        "Delete D",
+    );
+    fs::write(card_image_path(&pack_path, card_d.code), b"image-d").unwrap();
+    let preserve_assets = app_commands::bulk_delete_cards(
+        &state,
+        BulkDeleteCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_ids: vec![card_d.id.clone()],
+            delete_assets: false,
+        },
+    )
+    .unwrap();
+    match preserve_assets {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(warnings.is_empty());
+            assert_eq!(data.deleted_card_ids, vec![card_d.id.clone()]);
+            assert_eq!(data.deleted_asset_count, 0);
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+    assert!(card_image_path(&pack_path, card_d.code).exists());
+
+    let empty_error = app_commands::bulk_delete_cards(
+        &state,
+        BulkDeleteCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: pack.id.clone(),
+            card_ids: vec![],
+            delete_assets: true,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(empty_error.code, "card_batch.empty_selection");
+
+    let mismatch_error = app_commands::bulk_delete_cards(
+        &state,
+        BulkDeleteCardsInput {
+            workspace_id: format!("{}-wrong", workspace.id),
+            pack_id: pack.id.clone(),
+            card_ids: vec![card_c.id],
+            delete_assets: true,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(mismatch_error.code, "workspace.mismatch");
+
+    let missing_error = app_commands::bulk_delete_cards(
+        &state,
+        BulkDeleteCardsInput {
+            workspace_id: workspace.id,
+            pack_id: pack.id,
+            card_ids: vec!["missing-card".to_string()],
+            delete_assets: true,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(missing_error.code, "card.not_found");
+}
+
+#[test]
+fn move_cards_transfers_cards_and_assets_between_open_packs() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-move-cards");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let source_pack = app_commands::create_pack(
+        &state,
+        "Move Source",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let source_pack = app_commands::open_pack(&state, &source_pack.id).unwrap();
+    let target_pack = app_commands::create_pack(
+        &state,
+        "Move Target",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let target_pack = app_commands::open_pack(&state, &target_pack.id).unwrap();
+    let unopened_target_pack = app_commands::create_pack(
+        &state,
+        "Move Target Unopened",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let inventory = pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap();
+    let source_path = pack_locator::resolve_pack_path(&inventory, &source_pack.id).unwrap();
+    let target_path = pack_locator::resolve_pack_path(&inventory, &target_pack.id).unwrap();
+
+    let monster = create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_020_000,
+        PrimaryType::Monster,
+        None,
+        "Move Monster",
+    );
+    let field_spell = create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_020_010,
+        PrimaryType::Spell,
+        Some(SpellSubtype::Field),
+        "Move Field",
+    );
+    create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_020_020,
+        PrimaryType::Monster,
+        None,
+        "Stay Behind",
+    );
+
+    let same_pack_error = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: source_pack.id.clone(),
+            card_ids: vec![monster.id.clone()],
+            move_assets: false,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(same_pack_error.code, "card_batch.same_pack");
+
+    let empty_selection_error = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![],
+            move_assets: false,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(empty_selection_error.code, "card_batch.empty_selection");
+
+    let unopened_target_error = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: unopened_target_pack.id,
+            card_ids: vec![monster.id.clone()],
+            move_assets: false,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        unopened_target_error.code,
+        "card_batch.target_pack_not_open"
+    );
+
+    fs::write(card_image_path(&source_path, monster.code), b"image").unwrap();
+    fs::write(script_path(&source_path, monster.code), b"-- script").unwrap();
+    fs::create_dir_all(
+        field_image_path(&source_path, field_spell.code)
+            .parent()
+            .unwrap(),
+    )
+    .unwrap();
+    fs::write(field_image_path(&source_path, field_spell.code), b"field").unwrap();
+
+    let result = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![monster.id.clone(), field_spell.id.clone()],
+            move_assets: true,
+        },
+    )
+    .unwrap();
+    match result {
+        WriteResultDto::Ok { data, warnings } => {
+            assert!(warnings.is_empty());
+            assert_eq!(
+                data.moved_card_ids,
+                vec![monster.id.clone(), field_spell.id.clone()]
+            );
+            assert_eq!(data.moved_asset_count, 3);
+            assert_eq!(data.source_pack_revision, 4);
+            assert_eq!(data.target_pack_revision, 1);
+        }
+        WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+
+    assert!(!card_image_path(&source_path, monster.code).exists());
+    assert!(!script_path(&source_path, monster.code).exists());
+    assert!(!field_image_path(&source_path, field_spell.code).exists());
+    assert!(card_image_path(&target_path, monster.code).exists());
+    assert!(script_path(&target_path, monster.code).exists());
+    assert!(field_image_path(&target_path, field_spell.code).exists());
+
+    let source_rows = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id.clone(),
+            pack_id: source_pack.id.clone(),
+            keyword: None,
+            filters: None,
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 50,
+        },
+    )
+    .unwrap();
+    let target_rows = app_commands::list_cards(
+        &state,
+        ListCardsInput {
+            workspace_id: workspace.id,
+            pack_id: target_pack.id.clone(),
+            keyword: None,
+            filters: None,
+            sort_by: CardSortFieldDto::Code,
+            sort_direction: SortDirectionDto::Asc,
+            page: 1,
+            page_size: 50,
+        },
+    )
+    .unwrap();
+    assert_eq!(source_rows.total, 1);
+    assert_eq!(target_rows.total, 2);
+}
+
+#[test]
+fn move_cards_warns_for_target_code_conflict_and_rejects_existing_target_asset() {
+    let app_dir = tempdir().unwrap();
+    let workspace_root = tempdir().unwrap();
+    let workspace_path = workspace_root.path().join("workspace-move-conflicts");
+    let state = build_app_state(app_dir.path().to_path_buf()).unwrap();
+
+    let _config = app_commands::initialize(&state).unwrap();
+    let workspace =
+        app_commands::create_workspace(&state, workspace_path.clone(), "Workspace A", None)
+            .unwrap();
+    app_commands::open_workspace(&state, workspace_path.clone()).unwrap();
+    let source_pack = app_commands::create_pack(
+        &state,
+        "Conflict Source",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let source_pack = app_commands::open_pack(&state, &source_pack.id).unwrap();
+    let target_pack = app_commands::create_pack(
+        &state,
+        "Conflict Target",
+        None,
+        "Max",
+        "1.0.0",
+        None,
+        vec!["zh-CN".to_string()],
+        Some("zh-CN".to_string()),
+    )
+    .unwrap();
+    let target_pack = app_commands::open_pack(&state, &target_pack.id).unwrap();
+    let inventory = pack_locator::load_workspace_pack_inventory(&workspace_path).unwrap();
+    let source_path = pack_locator::resolve_pack_path(&inventory, &source_pack.id).unwrap();
+    let target_path = pack_locator::resolve_pack_path(&inventory, &target_pack.id).unwrap();
+
+    let moving = create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_030_000,
+        PrimaryType::Monster,
+        None,
+        "Moving Conflict",
+    );
+    let target_conflict = create_card_with_optional_confirmation(
+        &state,
+        &workspace.id,
+        &target_pack.id,
+        100_030_000,
+        PrimaryType::Monster,
+        None,
+        "Target Conflict",
+    );
+    assert_eq!(target_conflict.code, moving.code);
+
+    let warning_result = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![moving.id.clone()],
+            move_assets: false,
+        },
+    )
+    .unwrap();
+    let confirmation_token = match warning_result {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            warnings,
+            ..
+        } => {
+            assert!(warnings.iter().any(|warning| {
+                warning.code == "card_batch.code_conflicts_with_target_pack_card"
+            }));
+            confirmation_token
+        }
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+    let confirmed = app_commands::confirm_card_batch_write(
+        &state,
+        ConfirmCardBatchWriteInput { confirmation_token },
+    )
+    .unwrap();
+    match confirmed {
+        CardBatchWriteResultDto::Move { data } => {
+            assert_eq!(data.moved_card_ids, vec![moving.id.clone()]);
+            assert_eq!(data.moved_asset_count, 0);
+        }
+        CardBatchWriteResultDto::BulkDelete { .. } => panic!("unexpected batch result"),
+    }
+
+    let duplicate_id_error = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![moving.id.clone()],
+            move_assets: false,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        duplicate_id_error.code,
+        "card_batch.target_card_id_conflict"
+    );
+
+    let asset_blocked = create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_030_020,
+        PrimaryType::Monster,
+        None,
+        "Asset Blocked",
+    );
+    fs::write(card_image_path(&source_path, asset_blocked.code), b"source").unwrap();
+    fs::write(card_image_path(&target_path, asset_blocked.code), b"target").unwrap();
+    let asset_warning = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![asset_blocked.id.clone()],
+            move_assets: true,
+        },
+    )
+    .unwrap();
+    let asset_token = match asset_warning {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token,
+            warnings,
+            ..
+        } => {
+            assert!(
+                warnings
+                    .iter()
+                    .any(|warning| warning.code == "card_batch.target_asset_exists")
+            );
+            confirmation_token
+        }
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+    let asset_error = app_commands::confirm_card_batch_write(
+        &state,
+        ConfirmCardBatchWriteInput {
+            confirmation_token: asset_token,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(asset_error.code, "card_batch.target_asset_exists");
+
+    let stale_moving = create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_031_000,
+        PrimaryType::Monster,
+        None,
+        "Stale Moving",
+    );
+    let stale_target_conflict = create_card_with_optional_confirmation(
+        &state,
+        &workspace.id,
+        &target_pack.id,
+        100_031_000,
+        PrimaryType::Monster,
+        None,
+        "Stale Target Conflict",
+    );
+    assert_eq!(stale_target_conflict.code, stale_moving.code);
+    let stale_warning = app_commands::move_cards(
+        &state,
+        MoveCardsInput {
+            workspace_id: workspace.id.clone(),
+            source_pack_id: source_pack.id.clone(),
+            target_pack_id: target_pack.id.clone(),
+            card_ids: vec![stale_moving.id.clone()],
+            move_assets: false,
+        },
+    )
+    .unwrap();
+    let stale_token = match stale_warning {
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token, ..
+        } => confirmation_token,
+        WriteResultDto::Ok { .. } => panic!("expected confirmation result"),
+    };
+    create_card_direct(
+        &state,
+        &workspace.id,
+        &source_pack.id,
+        100_032_000,
+        PrimaryType::Monster,
+        None,
+        "Stale Revision Bump",
+    );
+    let cache_entry = state
+        .confirmation_cache
+        .read()
+        .unwrap()
+        .debug_get_card_batch_entry(&stale_token)
+        .cloned();
+    assert!(cache_entry.is_none());
+    let stale_error = app_commands::confirm_card_batch_write(
+        &state,
+        ConfirmCardBatchWriteInput {
+            confirmation_token: stale_token,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(stale_error.code, "confirmation.invalid_token");
 }
 
 #[test]
@@ -2207,6 +2796,77 @@ fn create_card_direct(
     {
         WriteResultDto::Ok { data, .. } => data.card,
         WriteResultDto::NeedsConfirmation { .. } => panic!("unexpected confirmation result"),
+    }
+}
+
+fn create_card_with_optional_confirmation(
+    state: &ygocmg_core::bootstrap::app_state::AppState,
+    workspace_id: &str,
+    pack_id: &str,
+    code: u32,
+    primary_type: PrimaryType,
+    spell_subtype: Option<SpellSubtype>,
+    name: &str,
+) -> ygocmg_core::application::dto::card::EditableCardDto {
+    let is_monster = matches!(primary_type, PrimaryType::Monster);
+    let mut texts = BTreeMap::new();
+    texts.insert(
+        "zh-CN".to_string(),
+        CardTexts {
+            name: name.to_string(),
+            desc: format!("{name} desc"),
+            strings: vec![],
+        },
+    );
+
+    match app_commands::create_card(
+        state,
+        CreateCardInput {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            card: CardUpdateInput {
+                code,
+                alias: 0,
+                setcodes: vec![],
+                ot: Ot::Custom,
+                category: 0,
+                primary_type,
+                texts,
+                monster_flags: if is_monster {
+                    Some(vec![MonsterFlag::Effect])
+                } else {
+                    None
+                },
+                atk: if is_monster { Some(1500) } else { None },
+                def: if is_monster { Some(1200) } else { None },
+                race: if is_monster {
+                    Some(Race::Warrior)
+                } else {
+                    None
+                },
+                attribute: if is_monster {
+                    Some(Attribute::Light)
+                } else {
+                    None
+                },
+                level: if is_monster { Some(4) } else { None },
+                pendulum: None,
+                link: None,
+                spell_subtype,
+                trap_subtype: None,
+            },
+        },
+    )
+    .unwrap()
+    {
+        WriteResultDto::Ok { data, .. } => data.card,
+        WriteResultDto::NeedsConfirmation {
+            confirmation_token, ..
+        } => {
+            app_commands::confirm_card_write(state, ConfirmCardWriteInput { confirmation_token })
+                .unwrap()
+                .card
+        }
     }
 }
 

@@ -1,13 +1,19 @@
 import { invokeApi } from "./invoke";
 import type {
+  BulkDeleteCardsInput,
+  BulkDeleteCardsResult,
+  CardBatchWriteResult,
   CardDetail,
   CardListPage,
+  ConfirmCardBatchWriteInput,
   ConfirmCardWriteInput,
   CreateCardInput,
   DeleteCardInput,
   DeleteCardResult,
   GetCardInput,
   ListCardsInput,
+  MoveCardsInput,
+  MoveCardsResult,
   SuggestCodeInput,
   SuggestCodeResult,
   UpdateCardInput,
@@ -39,7 +45,19 @@ export const cardApi = {
     return invokeApi<WriteResult<DeleteCardResult>>("delete_card", { input });
   },
 
+  bulkDeleteCards(input: BulkDeleteCardsInput) {
+    return invokeApi<WriteResult<BulkDeleteCardsResult>>("bulk_delete_cards", { input });
+  },
+
+  moveCards(input: MoveCardsInput) {
+    return invokeApi<WriteResult<MoveCardsResult>>("move_cards", { input });
+  },
+
   confirmCardWrite(input: ConfirmCardWriteInput) {
     return invokeApi<CardDetail>("confirm_card_write", { input });
+  },
+
+  confirmCardBatchWrite(input: ConfirmCardBatchWriteInput) {
+    return invokeApi<CardBatchWriteResult>("confirm_card_batch_write", { input });
   },
 };

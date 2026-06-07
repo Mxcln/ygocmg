@@ -88,7 +88,12 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
 
         <div className={shared.tabContent}>
           {activeTab === "cards" ? (
-            <CardListPanel config={config} onEditCard={handleEditCard} onNewCard={handleNewCard} />
+            <CardListPanel
+              config={config}
+              onEditCard={handleEditCard}
+              onNewCard={handleNewCard}
+              onNotice={onNotice}
+            />
           ) : (
             <StringsListPanel catalog={config.text_language_catalog} />
           )}

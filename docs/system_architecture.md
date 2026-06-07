@@ -60,6 +60,9 @@
 - Card 和 Pack Strings 写入可能先返回 warning 和 confirmation token。
 - 前端展示确认对话框；用户确认后调用对应 confirm command。
 - 这种模式避免前端绕过后端 warning 和业务校验。
+- Card 批量删除和批量移动也使用同一写入/确认边界：前端只提交一次批量请求，后端负责校验、生成 warning、持久化和资源操作。
+- 批量移动会同时读取并更新源 pack 与目标 pack 的打开 session；提交时一次事务性计划写入两边 `cards.json`、pack metadata，并按选项移动主卡图、场地图和脚本资源。
+- 批量确认 token 会保存涉及 pack 的 revision/source stamp；相关 pack 发生写入、关闭或重新打开时，对应确认项会失效或被清理。
 
 ## 导入导出架构
 
@@ -79,4 +82,3 @@
 - 全局配置由后端持久化，前端在启动时读取。
 - 主题应用由前端负责，根据 `theme_mode`、`high_contrast`、`custom_brand_color` 更新 DOM/CSS token。
 - 系统主题变化在 `theme_mode = system` 时触发重新应用。
-

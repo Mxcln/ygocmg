@@ -45,6 +45,25 @@
   border-color: var(--brand);
 }
 
+.selectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  animation: selection-fade 120ms ease-out;
+}
+
+@keyframes selection-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .cardListHeader {
   display: grid;
   grid-template-columns: 28px 90px 1fr 60px 160px 42px 42px 32px 40px;
@@ -63,6 +82,28 @@
   top: 0;
   z-index: 2;
   background: var(--bg-2);
+}
+
+.cardListHeader[data-selection],
+.cardListRow[data-selection] {
+  grid-template-columns: 24px 28px 90px 1fr 60px 160px 42px 42px 32px 40px;
+}
+
+.selectionCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+}
+
+.selectionCell input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 
 .sortHeaderButton {
@@ -139,6 +180,11 @@
 .cardListRow:hover {
   background: var(--panel);
   border-color: var(--line);
+}
+
+.cardListRow[data-selected] {
+  background: var(--brand-soft);
+  border-color: var(--brand);
 }
 
 .cardListThumb {

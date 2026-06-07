@@ -235,7 +235,48 @@ export interface DeleteCardResult {
   deleted_card_id: string;
 }
 
+export interface BulkDeleteCardsInput {
+  workspaceId: string;
+  packId: string;
+  cardIds: string[];
+  deleteAssets: boolean;
+}
+
+export interface BulkDeleteCardsResult {
+  deleted_card_ids: string[];
+  deleted_asset_count: number;
+}
+
+export interface MoveCardsInput {
+  workspaceId: string;
+  sourcePackId: string;
+  targetPackId: string;
+  cardIds: string[];
+  moveAssets: boolean;
+}
+
+export interface MoveCardsResult {
+  moved_card_ids: string[];
+  moved_asset_count: number;
+  source_pack_revision: number;
+  target_pack_revision: number;
+}
+
+export type CardBatchWriteResult =
+  | {
+      operation: "bulk_delete";
+      data: BulkDeleteCardsResult;
+    }
+  | {
+      operation: "move";
+      data: MoveCardsResult;
+    };
+
 export interface ConfirmCardWriteInput {
+  confirmationToken: string;
+}
+
+export interface ConfirmCardBatchWriteInput {
   confirmationToken: string;
 }
 

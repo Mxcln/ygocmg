@@ -1,0 +1,71 @@
+.batchCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.moveLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.moveBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.moveDialog {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+
+.moveSummary {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.moveBody {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.moveBody select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--surface-input);
+  color: var(--text-0);
+  font-size: 13px;
+}
+
+.moveBody select:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.moveActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}

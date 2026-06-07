@@ -12,6 +12,7 @@
 ## 归档文件
 
 - `architecture_map.md`
+- `card_batch_operations_plan_2026-06-07.md`
 - `card_domain_glossary.md`
 - `card_text_language_design.md`
 - `custompack_advanced_search_plan.md`
@@ -49,4 +50,3 @@
 - 历史文档中的实现细节必须用当前代码核对后才能引用。
 - 如果发现历史内容仍然是稳定事实，应改写进当前核心文档。
 - 不在本目录中继续维护当前规范。
-

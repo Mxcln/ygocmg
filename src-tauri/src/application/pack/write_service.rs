@@ -1,8 +1,9 @@
-use std::collections::BTreeSet;
-use std::path::Path;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
+use crate::application::dto::card::{BulkDeleteCardsResultDto, MoveCardsResultDto};
 use crate::application::dto::strings::PackStringKeyDto;
 use crate::application::standard_pack::repository::{
     SqliteStandardPackRepository, StandardPackRepository,
@@ -52,6 +53,33 @@ pub struct PreparedUpdateCardWrite {
     pub normalized_input: CardUpdateInput,
     pub existing: CardEntity,
     pub updated: CardEntity,
+    pub warnings: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedBulkDeleteCardsWrite {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub snapshot: PackSession,
+    pub card_ids: Vec<CardId>,
+    pub delete_assets: bool,
+    pub next_cards: Vec<CardEntity>,
+    pub deleted_asset_count: usize,
+    pub warnings: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedMoveCardsWrite {
+    pub workspace_id: WorkspaceId,
+    pub source_pack_id: PackId,
+    pub target_pack_id: PackId,
+    pub source_snapshot: PackSession,
+    pub target_snapshot: PackSession,
+    pub card_ids: Vec<CardId>,
+    pub move_assets: bool,
+    pub next_source_cards: Vec<CardEntity>,
+    pub next_target_cards: Vec<CardEntity>,
+    pub moved_asset_count: usize,
     pub warnings: Vec<ValidationIssue>,
 }
 
@@ -394,6 +422,332 @@ impl<'a> PackWriteService<'a> {
         )?;
 
         self.replace_and_refresh(workspace_id, pack_id, next_session)
+    }
+
+    pub fn prepare_bulk_delete_cards(
+        &self,
+        workspace_id: &str,
+        pack_id: &str,
+        card_ids: Vec<CardId>,
+        delete_assets: bool,
+    ) -> AppResult<PreparedBulkDeleteCardsWrite> {
+        let snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            pack_id,
+        )?;
+        let card_ids = normalize_card_ids(card_ids)?;
+        let id_set = card_ids.iter().cloned().collect::<BTreeSet<_>>();
+        let cards_by_id = snapshot
+            .cards
+            .iter()
+            .map(|card| (card.id.as_str(), card))
+            .collect::<BTreeMap<_, _>>();
+        for card_id in &card_ids {
+            if !cards_by_id.contains_key(card_id.as_str()) {
+                return Err(AppError::new("card.not_found", "card was not found")
+                    .with_detail("card_id", card_id));
+            }
+        }
+
+        let deleted_asset_count = if delete_assets {
+            card_ids
+                .iter()
+                .filter_map(|card_id| cards_by_id.get(card_id.as_str()).copied())
+                .flat_map(|card| asset_paths_for_code(&snapshot.pack_path, card.code))
+                .filter(|path| path.exists())
+                .count()
+        } else {
+            0
+        };
+
+        let next_cards = snapshot
+            .cards
+            .iter()
+            .filter(|card| !id_set.contains(&card.id))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Ok(PreparedBulkDeleteCardsWrite {
+            workspace_id: workspace_id.to_string(),
+            pack_id: pack_id.to_string(),
+            snapshot,
+            card_ids,
+            delete_assets,
+            next_cards,
+            deleted_asset_count,
+            warnings: Vec::new(),
+        })
+    }
+
+    pub fn commit_prepared_bulk_delete_cards(
+        &self,
+        prepared: &PreparedBulkDeleteCardsWrite,
+    ) -> AppResult<BulkDeleteCardsResultDto> {
+        let mut operations = Vec::new();
+        if prepared.delete_assets {
+            let cards_by_id = prepared
+                .snapshot
+                .cards
+                .iter()
+                .map(|card| (card.id.as_str(), card))
+                .collect::<BTreeMap<_, _>>();
+            for card_id in &prepared.card_ids {
+                let card = cards_by_id
+                    .get(card_id.as_str())
+                    .ok_or_else(|| AppError::new("card.not_found", "card was not found"))?;
+                for path in asset_paths_for_code(&prepared.snapshot.pack_path, card.code) {
+                    operations.push(FsOperation::DeleteFile { path });
+                }
+            }
+        }
+
+        let next_metadata = crate::domain::pack::summary::touch_pack_metadata(
+            &prepared.snapshot.metadata,
+            now_utc(),
+        );
+        operations.push(FsOperation::WriteFile {
+            path: json_store::cards_path(&prepared.snapshot.pack_path),
+            contents: encode_cards(&prepared.next_cards)?,
+        });
+        operations.push(FsOperation::WriteFile {
+            path: json_store::pack_metadata_path(&prepared.snapshot.pack_path),
+            contents: encode_pack_metadata(&next_metadata)?,
+        });
+        execute_plan(operations)?;
+
+        let next_session = crate::application::pack::service::build_pack_session(
+            prepared.snapshot.pack_path.clone(),
+            next_metadata,
+            prepared.next_cards.clone(),
+            prepared.snapshot.strings.clone(),
+            prepared.snapshot.revision + 1,
+        )?;
+        self.replace_and_refresh(&prepared.workspace_id, &prepared.pack_id, next_session)?;
+
+        Ok(BulkDeleteCardsResultDto {
+            deleted_card_ids: prepared.card_ids.clone(),
+            deleted_asset_count: prepared.deleted_asset_count,
+        })
+    }
+
+    pub fn prepare_move_cards(
+        &self,
+        workspace_id: &str,
+        source_pack_id: &str,
+        target_pack_id: &str,
+        card_ids: Vec<CardId>,
+        move_assets: bool,
+    ) -> AppResult<PreparedMoveCardsWrite> {
+        if source_pack_id == target_pack_id {
+            return Err(AppError::new(
+                "card_batch.same_pack",
+                "source and target pack must be different",
+            ));
+        }
+
+        let source_snapshot = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            source_pack_id,
+        )?;
+        let target_snapshot = match crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            workspace_id,
+            target_pack_id,
+        ) {
+            Ok(snapshot) => snapshot,
+            Err(error) if error.code == "pack.not_open" => {
+                return Err(AppError::new(
+                    "card_batch.target_pack_not_open",
+                    "target pack is not currently open",
+                )
+                .with_detail("target_pack_id", target_pack_id));
+            }
+            Err(error) => return Err(error),
+        };
+        let card_ids = normalize_card_ids(card_ids)?;
+        let id_set = card_ids.iter().cloned().collect::<BTreeSet<_>>();
+        let source_cards_by_id = source_snapshot
+            .cards
+            .iter()
+            .map(|card| (card.id.as_str(), card))
+            .collect::<BTreeMap<_, _>>();
+        let target_ids = target_snapshot
+            .cards
+            .iter()
+            .map(|card| card.id.as_str())
+            .collect::<BTreeSet<_>>();
+
+        let now = now_utc();
+        let mut moved_cards = Vec::new();
+        for card_id in &card_ids {
+            if target_ids.contains(card_id.as_str()) {
+                return Err(AppError::new(
+                    "card_batch.target_card_id_conflict",
+                    "target pack already contains a card with this id",
+                )
+                .with_detail("card_id", card_id)
+                .with_detail("target_pack_id", target_pack_id));
+            }
+            let mut card = source_cards_by_id
+                .get(card_id.as_str())
+                .cloned()
+                .cloned()
+                .ok_or_else(|| {
+                    AppError::new("card.not_found", "card was not found")
+                        .with_detail("card_id", card_id)
+                })?;
+            card.updated_at = now;
+            moved_cards.push(card);
+        }
+
+        let mut next_source_cards = source_snapshot
+            .cards
+            .iter()
+            .filter(|card| !id_set.contains(&card.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        next_source_cards.sort_by_key(|card| card.code);
+
+        let mut next_target_cards = target_snapshot.cards.clone();
+        next_target_cards.extend(moved_cards.iter().cloned());
+        next_target_cards.sort_by_key(|card| card.code);
+
+        let mut warnings = self.move_card_code_warnings(target_pack_id, &moved_cards)?;
+        let moved_asset_count = if move_assets {
+            let asset_plan = planned_cross_pack_asset_moves(
+                &source_snapshot.pack_path,
+                &target_snapshot.pack_path,
+                &moved_cards,
+            );
+            for (card_id, code, from, to) in &asset_plan {
+                if from.exists() && to.exists() {
+                    warnings.push(
+                        ValidationIssue::warning(
+                            "card_batch.target_asset_exists",
+                            crate::domain::common::issue::ValidationTarget::new("card_batch")
+                                .with_entity_id(card_id.clone())
+                                .with_field("assets"),
+                        )
+                        .with_param("card_id", card_id)
+                        .with_param("code", code)
+                        .with_param("path", to.display().to_string()),
+                    );
+                }
+            }
+            asset_plan
+                .iter()
+                .filter(|(_, _, from, _)| from.exists())
+                .count()
+        } else {
+            0
+        };
+
+        Ok(PreparedMoveCardsWrite {
+            workspace_id: workspace_id.to_string(),
+            source_pack_id: source_pack_id.to_string(),
+            target_pack_id: target_pack_id.to_string(),
+            source_snapshot,
+            target_snapshot,
+            card_ids,
+            move_assets,
+            next_source_cards,
+            next_target_cards,
+            moved_asset_count,
+            warnings,
+        })
+    }
+
+    pub fn commit_prepared_move_cards(
+        &self,
+        prepared: &PreparedMoveCardsWrite,
+    ) -> AppResult<MoveCardsResultDto> {
+        let moved_cards = prepared
+            .next_target_cards
+            .iter()
+            .filter(|card| prepared.card_ids.iter().any(|card_id| card_id == &card.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut operations = Vec::new();
+        if prepared.move_assets {
+            for (card_id, code, from, to) in planned_cross_pack_asset_moves(
+                &prepared.source_snapshot.pack_path,
+                &prepared.target_snapshot.pack_path,
+                &moved_cards,
+            ) {
+                if from.exists() && to.exists() {
+                    return Err(AppError::new(
+                        "card_batch.target_asset_exists",
+                        "target asset already exists",
+                    )
+                    .with_detail("card_id", card_id)
+                    .with_detail("code", code)
+                    .with_detail("path", to.display().to_string()));
+                }
+                operations.push(FsOperation::Rename { from, to });
+            }
+        }
+
+        let next_source_metadata = crate::domain::pack::summary::touch_pack_metadata(
+            &prepared.source_snapshot.metadata,
+            now_utc(),
+        );
+        let next_target_metadata = crate::domain::pack::summary::touch_pack_metadata(
+            &prepared.target_snapshot.metadata,
+            now_utc(),
+        );
+
+        operations.push(FsOperation::WriteFile {
+            path: json_store::cards_path(&prepared.source_snapshot.pack_path),
+            contents: encode_cards(&prepared.next_source_cards)?,
+        });
+        operations.push(FsOperation::WriteFile {
+            path: json_store::cards_path(&prepared.target_snapshot.pack_path),
+            contents: encode_cards(&prepared.next_target_cards)?,
+        });
+        operations.push(FsOperation::WriteFile {
+            path: json_store::pack_metadata_path(&prepared.source_snapshot.pack_path),
+            contents: encode_pack_metadata(&next_source_metadata)?,
+        });
+        operations.push(FsOperation::WriteFile {
+            path: json_store::pack_metadata_path(&prepared.target_snapshot.pack_path),
+            contents: encode_pack_metadata(&next_target_metadata)?,
+        });
+        execute_plan(operations)?;
+
+        let next_source_session = crate::application::pack::service::build_pack_session(
+            prepared.source_snapshot.pack_path.clone(),
+            next_source_metadata,
+            prepared.next_source_cards.clone(),
+            prepared.source_snapshot.strings.clone(),
+            prepared.source_snapshot.revision + 1,
+        )?;
+        let next_target_session = crate::application::pack::service::build_pack_session(
+            prepared.target_snapshot.pack_path.clone(),
+            next_target_metadata,
+            prepared.next_target_cards.clone(),
+            prepared.target_snapshot.strings.clone(),
+            prepared.target_snapshot.revision + 1,
+        )?;
+
+        self.replace_and_refresh(
+            &prepared.workspace_id,
+            &prepared.source_pack_id,
+            next_source_session.clone(),
+        )?;
+        self.replace_and_refresh(
+            &prepared.workspace_id,
+            &prepared.target_pack_id,
+            next_target_session.clone(),
+        )?;
+
+        Ok(MoveCardsResultDto {
+            moved_card_ids: prepared.card_ids.clone(),
+            moved_asset_count: prepared.moved_asset_count,
+            source_pack_revision: next_source_session.revision,
+            target_pack_revision: next_target_session.revision,
+        })
     }
 
     pub fn prepare_upsert_pack_string(
@@ -967,6 +1321,55 @@ impl<'a> PackWriteService<'a> {
             },
         )
     }
+
+    fn move_card_code_warnings(
+        &self,
+        target_pack_id: &str,
+        moved_cards: &[CardEntity],
+    ) -> AppResult<Vec<ValidationIssue>> {
+        let mut context = crate::application::card::service::CardService::new(self.state)
+            .build_code_context(target_pack_id, None)?;
+        for card in moved_cards {
+            context.other_custom_codes.remove(&card.code);
+        }
+
+        let mut warnings = Vec::new();
+        let mut errors = Vec::new();
+        for card in moved_cards {
+            let mut per_card_context = context.clone();
+            let target_pack_code_conflict = per_card_context.current_pack_codes.remove(&card.code);
+            let issues = validate_card_code(card.code, &per_card_context);
+            for issue in issues {
+                match issue.level {
+                    IssueLevel::Error => errors.push(issue),
+                    IssueLevel::Warning => warnings.push(issue),
+                }
+            }
+            if target_pack_code_conflict {
+                warnings.push(
+                    ValidationIssue::warning(
+                        "card_batch.code_conflicts_with_target_pack_card",
+                        crate::domain::common::issue::ValidationTarget::new("card_batch")
+                            .with_entity_id(card.id.clone())
+                            .with_field("code"),
+                    )
+                    .with_param("card_id", &card.id)
+                    .with_param("code", card.code)
+                    .with_param("target_pack_id", target_pack_id),
+                );
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(AppError::new(
+                "card_batch.code_validation_failed",
+                "card codes contain validation errors",
+            )
+            .with_detail("issues", &errors));
+        }
+
+        Ok(warnings)
+    }
 }
 
 fn encode_cards(cards: &[CardEntity]) -> AppResult<Vec<u8>> {
@@ -1072,6 +1475,65 @@ fn pack_existing_languages(snapshot: &PackSession) -> BTreeSet<String> {
         languages.extend(record.values.keys().cloned());
     }
     languages
+}
+
+fn normalize_card_ids(card_ids: Vec<CardId>) -> AppResult<Vec<CardId>> {
+    let mut normalized = Vec::new();
+    for card_id in card_ids {
+        let trimmed = card_id.trim().to_string();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if !normalized.iter().any(|current| current == &trimmed) {
+            normalized.push(trimmed);
+        }
+    }
+
+    if normalized.is_empty() {
+        return Err(AppError::new(
+            "card_batch.empty_selection",
+            "at least one card must be selected",
+        ));
+    }
+
+    Ok(normalized)
+}
+
+fn asset_paths_for_code(pack_path: &Path, code: u32) -> Vec<PathBuf> {
+    vec![
+        card_image_path(pack_path, code),
+        field_image_path(pack_path, code),
+        script_path(pack_path, code),
+    ]
+}
+
+fn planned_cross_pack_asset_moves(
+    source_pack_path: &Path,
+    target_pack_path: &Path,
+    cards: &[CardEntity],
+) -> Vec<(CardId, u32, PathBuf, PathBuf)> {
+    cards
+        .iter()
+        .flat_map(|card| {
+            [
+                (
+                    card_image_path(source_pack_path, card.code),
+                    card_image_path(target_pack_path, card.code),
+                ),
+                (
+                    field_image_path(source_pack_path, card.code),
+                    field_image_path(target_pack_path, card.code),
+                ),
+                (
+                    script_path(source_pack_path, card.code),
+                    script_path(target_pack_path, card.code),
+                ),
+            ]
+            .into_iter()
+            .map(|(from, to)| (card.id.clone(), card.code, from, to))
+            .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 fn require_card<'a>(snapshot: &'a PackSession, card_id: &str) -> AppResult<&'a CardEntity> {

@@ -233,7 +233,53 @@ pub struct DeleteCardResultDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BulkDeleteCardsInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+    pub card_ids: Vec<CardId>,
+    pub delete_assets: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkDeleteCardsResultDto {
+    pub deleted_card_ids: Vec<CardId>,
+    pub deleted_asset_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoveCardsInput {
+    pub workspace_id: WorkspaceId,
+    pub source_pack_id: PackId,
+    pub target_pack_id: PackId,
+    pub card_ids: Vec<CardId>,
+    pub move_assets: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveCardsResultDto {
+    pub moved_card_ids: Vec<CardId>,
+    pub moved_asset_count: usize,
+    pub source_pack_revision: u64,
+    pub target_pack_revision: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum CardBatchWriteResultDto {
+    BulkDelete { data: BulkDeleteCardsResultDto },
+    Move { data: MoveCardsResultDto },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfirmCardWriteInput {
+    pub confirmation_token: ConfirmationToken,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmCardBatchWriteInput {
     pub confirmation_token: ConfirmationToken,
 }
 

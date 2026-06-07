@@ -50,8 +50,14 @@ interface CardBrowserPanelProps {
   onOpenCard: (card: CardListRow) => void;
   onNewCard?: () => void;
   newCardLabel?: string;
+  onPageLoaded?: (page: CardBrowserPage) => void;
+  selectedCardIds?: string[];
+  onSelectionChange?: (cardIds: string[]) => void;
+  selectionMode?: boolean;
+  onSelectionModeChange?: (mode: boolean) => void;
   toolbarExtra?: ReactNode;
   toolbarPanel?: ReactNode;
+  selectionToolbar?: ReactNode;
   sortOptions?: CardBrowserSortOption[];
   emptyTitle: string;
   emptyHint?: string;
@@ -130,8 +136,14 @@ export function CardBrowserPanel({
   onOpenCard,
   onNewCard,
   newCardLabel,
+  onPageLoaded,
+  selectedCardIds,
+  onSelectionChange,
+  selectionMode = false,
+  onSelectionModeChange,
   toolbarExtra,
   toolbarPanel,
+  selectionToolbar,
   sortOptions,
   emptyTitle,
   emptyHint,
@@ -192,6 +204,12 @@ export function CardBrowserPanel({
   const imageBasePath = data?.image_base_path ?? null;
   const revision = data?.revision ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const selectionAvailable = !!selectedCardIds && !!onSelectionChange && !!onSelectionModeChange;
+  const selectionEnabled = selectionAvailable && selectionMode;
+  const selectedSet = useMemo(() => new Set(selectedCardIds ?? []), [selectedCardIds]);
+  const pageSelectedCount = items.filter((card) => selectedSet.has(card.id)).length;
+  const allPageSelected = items.length > 0 && pageSelectedCount === items.length;
+  const somePageSelected = pageSelectedCount > 0 && !allPageSelected;
   const displaySortOptions: CardBrowserSortOption[] =
     sortOptions ?? [
       { field: "code", direction: "asc", label: t("card.sort.codeAsc") },
@@ -209,6 +227,10 @@ export function CardBrowserPanel({
     ];
 
   const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
+
+  useEffect(() => {
+    if (data) onPageLoaded?.(data);
+  }, [data, onPageLoaded]);
 
   function commitPageDraft() {
     const raw = pageDraft.trim();
@@ -278,6 +300,31 @@ export function CardBrowserPanel({
     }
   }
 
+  function toggleCardSelection(cardId: string) {
+    if (!onSelectionChange) return;
+    const current = selectedCardIds ?? [];
+    if (current.includes(cardId)) {
+      onSelectionChange(current.filter((id) => id !== cardId));
+      return;
+    }
+    onSelectionChange([...current, cardId]);
+  }
+
+  function togglePageSelection() {
+    if (!onSelectionChange) return;
+    const current = selectedCardIds ?? [];
+    const pageIds = items.map((card) => card.id);
+    if (allPageSelected) {
+      onSelectionChange(current.filter((id) => !pageIds.includes(id)));
+      return;
+    }
+    const next = [...current];
+    for (const id of pageIds) {
+      if (!next.includes(id)) next.push(id);
+    }
+    onSelectionChange(next);
+  }
+
   return (
     <div className={styles.browserPanel}>
       <div className={styles.cardListToolbar}>
@@ -316,10 +363,34 @@ export function CardBrowserPanel({
           ))}
         </select>
         {toolbarExtra}
-        {onNewCard && (
-          <button type="button" className={shared.primaryButton} onClick={onNewCard}>
-            {newCardLabel ?? t("card.list.newCard")}
-          </button>
+        {selectionEnabled ? (
+          <div className={styles.selectionActions}>
+            {selectionToolbar}
+            <button
+              type="button"
+              className={shared.primaryButton}
+              onClick={() => onSelectionModeChange?.(false)}
+            >
+              {t("card.batch.done")}
+            </button>
+          </div>
+        ) : (
+          <>
+            {onNewCard && (
+              <button type="button" className={shared.primaryButton} onClick={onNewCard}>
+                {newCardLabel ?? t("card.list.newCard")}
+              </button>
+            )}
+            {selectionAvailable && (
+              <button
+                type="button"
+                className={shared.ghostButton}
+                onClick={() => onSelectionModeChange?.(true)}
+              >
+                {t("card.batch.enterSelection")}
+              </button>
+            )}
+          </>
         )}
       </div>
       {toolbarPanel}
@@ -340,7 +411,23 @@ export function CardBrowserPanel({
       ) : (
         <>
           <div className={styles.cardListScrollArea}>
-            <div className={styles.cardListHeader}>
+            <div
+              className={styles.cardListHeader}
+              data-selection={selectionEnabled || undefined}
+            >
+              {selectionEnabled && (
+                <label className={styles.selectionCell} title={t("card.batch.selectPage")}>
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    ref={(element) => {
+                      if (element) element.indeterminate = somePageSelected;
+                    }}
+                    onChange={togglePageSelection}
+                    aria-label={t("card.batch.selectPage")}
+                  />
+                </label>
+              )}
               <span />
               {renderSortHeader("code", t("card.list.code"))}
               {renderSortHeader("name", t("card.list.name"))}
@@ -356,8 +443,25 @@ export function CardBrowserPanel({
                 <div
                   key={card.id}
                   className={styles.cardListRow}
-                  onClick={() => onOpenCard(card)}
+                  data-selection={selectionEnabled || undefined}
+                  data-selected={selectedSet.has(card.id) || undefined}
+                  onClick={() =>
+                    selectionEnabled ? toggleCardSelection(card.id) : onOpenCard(card)
+                  }
                 >
+                  {selectionEnabled && (
+                    <label
+                      className={styles.selectionCell}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(card.id)}
+                        onChange={() => toggleCardSelection(card.id)}
+                        aria-label={t("card.batch.selectCard", { code: card.code })}
+                      />
+                    </label>
+                  )}
                   <div className={styles.cardListThumb}>
                     {card.has_image && imageBasePath ? (
                       <img
