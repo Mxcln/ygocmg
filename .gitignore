@@ -25,6 +25,14 @@ Thumbs.db
 .vscode/
 .idea/
 .cursor/
+.codex/
+.agent/
+.agents/
+.claude/
+
+# Agent instruction symlinks (AGENTS.md is the tracked source)
+CLAUDE.md
+GEMINI.md
 
 review/
 !docs/review/
