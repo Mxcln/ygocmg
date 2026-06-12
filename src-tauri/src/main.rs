@@ -26,6 +26,7 @@ fn main() {
             tauri_commands::initialize,
             tauri_commands::load_config,
             tauri_commands::save_config,
+            tauri_commands::llm_chat,
             tauri_commands::list_recent_workspaces,
             tauri_commands::create_workspace,
             tauri_commands::open_workspace,

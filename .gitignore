@@ -10,6 +10,10 @@ dist/
 .npm/
 .pnpm-store/
 
+# Local env (may contain secrets)
+.env.local
+.env.*.local
+
 # Tauri / local app data
 src-tauri/gen/
 .tauri/

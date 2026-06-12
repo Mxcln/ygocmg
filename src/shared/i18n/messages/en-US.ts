@@ -1,4 +1,26 @@
 export const EN_MESSAGES = {
+  // ── Agent ──
+  "agent.title": "AI Assistant",
+  "agent.open": "Open AI assistant",
+  "agent.close": "Close AI assistant",
+  "agent.collapse": "Collapse AI assistant",
+  "agent.resize": "Resize AI assistant",
+  "agent.contextPack": "Current pack: {pack}",
+  "agent.contextNoPack": "No active pack",
+  "agent.placeholder": "Ask me to manage your cards…",
+  "agent.send": "Send",
+  "agent.clear": "Clear conversation",
+  "agent.thinking": "Thinking…",
+  "agent.running": "Working…",
+  "agent.emptyTitle": "AI Assistant",
+  "agent.emptyHint": "Ask me to list, create, update, or move cards in the current pack.",
+  "agent.noKeyTitle": "DeepSeek API key not set",
+  "agent.noKeyHint": "Add your DeepSeek API key in Settings to use the assistant.",
+  "agent.noKeyAction": "Open Settings",
+  "agent.toolRan": "Ran {tool}",
+  "agent.confirmTitle": "Confirm this change",
+  "agent.confirmApply": "Apply",
+  "agent.confirmCancel": "Cancel",
   // ── Action ──
   "action.add": "Add",
   "action.apply": "Apply",
@@ -609,6 +631,9 @@ export const EN_MESSAGES = {
   "settings.title": "Global Settings",
   "settings.visibleLanguageCount": "{count} visible language{plural}",
   "settings.ygoproPath": "YGOPro path",
+  "settings.deepseekApiKey": "DeepSeek API key",
+  "settings.deepseekApiKey.help": "Used by the AI assistant. Your conversation and related card data are sent to DeepSeek.",
+  "settings.deepseekApiKey.placeholder": "sk-…",
 
   // ── Sidebar ──
   "sidebar.closePack": "Close pack",

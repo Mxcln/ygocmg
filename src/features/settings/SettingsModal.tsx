@@ -372,6 +372,26 @@ export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme 
                   </div>
                 </div>
               </section>
+
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>{t("agent.title")}</h4>
+                <label className={shared.field}>
+                  <span>{t("settings.deepseekApiKey")}</span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={draft.deepseek_api_key ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        deepseek_api_key: e.target.value.trim() === "" ? null : e.target.value,
+                      })
+                    }
+                    placeholder={t("settings.deepseekApiKey.placeholder")}
+                  />
+                </label>
+                <span className={shared.fieldHint}>{t("settings.deepseekApiKey.help")}</span>
+              </section>
             </div>
           )}
 

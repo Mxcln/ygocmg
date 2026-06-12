@@ -21,6 +21,8 @@ export interface GlobalConfig {
   custom_code_min_gap: number;
   shell_sidebar_width: number;
   shell_sidebar_collapsed: boolean;
+  shell_right_sidebar_width: number;
+  shell_right_sidebar_collapsed: boolean;
   shell_window_width: number;
   shell_window_height: number;
   shell_window_is_maximized: boolean;
@@ -29,4 +31,5 @@ export interface GlobalConfig {
   theme_mode: ThemeMode;
   high_contrast: boolean;
   custom_brand_color: string | null;
+  deepseek_api_key: string | null;
 }

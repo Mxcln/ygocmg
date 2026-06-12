@@ -1,6 +1,28 @@
 import type { AppMessages } from "./index";
 
 export const ZH_MESSAGES: AppMessages = {
+  // ── Agent ──
+  "agent.title": "AI 助手",
+  "agent.open": "打开 AI 助手",
+  "agent.close": "关闭 AI 助手",
+  "agent.collapse": "收起 AI 助手",
+  "agent.resize": "调整 AI 助手宽度",
+  "agent.contextPack": "当前卡包：{pack}",
+  "agent.contextNoPack": "没有活动卡包",
+  "agent.placeholder": "让我帮你管理卡片…",
+  "agent.send": "发送",
+  "agent.clear": "清空对话",
+  "agent.thinking": "思考中…",
+  "agent.running": "处理中…",
+  "agent.emptyTitle": "AI 助手",
+  "agent.emptyHint": "让我列出、创建、修改或移动当前卡包里的卡片。",
+  "agent.noKeyTitle": "未设置 DeepSeek API key",
+  "agent.noKeyHint": "在设置中填入你的 DeepSeek API key 即可使用助手。",
+  "agent.noKeyAction": "打开设置",
+  "agent.toolRan": "执行了 {tool}",
+  "agent.confirmTitle": "确认此操作",
+  "agent.confirmApply": "应用",
+  "agent.confirmCancel": "取消",
   // ── Action ──
   "action.add": "添加",
   "action.apply": "应用",
@@ -611,6 +633,9 @@ export const ZH_MESSAGES: AppMessages = {
   "settings.title": "全局设置",
   "settings.visibleLanguageCount": "{count} 种可见语言",
   "settings.ygoproPath": "YGOPro 路径",
+  "settings.deepseekApiKey": "DeepSeek API key",
+  "settings.deepseekApiKey.help": "供 AI 助手使用。你的对话内容与相关卡片数据会发送给 DeepSeek。",
+  "settings.deepseekApiKey.placeholder": "sk-…",
 
   // ── Sidebar ──
   "sidebar.closePack": "关闭卡包",

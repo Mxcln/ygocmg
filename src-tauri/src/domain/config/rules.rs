@@ -20,6 +20,8 @@ pub fn default_global_config() -> GlobalConfig {
         custom_code_min_gap: 5,
         shell_sidebar_width: 150,
         shell_sidebar_collapsed: false,
+        shell_right_sidebar_width: 320,
+        shell_right_sidebar_collapsed: false,
         shell_window_width: 960,
         shell_window_height: 640,
         shell_window_is_maximized: false,
@@ -28,6 +30,7 @@ pub fn default_global_config() -> GlobalConfig {
         theme_mode: ThemeMode::System,
         high_contrast: false,
         custom_brand_color: None,
+        deepseek_api_key: None,
     }
 }
 
@@ -108,6 +111,18 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
             .with_param("value", config.shell_sidebar_width)
             .with_param("min", 140)
             .with_param("max", 280),
+        );
+    }
+
+    if !(280..=560).contains(&config.shell_right_sidebar_width) {
+        issues.push(
+            ValidationIssue::error(
+                "config.invalid_shell_right_sidebar_width",
+                target.clone().with_field("shell_right_sidebar_width"),
+            )
+            .with_param("value", config.shell_right_sidebar_width)
+            .with_param("min", 280)
+            .with_param("max", 560),
         );
     }
 

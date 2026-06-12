@@ -50,6 +50,12 @@ pub fn save_config(state: &AppState, config: &GlobalConfig) -> AppResult<GlobalC
         .map(|(config, _warnings)| config)
 }
 
+pub async fn llm_chat(state: &AppState, body: serde_json::Value) -> AppResult<serde_json::Value> {
+    crate::application::llm::service::LlmService::new(state)
+        .chat(body)
+        .await
+}
+
 pub fn list_recent_workspaces(state: &AppState) -> AppResult<WorkspaceRegistryFile> {
     crate::application::workspace::service::WorkspaceService::new(state).list_recent()
 }

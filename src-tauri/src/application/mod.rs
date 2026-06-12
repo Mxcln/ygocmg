@@ -4,6 +4,7 @@ pub mod dto;
 pub mod export;
 pub mod import;
 pub mod jobs;
+pub mod llm;
 pub mod pack;
 pub mod resource;
 pub mod standard_pack;

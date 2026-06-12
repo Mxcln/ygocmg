@@ -1,6 +1,28 @@
 import type { AppMessages } from "./index";
 
 export const JA_MESSAGES: AppMessages = {
+  // ── Agent ──
+  "agent.title": "AI アシスタント",
+  "agent.open": "AI アシスタントを開く",
+  "agent.close": "AI アシスタントを閉じる",
+  "agent.collapse": "AI アシスタントを折りたたむ",
+  "agent.resize": "AI アシスタントの幅を調整",
+  "agent.contextPack": "現在のパック：{pack}",
+  "agent.contextNoPack": "アクティブなパックがありません",
+  "agent.placeholder": "カードの管理を頼んでください…",
+  "agent.send": "送信",
+  "agent.clear": "会話をクリア",
+  "agent.thinking": "考え中…",
+  "agent.running": "処理中…",
+  "agent.emptyTitle": "AI アシスタント",
+  "agent.emptyHint": "現在のパックのカードを一覧・作成・更新・移動できます。",
+  "agent.noKeyTitle": "DeepSeek API キーが未設定です",
+  "agent.noKeyHint": "設定で DeepSeek API キーを入力するとアシスタントを利用できます。",
+  "agent.noKeyAction": "設定を開く",
+  "agent.toolRan": "{tool} を実行しました",
+  "agent.confirmTitle": "この操作を確認",
+  "agent.confirmApply": "適用",
+  "agent.confirmCancel": "キャンセル",
   // ── Action ──
   "action.add": "追加",
   "action.apply": "適用",
@@ -611,6 +633,9 @@ export const JA_MESSAGES: AppMessages = {
   "settings.title": "グローバル設定",
   "settings.visibleLanguageCount": "{count} 言語表示中",
   "settings.ygoproPath": "YGOProパス",
+  "settings.deepseekApiKey": "DeepSeek API キー",
+  "settings.deepseekApiKey.help": "AI アシスタントが使用します。会話内容と関連するカードデータが DeepSeek に送信されます。",
+  "settings.deepseekApiKey.placeholder": "sk-…",
 
   // ── Sidebar ──
   "sidebar.closePack": "パックを閉じる",

@@ -38,7 +38,7 @@
 .shellBody {
   flex: 1;
   display: grid;
-  grid-template-columns: var(--sidebar-width, 150px) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width, 150px) minmax(0, 1fr) var(--right-sidebar-width, 44px);
   min-height: 0;
 }
 

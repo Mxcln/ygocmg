@@ -129,6 +129,17 @@ pub fn save_config(
 }
 
 #[tauri::command]
+pub async fn llm_chat(
+    state: State<'_, AppState>,
+    body: serde_json::Value,
+) -> CommandResult<serde_json::Value> {
+    // `AppState` is cheaply cloneable (Arc-backed); clone it so we don't hold the
+    // `State` guard across the await point of the HTTP request.
+    let state = (*state).clone();
+    crate::presentation::commands::app_commands::llm_chat(&state, body).await
+}
+
+#[tauri::command]
 pub fn list_recent_workspaces(
     state: State<'_, AppState>,
 ) -> CommandResult<crate::domain::workspace::model::WorkspaceRegistryFile> {

@@ -17,9 +17,11 @@ import { StandardPackView } from "../features/standardPack/StandardPackView";
 import { ExportModal } from "../features/export/ExportModal";
 import { useAppWindow } from "./hooks/useAppWindow";
 import { useSidebarResize } from "./hooks/useSidebarResize";
+import { useRightSidebarResize } from "./hooks/useRightSidebarResize";
 import { requestClose, useGlobalBackNavigation, useBackNavigation } from "./hooks/useBackNavigation";
 import { TitleBar } from "./TitleBar";
 import { AppSidebar } from "./AppSidebar";
+import { AgentSidebar } from "../features/agent/AgentSidebar";
 import { NoticeBanner } from "./NoticeBanner";
 import type { Notice, NoticeTone } from "./NoticeBanner";
 import { PackWorkArea } from "./PackWorkArea";
@@ -61,6 +63,14 @@ export function App() {
     beginSidebarResize,
     effectiveSidebarWidth,
   } = useSidebarResize(configRef, setConfig);
+  const {
+    rightSidebarWidth,
+    setRightSidebarWidth,
+    rightSidebarCollapsed,
+    setRightSidebarCollapsed,
+    toggleRightSidebarCollapsed,
+    beginRightSidebarResize,
+  } = useRightSidebarResize(configRef, setConfig);
 
   const setActivePack = useShellStore((s) => s.setActivePack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
@@ -84,7 +94,9 @@ export function App() {
     if (!config) return;
     setSidebarWidth(config.shell_sidebar_width);
     setSidebarCollapsed(config.shell_sidebar_collapsed);
-  }, [config, setSidebarCollapsed, setSidebarWidth]);
+    setRightSidebarWidth(config.shell_right_sidebar_width);
+    setRightSidebarCollapsed(config.shell_right_sidebar_collapsed);
+  }, [config, setSidebarCollapsed, setSidebarWidth, setRightSidebarWidth, setRightSidebarCollapsed]);
 
   function handleNotice(tone: NoticeTone, title: string, detail: string) {
     const id = nextNoticeId.current;
@@ -123,6 +135,8 @@ export function App() {
         setConfig(nextConfig);
         setSidebarWidth(nextConfig.shell_sidebar_width);
         setSidebarCollapsed(nextConfig.shell_sidebar_collapsed);
+        setRightSidebarWidth(nextConfig.shell_right_sidebar_width);
+        setRightSidebarCollapsed(nextConfig.shell_right_sidebar_collapsed);
         setRecentWorkspaces(nextRecent);
         setLoading(false);
 
@@ -229,6 +243,10 @@ export function App() {
         toggleSidebarCollapsed={toggleSidebarCollapsed}
         effectiveSidebarWidth={effectiveSidebarWidth}
         beginSidebarResize={beginSidebarResize}
+        rightSidebarWidth={rightSidebarWidth}
+        rightSidebarCollapsed={rightSidebarCollapsed}
+        toggleRightSidebarCollapsed={toggleRightSidebarCollapsed}
+        beginRightSidebarResize={beginRightSidebarResize}
       />
     </AppI18nProvider>
   );
@@ -254,6 +272,10 @@ function AppShell({
   toggleSidebarCollapsed,
   effectiveSidebarWidth,
   beginSidebarResize,
+  rightSidebarWidth,
+  rightSidebarCollapsed,
+  toggleRightSidebarCollapsed,
+  beginRightSidebarResize,
 }: {
   config: GlobalConfig;
   configRef: React.MutableRefObject<GlobalConfig | null>;
@@ -274,11 +296,16 @@ function AppShell({
   toggleSidebarCollapsed: () => void;
   effectiveSidebarWidth: number;
   beginSidebarResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  rightSidebarWidth: number;
+  rightSidebarCollapsed: boolean;
+  toggleRightSidebarCollapsed: () => void;
+  beginRightSidebarResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useAppI18n();
   const modal = useShellStore((s) => s.modal);
   const dialog = useShellStore((s) => s.dialog);
   const closeModal = useShellStore((s) => s.closeModal);
+  const openModal = useShellStore((s) => s.openModal);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
   const setActivePack = useShellStore((s) => s.setActivePack);
@@ -397,7 +424,10 @@ function AppShell({
   const activeCustomPackId =
     activeView?.type === "custom_pack" ? activeView.packId : activePackId;
   const isStandardView = activeView?.type === "standard_pack";
-  const shellStyle = { "--sidebar-width": `${effectiveSidebarWidth}px` } as CSSProperties;
+  const shellStyle = {
+    "--sidebar-width": `${effectiveSidebarWidth}px`,
+    "--right-sidebar-width": rightSidebarCollapsed ? "44px" : `${rightSidebarWidth}px`,
+  } as CSSProperties;
 
   return (
     <div className={styles.appShell} data-ready={shellReady || undefined} style={shellStyle}>
@@ -439,6 +469,15 @@ function AppShell({
             />
           )}
         </section>
+
+        <AgentSidebar
+          hasApiKey={Boolean(config.deepseek_api_key && config.deepseek_api_key.trim())}
+          collapsed={rightSidebarCollapsed}
+          width={rightSidebarWidth}
+          onToggleCollapsed={toggleRightSidebarCollapsed}
+          onBeginResize={beginRightSidebarResize}
+          onOpenSettings={() => openModal("settings")}
+        />
       </div>
 
       {modal && (

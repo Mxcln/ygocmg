@@ -27,6 +27,10 @@ pub struct GlobalConfig {
     pub shell_sidebar_width: u32,
     #[serde(default)]
     pub shell_sidebar_collapsed: bool,
+    #[serde(default = "default_shell_right_sidebar_width")]
+    pub shell_right_sidebar_width: u32,
+    #[serde(default)]
+    pub shell_right_sidebar_collapsed: bool,
     #[serde(default = "default_shell_window_width")]
     pub shell_window_width: u32,
     #[serde(default = "default_shell_window_height")]
@@ -43,6 +47,8 @@ pub struct GlobalConfig {
     pub high_contrast: bool,
     #[serde(default)]
     pub custom_brand_color: Option<String>,
+    #[serde(default)]
+    pub deepseek_api_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -53,6 +59,10 @@ pub struct GlobalConfigFile {
 
 fn default_shell_sidebar_width() -> u32 {
     150
+}
+
+fn default_shell_right_sidebar_width() -> u32 {
+    320
 }
 
 fn default_shell_window_width() -> u32 {
