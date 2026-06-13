@@ -48,19 +48,36 @@ function isWriteResult(value: unknown): value is WriteResult<unknown> {
   );
 }
 
-/** Build the per-turn context block (current pack snapshot). */
+/** Build the per-turn context block (current shell snapshot). */
 export function buildContextBlock(snapshot: {
   workspaceName: string | null;
   activePackId: string | null;
   activePackName: string | null;
   activeView: string;
+  openPackNames: string[];
+  selectedCard: { id: string; name: string } | null;
+  checkedCards: { id: string; name: string }[];
 }): string {
-  return [
+  const lines = [
     "[Current state]",
     `Workspace: ${snapshot.workspaceName ?? "(none)"}`,
     `Active pack: ${snapshot.activePackName ?? snapshot.activePackId ?? "(none)"}`,
     `Current view: ${snapshot.activeView}`,
-  ].join("\n");
+    `Open packs: ${snapshot.openPackNames.length ? snapshot.openPackNames.join(", ") : "(none)"}`,
+    `Selected card: ${
+      snapshot.selectedCard
+        ? `${snapshot.selectedCard.name || "(unnamed)"} (id=${snapshot.selectedCard.id})`
+        : "(none)"
+    }`,
+    `Checked cards: ${
+      snapshot.checkedCards.length
+        ? `${snapshot.checkedCards.length} selected: ${snapshot.checkedCards
+            .map((c) => c.name || `(id=${c.id})`)
+            .join(", ")}`
+        : "(none)"
+    }`,
+  ];
+  return lines.join("\n");
 }
 
 /** Execute a single tool call; returns the tool-result content string for the wire. */
