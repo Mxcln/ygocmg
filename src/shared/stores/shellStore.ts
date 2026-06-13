@@ -53,6 +53,10 @@ interface ShellState {
   openPackIds: string[];
   activePackId: string | null;
   activeView: ActiveView | null;
+  /** 编辑抽屉打开的卡（单张）；关闭抽屉时为 null。镜像自 card feature 本地 state。 */
+  selectedCard: { id: string; name: string } | null;
+  /** 批量勾选集（selection mode）；退出/清空时为 []。镜像自 card feature 本地 state。 */
+  checkedCards: { id: string; name: string }[];
 
   packMetadataMap: Record<string, PackMetadata>;
   packOverviews: PackOverview[];
@@ -78,6 +82,8 @@ interface ShellState {
   setOpenPacks: (ids: string[], activeId: string | null) => void;
   setActivePack: (id: string | null) => void;
   setActiveStandardPack: () => void;
+  setSelectedCard: (card: { id: string; name: string } | null) => void;
+  setCheckedCards: (cards: { id: string; name: string }[]) => void;
   addOpenPack: (id: string, metadata: PackMetadata) => void;
   updatePackMetadata: (id: string, metadata: PackMetadata) => void;
   removeOpenPack: (id: string) => void;
@@ -91,6 +97,8 @@ export const useShellStore = create<ShellState>()((set) => ({
   openPackIds: [],
   activePackId: null,
   activeView: null,
+  selectedCard: null,
+  checkedCards: [],
 
   packMetadataMap: {},
   packOverviews: [],
@@ -143,6 +151,8 @@ export const useShellStore = create<ShellState>()((set) => ({
       openPackIds: [],
       activePackId: null,
       activeView: null,
+      selectedCard: null,
+      checkedCards: [],
       packMetadataMap: {},
       packOverviews: [],
       dialog: null,
@@ -157,6 +167,8 @@ export const useShellStore = create<ShellState>()((set) => ({
       openPackIds: [],
       activePackId: null,
       activeView: null,
+      selectedCard: null,
+      checkedCards: [],
       packMetadataMap: {},
       packOverviews: [],
       dialog: null,
@@ -176,9 +188,14 @@ export const useShellStore = create<ShellState>()((set) => ({
     set({
       activePackId: id,
       activeView: id ? { type: "custom_pack", packId: id } : null,
+      selectedCard: null,
+      checkedCards: [],
     }),
 
-  setActiveStandardPack: () => set({ activeView: { type: "standard_pack" } }),
+  setActiveStandardPack: () => set({ activeView: { type: "standard_pack" }, selectedCard: null, checkedCards: [] }),
+
+  setSelectedCard: (card) => set({ selectedCard: card }),
+  setCheckedCards: (cards) => set({ checkedCards: cards }),
 
   addOpenPack: (id, metadata) =>
     set((state) => {
@@ -217,6 +234,6 @@ export const useShellStore = create<ShellState>()((set) => ({
             ? { type: "custom_pack" as const, packId: activeId }
             : null;
       const { [id]: _, ...nextMap } = state.packMetadataMap;
-      return { openPackIds: ids, activePackId: activeId, activeView, packMetadataMap: nextMap };
+      return { openPackIds: ids, activePackId: activeId, activeView, packMetadataMap: nextMap, selectedCard: null, checkedCards: [] };
     }),
 }));
