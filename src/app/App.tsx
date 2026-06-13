@@ -344,6 +344,8 @@ function AppShell({
     void queryClient.invalidateQueries({ queryKey: ["standard-cards"] });
   }
 
+  // Delegates to the command layer; the top-level App component has a separate
+  // bootstrap-time persistActivePack used before AppShell mounts.
   async function persistActivePack(packId: string) {
     try {
       await commands.switchPack(packId);
