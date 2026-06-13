@@ -8,7 +8,8 @@
 2. `system_architecture.md`：了解前后端职责、后端分层、运行时状态和数据流。
 3. `code_structure_api.md`：了解目录结构、API wrapper、Tauri commands 和 contracts 边界。
 4. `ui_design.md`：了解当前 UI 布局、交互模式、主题和 i18n 约定。
-5. `history/README.md`：需要追溯历史设计、评审或旧计划时再读。
+5. `agent.md`：了解 AI Agent 的功能、架构、工具集、设置与边栏 UI。
+6. `history/README.md`：需要追溯历史设计、评审或旧计划时再读。
 
 ## 当前权威文档
 
@@ -16,6 +17,7 @@
 - `system_architecture.md`：系统架构文档。
 - `code_structure_api.md`：代码结构与 API 边界文档。
 - `ui_design.md`：UI 设计与交互约定文档。
+- `agent.md`：AI Agent 功能文档。
 
 ## 历史文档
 
@@ -29,5 +31,6 @@
 - 架构或运行边界变化：更新 `system_architecture.md`。
 - 目录、API wrapper、contract、Tauri command 调用面变化：更新 `code_structure_api.md`。
 - UI 布局、交互、主题或 i18n 约定变化：更新 `ui_design.md`。
+- AI Agent 的功能、工具集、设置或边栏 UI 变化：更新 `agent.md`。
 - 只归档历史资料，不在 `history/` 中维护当前事实。
 

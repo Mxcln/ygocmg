@@ -12,6 +12,7 @@
 - `src/features/standardPack`：标准包状态、索引重建、标准卡/strings 浏览、高级筛选、只读详情。
 - `src/features/workspace`：workspace 创建、打开和最近列表。
 - `src/features/settings`：全局配置编辑。
+- `src/features/agent`：AI Agent 右侧边栏、对话 loop、system prompt、Markdown 渲染、工具注册表与执行体（详见 `agent.md`）。
 - `src/features/export`：导出 preview 和 execute。
 - `src/features/dialogs`：确认和 warning 对话框。
 - `src/shared/api`：Tauri command wrappers。
@@ -41,6 +42,7 @@
 - `exportApi`：preview/execute export bundle。
 - `standardPackApi`：标准包状态、重建索引、搜索标准卡/strings、读取标准卡、打开标准脚本、列出标准 setnames。
 - `jobApi`：查询 job 状态和 active jobs。
+- `agentApi`：转发 DeepSeek chat 请求（`llm_chat`）。
 
 ## Tauri Command Surface
 
@@ -55,6 +57,7 @@
 - Import/Export：preview 和 execute commands
 - Standard Pack：status、rebuild、search、get、open standard script、list setnames
 - Jobs：`get_job_status`、`list_active_jobs`
+- Agent：`llm_chat`（转发 DeepSeek chat completion，注入 API key，非流式）
 
 ## Contracts
 
@@ -66,6 +69,7 @@
 - Import/export preview and job acceptance types live in `import.ts` and `export.ts`.
 - Resource asset state and inputs live in `resource.ts`.
 - Standard pack status/search/detail types live in `standardPack.ts`.
+- DeepSeek chat 请求/响应消息类型（OpenAI 兼容格式）live in `agent.ts`；`config.ts` 含 `deepseek_api_key` 与 `agent_language`。
 
 ## Boundary Rules
 

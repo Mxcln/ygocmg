@@ -1,6 +1,8 @@
 # YGOCMG AI Agent MVP 设计文档（提案）
 
-> 状态：**设计提案，待评审**。本文档描述计划中的 MVP 实现，不是当前事实。落地稳定后再同步进核心文档（`functional_spec.md` / `system_architecture.md` / `code_structure_api.md` / `ui_design.md`）。
+> **已归档（历史文档）**：当前 agent 功能事实见核心文档 `../agent.md`。本文是落地前的 MVP 设计提案，仅作设计背景参考，不可直接当作当前实现。
+>
+> 状态：**设计提案**。本文档描述计划中的 MVP 实现，不是当前事实。
 >
 > 本文档替代早期的 `agent_feature_design.md`（provider 中立、流式 IPC、双层确认那版）。那版对 MVP 阶段过度设计，本版按"先跑通最小可用，按需生长"重写。早期版本的扩展性考量（provider 抽象、流式、plan 模式）作为后续阶段参考保留在 §9。
 

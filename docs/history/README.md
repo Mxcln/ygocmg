@@ -11,6 +11,9 @@
 
 ## 归档文件
 
+- `agent_feature_design.md`
+- `agent_feature_design_review.md`
+- `agent_mvp_design.md`
 - `architecture_map.md`
 - `card_batch_operations_plan_2026-06-07.md`
 - `card_domain_glossary.md`
