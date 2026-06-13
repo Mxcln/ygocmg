@@ -1,5 +1,13 @@
 import type { AgentTool } from "./types";
-import { getCardTool, listCardsTool, searchStandardCardsTool } from "./readTools";
+import {
+  getCardTool,
+  listCardsTool,
+  searchStandardCardsTool,
+  getConfigTool,
+  getPackInfoTool,
+  listPacksTool,
+  suggestCardCodeTool,
+} from "./readTools";
 import { createCardTool, moveCardsTool, updateCardTool } from "./writeTools";
 import { toToolDefinition } from "./types";
 
@@ -7,6 +15,10 @@ export const AGENT_TOOLS: AgentTool[] = [
   listCardsTool,
   getCardTool,
   searchStandardCardsTool,
+  getConfigTool,
+  getPackInfoTool,
+  listPacksTool,
+  suggestCardCodeTool,
   createCardTool,
   updateCardTool,
   moveCardsTool,
