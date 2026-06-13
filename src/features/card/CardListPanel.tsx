@@ -114,6 +114,17 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
     [setCheckedCards],
   );
 
+  const handleSelectionModeChange = useCallback(
+    (mode: boolean) => {
+      setSelectionMode(mode);
+      if (!mode) {
+        setSelectedCardIds([]);
+        setCheckedCards([]);
+      }
+    },
+    [setCheckedCards],
+  );
+
   const handlePageLoaded = useCallback(
     (page: CardBrowserPage) => {
       for (const row of page.items) {
@@ -298,7 +309,7 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
         selectedCardIds={selectedCardIds}
         onSelectionChange={handleSelectionChange}
         selectionMode={selectionMode}
-        onSelectionModeChange={setSelectionMode}
+        onSelectionModeChange={handleSelectionModeChange}
         selectionToolbar={renderSelectionToolbar()}
         toolbarExtra={
           <button
