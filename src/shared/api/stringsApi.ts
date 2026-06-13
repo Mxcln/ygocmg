@@ -9,6 +9,8 @@ import type {
   PackStringRecordDetail,
   RemovePackStringTranslationInput,
   PackStringsPage,
+  SetnameKeySuggestionResult,
+  SuggestSetnameKeyInput,
   UpsertPackStringInput,
   UpsertPackStringRecordInput,
 } from "../contracts/strings";
@@ -21,6 +23,10 @@ export const stringsApi = {
 
   getPackString(input: GetPackStringInput) {
     return invokeApi<PackStringRecordDetail>("get_pack_string", { input });
+  },
+
+  suggestSetnameKey(input: SuggestSetnameKeyInput) {
+    return invokeApi<SetnameKeySuggestionResult>("suggest_setname_key", { input });
   },
 
   upsertPackString(input: UpsertPackStringInput) {

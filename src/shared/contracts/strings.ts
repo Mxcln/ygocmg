@@ -1,4 +1,5 @@
 import type { LanguageCode } from "./common";
+import type { ValidationIssue } from "./common";
 
 export type PackStringKind = "system" | "victory" | "counter" | "setname";
 
@@ -91,4 +92,15 @@ export interface ConfirmPackStringsWriteInput {
 
 export interface ConfirmPackStringRecordWriteInput {
   confirmationToken: string;
+}
+
+export interface SuggestSetnameKeyInput {
+  workspaceId: string;
+  packId: string;
+}
+
+export interface SetnameKeySuggestionResult {
+  /** Next free top-level setname base key (child=0), or null when the recommended range is full. */
+  suggested_key: number | null;
+  warnings: ValidationIssue[];
 }

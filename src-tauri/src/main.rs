@@ -50,6 +50,7 @@ fn main() {
             tauri_commands::suggest_card_code,
             tauri_commands::list_pack_strings,
             tauri_commands::get_pack_string,
+            tauri_commands::suggest_setname_key,
             tauri_commands::upsert_pack_string,
             tauri_commands::upsert_pack_string_record,
             tauri_commands::delete_pack_strings,

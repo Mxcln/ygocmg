@@ -24,7 +24,8 @@ use crate::application::dto::standard_pack::{
 use crate::application::dto::strings::{
     ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
     DeletePackStringsResultDto, GetPackStringInput, ListPackStringsInput,
-    RemovePackStringTranslationInput, UpsertPackStringInput, UpsertPackStringRecordInput,
+    RemovePackStringTranslationInput, SuggestSetnameKeyInput, UpsertPackStringInput,
+    UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppError;
@@ -339,6 +340,14 @@ pub fn get_pack_string(
     input: GetPackStringInput,
 ) -> CommandResult<crate::application::dto::strings::PackStringRecordDetailDto> {
     crate::presentation::commands::app_commands::get_pack_string(&state, input)
+}
+
+#[tauri::command]
+pub fn suggest_setname_key(
+    state: State<'_, AppState>,
+    input: SuggestSetnameKeyInput,
+) -> CommandResult<crate::application::dto::strings::SetnameKeySuggestionDto> {
+    crate::presentation::commands::app_commands::suggest_setname_key(&state, input)
 }
 
 #[tauri::command]

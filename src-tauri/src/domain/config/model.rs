@@ -23,6 +23,10 @@ pub struct GlobalConfig {
     pub custom_code_recommended_min: u32,
     pub custom_code_recommended_max: u32,
     pub custom_code_min_gap: u32,
+    #[serde(default = "default_setname_base_recommended_min")]
+    pub setname_base_recommended_min: u16,
+    #[serde(default = "default_setname_base_recommended_max")]
+    pub setname_base_recommended_max: u16,
     #[serde(default = "default_shell_sidebar_width")]
     pub shell_sidebar_width: u32,
     #[serde(default)]
@@ -77,4 +81,14 @@ fn default_shell_window_height() -> u32 {
 
 fn default_agent_language() -> String {
     "auto".to_string()
+}
+
+/// Default lower bound of the recommended custom setname base range (12-bit base).
+pub fn default_setname_base_recommended_min() -> u16 {
+    0x0300
+}
+
+/// Default upper bound of the recommended custom setname base range (12-bit max).
+pub fn default_setname_base_recommended_max() -> u16 {
+    0x0fff
 }

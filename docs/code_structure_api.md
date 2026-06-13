@@ -36,7 +36,7 @@
 - `workspaceApi`：最近 workspace、创建 workspace、打开 workspace。
 - `packApi`：pack overview、创建/打开/关闭/激活/更新/删除 pack。
 - `cardApi`：list/get/create/update/delete card、bulk delete/move card、推荐编号、确认 card 写入和确认 card 批量写入。
-- `stringsApi`：list/get/upsert/delete Pack Strings、删除翻译、确认 strings 写入。
+- `stringsApi`：list/get/upsert/delete Pack Strings、删除翻译、确认 strings 写入、`suggestSetnameKey`（按 config 推荐 base 区段建议下一个空闲顶级 setname key）。
 - `resourceApi`：主卡图、场地图、脚本的导入/删除/创建/外部打开。
 - `importApi`：preview/execute import pack。
 - `exportApi`：preview/execute export bundle。
@@ -52,7 +52,7 @@
 - Workspace：`list_recent_workspaces`、`create_workspace`、`open_workspace`、`delete_workspace`
 - Pack：`create_pack`、`open_pack`、`close_pack`、`set_active_pack`、`update_pack_metadata`、`delete_pack`、`list_pack_overviews`
 - Card：`list_cards`、`get_card`、`create_card`、`update_card`、`delete_card`、`bulk_delete_cards`、`move_cards`、`confirm_card_write`、`confirm_card_batch_write`、`suggest_card_code`
-- Pack Strings：`list_pack_strings`、`get_pack_string`、`upsert_pack_string`、`upsert_pack_string_record`、`delete_pack_strings`、`remove_pack_string_translation`、confirm commands
+- Pack Strings：`list_pack_strings`、`get_pack_string`、`suggest_setname_key`、`upsert_pack_string`、`upsert_pack_string_record`、`delete_pack_strings`、`remove_pack_string_translation`、confirm commands
 - Resource：main image、field image、script import/delete/create/open commands
 - Import/Export：preview 和 execute commands
 - Standard Pack：status、rebuild、search、get、open standard script、list setnames

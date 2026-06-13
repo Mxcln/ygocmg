@@ -1,9 +1,18 @@
 use crate::application::dto::strings::{
     GetPackStringInput, ListPackStringsInput, PackStringRecordDetailDto, PackStringsPageDto,
+    SetnameKeySuggestionDto, SuggestSetnameKeyInput,
+};
+use crate::application::standard_pack::repository::{
+    SqliteStandardPackRepository, StandardPackRepository,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::{AppError, AppResult};
+use crate::domain::common::issue::{ValidationIssue, ValidationTarget};
+use crate::domain::namespace::model::{
+    PackStringNamespaceIndex, build_pack_strings_namespace_index, suggest_next_setname_base,
+};
 use crate::domain::strings::model::PackStringEntry;
+use crate::infrastructure::json_store;
 
 pub struct PackStringsService<'a> {
     state: &'a AppState,
@@ -82,6 +91,72 @@ impl<'a> PackStringsService<'a> {
 
         Ok(PackStringRecordDetailDto {
             record: record.into(),
+        })
+    }
+
+    /// Suggest the next free top-level setname base (child = 0) for a pack,
+    /// avoiding bases already used by this pack, other custom packs in the
+    /// workspace, and the standard reference. The recommended base range comes
+    /// from global config. Returns `suggested_key = None` when the range is full.
+    pub fn suggest_setname_key(
+        &self,
+        input: SuggestSetnameKeyInput,
+    ) -> AppResult<SetnameKeySuggestionDto> {
+        let pack = crate::application::pack::service::require_open_pack_snapshot(
+            self.state,
+            &input.workspace_id,
+            &input.pack_id,
+        )?;
+
+        // Other custom packs in the workspace (current pack excluded).
+        let workspace_index = crate::application::card::service::CardService::new(self.state)
+            .build_workspace_namespace_index(Some(&input.pack_id))
+            .unwrap_or_default();
+        let mut used = workspace_index.strings_by_pack.values().fold(
+            PackStringNamespaceIndex::default(),
+            |mut acc, item| {
+                acc.extend(item);
+                acc
+            },
+        );
+
+        // This pack's own setname bases.
+        let current_index = build_pack_strings_namespace_index(&pack.strings);
+        used.extend(&current_index);
+
+        // Standard reference bases (includes official setnames).
+        let standard = SqliteStandardPackRepository::new(self.state)
+            .strings_baseline()
+            .unwrap_or_else(|_| self.state.standard_baseline.strings.clone());
+
+        let mut all_bases = used.setname_bases;
+        all_bases.extend(standard.setname_bases.iter().copied());
+
+        let config = json_store::load_global_config(self.state.app_data_dir())
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+
+        let suggested = suggest_next_setname_base(
+            &all_bases,
+            config.setname_base_recommended_min,
+            config.setname_base_recommended_max,
+        );
+
+        let warnings = if suggested.is_none() {
+            vec![
+                ValidationIssue::warning(
+                    "pack_strings.setname_base_range_exhausted",
+                    ValidationTarget::new("pack_strings").with_field("key"),
+                )
+                .with_param("recommended_base_min", config.setname_base_recommended_min)
+                .with_param("recommended_base_max", config.setname_base_recommended_max),
+            ]
+        } else {
+            Vec::new()
+        };
+
+        Ok(SetnameKeySuggestionDto {
+            suggested_key: suggested.map(u32::from),
+            warnings,
         })
     }
 }

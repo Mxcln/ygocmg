@@ -28,7 +28,8 @@ use crate::application::dto::strings::{
     ConfirmPackStringRecordWriteInput, ConfirmPackStringsWriteInput, DeletePackStringsInput,
     DeletePackStringsResultDto, GetPackStringInput, ListPackStringsInput,
     PackStringRecordDetailDto, PackStringsPageDto, RemovePackStringTranslationInput,
-    UpsertPackStringInput, UpsertPackStringRecordInput,
+    SetnameKeySuggestionDto, SuggestSetnameKeyInput, UpsertPackStringInput,
+    UpsertPackStringRecordInput,
 };
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppResult;
@@ -274,6 +275,13 @@ pub fn get_pack_string(
     input: GetPackStringInput,
 ) -> AppResult<PackStringRecordDetailDto> {
     crate::application::strings::service::PackStringsService::new(state).get_pack_string(input)
+}
+
+pub fn suggest_setname_key(
+    state: &AppState,
+    input: SuggestSetnameKeyInput,
+) -> AppResult<SetnameKeySuggestionDto> {
+    crate::application::strings::service::PackStringsService::new(state).suggest_setname_key(input)
 }
 
 pub fn upsert_pack_string(

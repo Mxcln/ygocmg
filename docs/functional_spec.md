@@ -30,7 +30,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 - Custom Pack 中支持把选中卡片批量移动到当前 workspace 内另一个已打开 custom pack；移动会一并搬运对应主卡图、场地图和脚本资源，并保留卡片 `id`、`code` 和创建时间。
 - 批量移动不支持 standard pack、未打开 pack、同一 pack 或跨 workspace；目标 pack 已有相同 card id 时失败，目标 pack 同 code 和目标资源路径已存在会先以 warning 进入确认流程。
 - 写入可能返回 `needs_confirmation`，前端通过统一确认对话框展示 warning，并使用 confirmation token 完成确认写入。
-- 编号推荐通过后端提供，使用全局配置中的推荐范围和间隔规则。
+- 编号推荐通过后端提供，使用全局配置中的推荐范围和间隔规则。卡片 code 与 setname base 各有独立的推荐区段配置。
 
 ## Card Texts 与多语言
 
@@ -45,6 +45,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 - 用户可以按语言、类型、key 和关键字浏览 Pack Strings。
 - Pack Strings 支持单条 upsert、整条记录 upsert、删除、删除某个语言翻译。
 - Pack Strings 写入同样可能进入 warning + confirmation token 流程。
+- 新建 setname 时后端可按配置的推荐 base 区段建议下一个空闲的顶级 base key；strings 面板新建行切到 setname 且 key 为空时自动预填，agent 新建系列时也复用同一建议。
 
 ## 资源管理
 
@@ -81,7 +82,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 
 ## 设置与全局配置
 
-- 设置包括 UI 语言、YGOPro 路径、外部文本编辑器路径、编号推荐范围、shell 侧边栏状态、文本语言目录、标准包源语言、主题模式、高对比度、自定义品牌色，以及 AI Agent 的 DeepSeek API key 和回复语言。
+- 设置包括 UI 语言、YGOPro 路径、外部文本编辑器路径、编号推荐范围（卡片 code 与 setname base）、shell 侧边栏状态、文本语言目录、标准包源语言、主题模式、高对比度、自定义品牌色，以及 AI Agent 的 DeepSeek API key 和回复语言。
 - 主题模式支持 `system`、`light`、`dark`。
 - AI Agent 设置集中在独立的"AI 助手"设置 tab。
 - 保存配置后会更新主题，并刷新标准包相关查询。
@@ -95,7 +96,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 ## AI Agent
 
 - AI Agent 是对话式助手，用户用自然语言对当前激活的 custom pack 完成卡片查询、创建、修改和移动，由 DeepSeek 模型驱动。
-- agent 通过工具调用复用后端业务规则：只读工具（列卡、读卡、搜索标准卡）和写工具（建卡、改卡、移动卡）；写操作经统一确认流程。
+- agent 通过工具调用复用后端业务规则：只读工具（列卡、读卡、搜索标准卡、读配置、列 pack、建议 code、列 setname）和写工具（建卡、改卡、移动卡、建/改系列名）；改卡覆盖全部可编辑字段，建系列名复用后端 setname key 建议；写操作经统一确认流程。
 - agent 以右侧边栏形式呈现，可收缩；助手回复以 Markdown 渲染，写操作确认卡片内联展示。
 - 回复语言由配置决定，可跟随程序 UI 语言或显式指定。
 - 未配置 DeepSeek API key 时边栏提示前往设置；对话历史不持久化。

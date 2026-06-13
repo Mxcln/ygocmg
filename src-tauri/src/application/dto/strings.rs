@@ -117,6 +117,19 @@ pub struct ConfirmPackStringRecordWriteInput {
     pub confirmation_token: ConfirmationToken,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuggestSetnameKeyInput {
+    pub workspace_id: WorkspaceId,
+    pub pack_id: PackId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetnameKeySuggestionDto {
+    pub suggested_key: Option<u32>,
+    pub warnings: Vec<crate::domain::common::issue::ValidationIssue>,
+}
+
 impl From<PackStringEntry> for PackStringEntryDto {
     fn from(value: PackStringEntry) -> Self {
         Self {

@@ -1313,11 +1313,16 @@ impl<'a> PackWriteService<'a> {
             .strings_baseline()
             .unwrap_or_else(|_| self.state.standard_baseline.strings.clone());
 
+        let config = json_store::load_global_config(self.state.app_data_dir())
+            .unwrap_or_else(|_| crate::domain::config::rules::default_global_config());
+
         validate_pack_string_record_namespace(
             record,
             &PackStringsNamespaceContext {
                 other_custom,
                 standard,
+                setname_base_recommended_min: config.setname_base_recommended_min,
+                setname_base_recommended_max: config.setname_base_recommended_max,
             },
         )
     }

@@ -1,7 +1,10 @@
 use std::collections::BTreeSet;
 
 use crate::domain::common::issue::{IssueLevel, ValidationIssue, ValidationTarget};
-use crate::domain::config::model::{GlobalConfig, ThemeMode};
+use crate::domain::config::model::{
+    GlobalConfig, ThemeMode, default_setname_base_recommended_max,
+    default_setname_base_recommended_min,
+};
 use crate::domain::language::rules::{
     LanguageValidationContext, default_text_language_catalog, is_catalog_language,
     normalize_language_id, normalize_text_language_catalog, validate_language_id,
@@ -21,6 +24,8 @@ pub fn default_global_config() -> GlobalConfig {
         custom_code_recommended_min: 100_000_000,
         custom_code_recommended_max: 200_000_000,
         custom_code_min_gap: 5,
+        setname_base_recommended_min: default_setname_base_recommended_min(),
+        setname_base_recommended_max: default_setname_base_recommended_max(),
         shell_sidebar_width: 150,
         shell_sidebar_collapsed: false,
         shell_right_sidebar_width: 320,
@@ -60,6 +65,23 @@ pub fn validate_code_policy(config: &GlobalConfig) -> Vec<ValidationIssue> {
                 target.clone().with_field("custom_code_min_gap"),
             )
             .with_param("value", config.custom_code_min_gap),
+        );
+    }
+
+    // setname base is the low 12 bits of a setcode key, so the recommended range
+    // must satisfy min <= max and both must fit within the 12-bit base space.
+    const SETNAME_BASE_MAX: u16 = 0x0fff;
+    if config.setname_base_recommended_min > config.setname_base_recommended_max
+        || config.setname_base_recommended_max > SETNAME_BASE_MAX
+    {
+        issues.push(
+            ValidationIssue::error(
+                "config.invalid_setname_base_range",
+                target.clone().with_field("setname_base_recommended_min"),
+            )
+            .with_param("min", config.setname_base_recommended_min)
+            .with_param("max", config.setname_base_recommended_max)
+            .with_param("limit", SETNAME_BASE_MAX),
         );
     }
 

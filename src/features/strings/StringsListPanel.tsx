@@ -116,6 +116,15 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
     }
   }
 
+  async function suggestSetnameKey(): Promise<number | null> {
+    if (!workspaceId || !activePackId) return null;
+    const result = await stringsApi.suggestSetnameKey({
+      workspaceId,
+      packId: activePackId,
+    });
+    return result.suggested_key;
+  }
+
   function handleDeleteEntry(entry: PackStringEntry) {
     if (!workspaceId || !activePackId) return;
     openDialog({
@@ -167,6 +176,7 @@ export function StringsListPanel({ catalog }: { catalog: TextLanguageProfile[] }
       onUpdate={commitEntry}
       onClearTranslation={clearTranslation}
       onDelete={handleDeleteEntry}
+      onSuggestSetnameKey={suggestSetnameKey}
       emptyTitle={t("strings.emptyTitle")}
       emptyHint={t("strings.emptyHint")}
     />

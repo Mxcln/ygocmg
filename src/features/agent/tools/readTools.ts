@@ -117,9 +117,9 @@ export const getConfigTool: AgentTool = {
   name: "get_config",
   description:
     "Get the user's business-relevant global settings: custom card code recommended " +
-    "range and minimum gap, text language catalog, standard-pack source language, app " +
-    "language, and agent reply language. Call this when you need to know numbering rules " +
-    "or language configuration. Never includes secrets.",
+    "range and minimum gap, custom setname base recommended range, text language catalog, " +
+    "standard-pack source language, app language, and agent reply language. Call this when " +
+    "you need to know numbering rules or language configuration. Never includes secrets.",
   readOnly: true,
   parameters: { type: "object", properties: {} },
   async execute() {
@@ -129,6 +129,8 @@ export const getConfigTool: AgentTool = {
       custom_code_recommended_min: config.custom_code_recommended_min,
       custom_code_recommended_max: config.custom_code_recommended_max,
       custom_code_min_gap: config.custom_code_min_gap,
+      setname_base_recommended_min: config.setname_base_recommended_min,
+      setname_base_recommended_max: config.setname_base_recommended_max,
       app_language: config.app_language,
       agent_language: config.agent_language,
       standard_pack_source_language: config.standard_pack_source_language,

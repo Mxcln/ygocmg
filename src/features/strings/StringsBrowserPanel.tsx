@@ -80,6 +80,12 @@ interface StringsBrowserPanelProps {
   onUpdate?: (entry: PackStringEntry, language: string) => Promise<void>;
   onClearTranslation?: (entry: PackStringEntry, language: string) => Promise<void>;
   onDelete?: (entry: PackStringEntry) => void;
+  /**
+   * Suggest the next free setname base key, used to prefill the new-row key when
+   * the user switches its kind to "setname". Resolves null when none is available.
+   * Omitted by non-editable / non-pack callers (e.g. the standard pack browser).
+   */
+  onSuggestSetnameKey?: () => Promise<number | null>;
 }
 
 function normalizeHexDraft(value: string): string {
@@ -103,6 +109,7 @@ export function StringsBrowserPanel({
   onUpdate,
   onClearTranslation,
   onDelete,
+  onSuggestSetnameKey,
 }: StringsBrowserPanelProps) {
   const { t } = useAppI18n();
   const [language, setLanguage] = useState(languages[0] ?? "");
@@ -342,9 +349,25 @@ export function StringsBrowserPanel({
                 <select
                   className={`${styles.stringsCellInput} ${styles.stringsCellKind}`}
                   value={newRow.kind}
-                  onChange={(e) =>
-                    setNewRow({ ...newRow, kind: e.target.value as PackStringKind })
-                  }
+                  onChange={(e) => {
+                    const kind = e.target.value as PackStringKind;
+                    setNewRow({ ...newRow, kind });
+                    // Prefill a free base when switching to setname with no key yet.
+                    if (kind === "setname" && !newRow.key.trim() && onSuggestSetnameKey) {
+                      void onSuggestSetnameKey()
+                        .then((key) => {
+                          if (key === null) return;
+                          setNewRow((current) =>
+                            current && current.kind === "setname" && !current.key.trim()
+                              ? { ...current, key: key.toString(16).toUpperCase() }
+                              : current,
+                          );
+                        })
+                        .catch(() => {
+                          /* suggestion is best-effort; user can still type a key */
+                        });
+                    }
+                  }}
                 >
                   <option value="system">{t("common.stringKind.system")}</option>
                   <option value="counter">{t("common.stringKind.counter")}</option>

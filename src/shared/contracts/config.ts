@@ -19,6 +19,9 @@ export interface GlobalConfig {
   custom_code_recommended_min: number;
   custom_code_recommended_max: number;
   custom_code_min_gap: number;
+  /** Recommended custom setname base range (12-bit base, hex 0x000–0xFFF). Drives agent key suggestion and the out-of-range warning. */
+  setname_base_recommended_min: number;
+  setname_base_recommended_max: number;
   shell_sidebar_width: number;
   shell_sidebar_collapsed: boolean;
   shell_right_sidebar_width: number;

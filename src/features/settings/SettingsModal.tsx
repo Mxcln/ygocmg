@@ -507,6 +507,58 @@ export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme 
                   />
                 </label>
               </section>
+
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>{t("settings.group.customSetnameBase")}</h4>
+
+                <label className={shared.field}>
+                  <span>{t("settings.recommendedSetnameBaseMinimum")}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={4095}
+                    value={draft.setname_base_recommended_min}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        setname_base_recommended_min: parseNumberInput(
+                          e.target.value,
+                          draft.setname_base_recommended_min,
+                        ),
+                      })
+                    }
+                  />
+                  <span className={shared.fieldHint}>
+                    {t("settings.setnameBaseHint", {
+                      hex: `0x${draft.setname_base_recommended_min.toString(16).toUpperCase()}`,
+                    })}
+                  </span>
+                </label>
+
+                <label className={shared.field}>
+                  <span>{t("settings.recommendedSetnameBaseMaximum")}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={4095}
+                    value={draft.setname_base_recommended_max}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        setname_base_recommended_max: parseNumberInput(
+                          e.target.value,
+                          draft.setname_base_recommended_max,
+                        ),
+                      })
+                    }
+                  />
+                  <span className={shared.fieldHint}>
+                    {t("settings.setnameBaseHint", {
+                      hex: `0x${draft.setname_base_recommended_max.toString(16).toUpperCase()}`,
+                    })}
+                  </span>
+                </label>
+              </section>
             </div>
           )}
 

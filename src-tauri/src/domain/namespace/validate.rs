@@ -104,14 +104,24 @@ pub fn validate_pack_string_record_namespace(
         }
         PackStringKind::Setname => {
             let base = setname_base(record.key);
-            if base < RECOMMENDED_SETNAME_BASE_MIN || base > RECOMMENDED_SETNAME_BASE_MAX {
+            // Fall back to the module defaults if the context range is unset (0/0),
+            // so a default-constructed context still behaves sensibly.
+            let (min, max) = if ctx.setname_base_recommended_max == 0 {
+                (RECOMMENDED_SETNAME_BASE_MIN, RECOMMENDED_SETNAME_BASE_MAX)
+            } else {
+                (
+                    ctx.setname_base_recommended_min,
+                    ctx.setname_base_recommended_max,
+                )
+            };
+            if base < min || base > max {
                 issues.push(
                     ValidationIssue::warning(
                         "pack_strings.setname_base_outside_recommended_range",
                         target.clone(),
                     )
-                    .with_param("recommended_base_min", RECOMMENDED_SETNAME_BASE_MIN)
-                    .with_param("recommended_base_max", RECOMMENDED_SETNAME_BASE_MAX)
+                    .with_param("recommended_base_min", min)
+                    .with_param("recommended_base_max", max)
                     .with_param("base", base)
                     .with_param("key", record.key),
                 );
