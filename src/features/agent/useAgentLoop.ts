@@ -48,11 +48,18 @@ export function useAgentLoop(agentLanguage: AgentLanguage) {
     };
     const activePackName =
       (shell.activePackId && shell.packMetadataMap[shell.activePackId]?.name) || null;
+    const openPackNames = shell.openPackIds
+      .map((id) => shell.packMetadataMap[id])
+      .filter((meta): meta is NonNullable<typeof meta> => !!meta && meta.kind === "custom")
+      .map((meta) => meta.name);
     const contextBlock = buildContextBlock({
       workspaceName: shell.workspaceName,
       activePackId: shell.activePackId,
       activePackName,
       activeView: shell.activeView?.type ?? "(none)",
+      openPackNames,
+      selectedCard: shell.selectedCard,
+      checkedCards: shell.checkedCards,
     });
 
     const userMsg: ChatMessage = { role: "user", content: trimmed };
