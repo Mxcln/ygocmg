@@ -80,7 +80,7 @@ pack 写操作的编排逻辑收敛在一个与 React 无关的**命令层**（`
 ### 两套确认门并存
 
 - **卡片写（后端 token）**：写工具返回的 `WriteResult` 若为 `needs_confirmation`，loop 暂停并内联渲染确认卡片（warnings/preview），用户应用时用 confirmation token 调后端完成写入。
-- **pack 删除（命令层 commit 闭包）**：`delete_pack` 命令返回 `{status:"needs_confirmation", confirmation:{summary, commit}}`，不立即执行。agent 侧由 loop 的命令确认分支走 `requestConfirmation`，确认后调 `commit()`；UI 侧由 `useCommands` 的 `deletePackWithDialog` 经 `AppDialog` 确认后调 `commit()`。
+- **pack 删除（命令层 commit 闭包）**：`delete_pack` 命令返回 `{status:"needs_confirmation", confirmation:{summary, commit}}`，不立即执行。agent 侧由 loop 的命令确认分支走 `requestConfirmation`，确认后调 `commit()`。命令层另提供 UI 适配器 `useCommands().deletePackWithDialog`（经 `AppDialog` 确认后调 `commit()`）供 UI 复用；现阶段 `PackMetadataPanel` 的删除入口仍走其自有的 `openDialog` + `packApi.deletePack` 路径，UI 侧收敛是渐进的。
 - 两套机制数据模型不同（后端 token vs 前端闭包），有意并存不强行统一；loop 中 `confirmationToken` 放宽为 `string | null` 以共用同一确认 UI 通道。
 - 工具执行体调用 `src/shared/api/*` 或 pack 命令层，不重新实现校验/编号/确认逻辑。
 
