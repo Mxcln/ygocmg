@@ -9,6 +9,14 @@ import {
   suggestCardCodeTool,
 } from "./readTools";
 import { createCardTool, moveCardsTool, updateCardTool } from "./writeTools";
+import {
+  switchPackTool,
+  openPackTool,
+  closePackTool,
+  createPackTool,
+  updatePackMetaTool,
+  deletePackTool,
+} from "./packTools";
 import { toToolDefinition } from "./types";
 
 export const AGENT_TOOLS: AgentTool[] = [
@@ -22,6 +30,12 @@ export const AGENT_TOOLS: AgentTool[] = [
   createCardTool,
   updateCardTool,
   moveCardsTool,
+  switchPackTool,
+  openPackTool,
+  closePackTool,
+  createPackTool,
+  updatePackMetaTool,
+  deletePackTool,
 ];
 
 const TOOLS_BY_NAME = new Map(AGENT_TOOLS.map((tool) => [tool.name, tool]));
