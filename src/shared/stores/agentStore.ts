@@ -7,7 +7,7 @@ export interface PendingConfirmation {
   /** the tool_call id this confirmation belongs to (for resuming the loop). */
   toolCallId: string;
   toolName: string;
-  confirmationToken: string;
+  confirmationToken: string | null;
   warnings: ValidationIssue[];
   preview: unknown | null;
   /** human-readable summary of what the tool was asked to do. */

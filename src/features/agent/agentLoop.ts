@@ -16,7 +16,7 @@ const MAX_ROUNDS = 8;
 export interface ConfirmationRequest {
   toolCallId: string;
   toolName: string;
-  confirmationToken: string;
+  confirmationToken: string | null;
   warnings: WriteResult<unknown> extends { warnings: infer W } ? W : never;
   preview: unknown;
   summary: string;
