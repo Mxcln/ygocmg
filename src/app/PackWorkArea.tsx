@@ -23,6 +23,7 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
   const workspaceId = useShellStore((s) => s.workspaceId);
+  const setSelectedCard = useShellStore((s) => s.setSelectedCard);
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<PackTab>("cards");
@@ -36,24 +37,31 @@ export function PackWorkArea({ config, onNotice, onPackDeleted }: PackWorkAreaPr
     setEditingCardId(null);
     setIsCreatingCard(false);
     setActiveTab("cards");
-  }, [activePackId, activeView]);
+    setSelectedCard(null);
+  }, [activePackId, activeView, setSelectedCard]);
 
   const cardDrawerOpen = editingCardId !== null || isCreatingCard;
 
-  const handleEditCard = useCallback((cardId: string) => {
-    setEditingCardId(cardId);
-    setIsCreatingCard(false);
-  }, []);
+  const handleEditCard = useCallback(
+    (card: { id: string; name: string }) => {
+      setEditingCardId(card.id);
+      setIsCreatingCard(false);
+      setSelectedCard(card);
+    },
+    [setSelectedCard],
+  );
 
   const handleNewCard = useCallback(() => {
     setEditingCardId(null);
     setIsCreatingCard(true);
-  }, []);
+    setSelectedCard(null);
+  }, [setSelectedCard]);
 
   const handleDrawerClose = useCallback(() => {
     setEditingCardId(null);
     setIsCreatingCard(false);
-  }, []);
+    setSelectedCard(null);
+  }, [setSelectedCard]);
 
   const handleDrawerSaved = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["cards"] });

@@ -21,7 +21,7 @@ import styles from "./CardListPanel.module.css";
 
 interface CardListPanelProps {
   config: GlobalConfig;
-  onEditCard: (cardId: string) => void;
+  onEditCard: (card: { id: string; name: string }) => void;
   onNewCard: () => void;
   onNotice: (tone: NoticeTone, title: string, detail: string) => void;
 }
@@ -98,7 +98,7 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
   }
 
   function handleRowClick(card: CardListRow) {
-    onEditCard(card.id);
+    onEditCard({ id: card.id, name: card.name });
   }
 
   const handlePageLoaded = useCallback(
