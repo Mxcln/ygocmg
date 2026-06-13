@@ -364,6 +364,47 @@ export const moveCardsTool: AgentTool = {
   },
 };
 
+export const deleteCardsTool: AgentTool = {
+  name: "delete_cards",
+  description:
+    "Delete one or more cards from the active pack. This is destructive and may ask " +
+    "the user to confirm before deleting. Get card ids from list_cards first, or use " +
+    "the selected/checked card ids from the current context. Pass a one-element array " +
+    "to delete a single card. Associated images, field images, and scripts are deleted by default.",
+  readOnly: false,
+  confirmWrite: (confirmationToken) =>
+    cardApi.confirmCardBatchWrite({ confirmationToken }),
+  parameters: {
+    type: "object",
+    properties: {
+      cardIds: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Ids of the cards to delete. Use one id for a single-card deletion.",
+      },
+      deleteAssets: {
+        type: "boolean",
+        description:
+          "Whether to delete associated images, field images, and scripts too. Defaults to true.",
+      },
+    },
+    required: ["cardIds"],
+  },
+  async execute(args, ctx): Promise<WriteResult<unknown>> {
+    const { workspaceId, packId } = requirePack(ctx);
+    if (!Array.isArray(args.cardIds) || args.cardIds.length === 0) {
+      throw new ToolError("cardIds must be a non-empty array of card ids.");
+    }
+    return cardApi.bulkDeleteCards({
+      workspaceId,
+      packId,
+      cardIds: args.cardIds.map(String),
+      deleteAssets: args.deleteAssets !== false,
+    });
+  },
+};
+
 /** Resolve the pack's primary display language, used for setname strings. */
 function packDisplayLanguage(packId: string): string {
   const meta = useShellStore.getState().packMetadataMap[packId];
