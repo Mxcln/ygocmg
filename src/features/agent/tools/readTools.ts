@@ -1,7 +1,10 @@
 import { cardApi } from "../../../shared/api/cardApi";
 import { standardPackApi } from "../../../shared/api/standardPackApi";
+import { packApi } from "../../../shared/api/packApi";
+import { configApi } from "../../../shared/api/configApi";
+import { useShellStore } from "../../../shared/stores/shellStore";
 import type { AgentTool } from "./types";
-import { requirePack } from "./types";
+import { requirePack, ToolError } from "./types";
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -105,5 +108,93 @@ export const searchStandardCardsTool: AgentTool = {
       page_size: page.page_size,
       total: page.total,
     };
+  },
+};
+
+export const getConfigTool: AgentTool = {
+  name: "get_config",
+  description:
+    "Get the user's business-relevant global settings: custom card code recommended " +
+    "range and minimum gap, text language catalog, standard-pack source language, app " +
+    "language, and agent reply language. Call this when you need to know numbering rules " +
+    "or language configuration. Never includes secrets.",
+  readOnly: true,
+  parameters: { type: "object", properties: {} },
+  async execute() {
+    const config = await configApi.loadConfig();
+    // Explicitly pick business fields — never expose deepseek_api_key.
+    return {
+      custom_code_recommended_min: config.custom_code_recommended_min,
+      custom_code_recommended_max: config.custom_code_recommended_max,
+      custom_code_min_gap: config.custom_code_min_gap,
+      app_language: config.app_language,
+      agent_language: config.agent_language,
+      standard_pack_source_language: config.standard_pack_source_language,
+      text_language_catalog: config.text_language_catalog.map((lang) => ({
+        id: lang.id,
+        label: lang.label,
+        kind: lang.kind,
+        hidden: lang.hidden,
+      })),
+    };
+  },
+};
+
+export const getPackInfoTool: AgentTool = {
+  name: "get_pack_info",
+  description:
+    "Get full metadata of an OPEN custom pack: pack_code, author, version, description, " +
+    "display language order, default export language. Omit packId for the currently active " +
+    "pack. For packs that are not open, use list_packs (only lighter overview is available).",
+  readOnly: true,
+  parameters: {
+    type: "object",
+    properties: {
+      packId: {
+        type: "string",
+        description: "Optional pack id. Omit to use the currently active pack.",
+      },
+    },
+  },
+  async execute(args) {
+    const shell = useShellStore.getState();
+    const packId =
+      typeof args.packId === "string" && args.packId ? args.packId : shell.activePackId;
+    if (!packId) {
+      throw new ToolError("No active pack. Ask the user to open a pack first.");
+    }
+    const metadata = shell.packMetadataMap[packId];
+    if (!metadata) {
+      throw new ToolError(
+        `Pack ${packId} is not open. Use list_packs to see all packs, or ask the user to open it.`,
+      );
+    }
+    return metadata;
+  },
+};
+
+export const listPacksTool: AgentTool = {
+  name: "list_packs",
+  description:
+    "List all packs in the current workspace (including packs that are not open). Returns " +
+    "overview rows (id, name, kind, card count, etc.). Standard packs are read-only reference " +
+    "and cannot be edited.",
+  readOnly: true,
+  parameters: { type: "object", properties: {} },
+  async execute() {
+    return packApi.listPackOverviews();
+  },
+};
+
+export const suggestCardCodeTool: AgentTool = {
+  name: "suggest_card_code",
+  description:
+    "Suggest the next available custom card code for the active pack, following the user's " +
+    "numbering policy. Call this before creating a card when you need a code.",
+  readOnly: true,
+  parameters: { type: "object", properties: {} },
+  async execute(_args, ctx) {
+    const { workspaceId, packId } = requirePack(ctx);
+    return cardApi.suggestCardCode({ workspaceId, packId, preferredStart: null });
   },
 };
