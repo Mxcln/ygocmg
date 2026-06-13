@@ -54,24 +54,22 @@ interface CommandConfirmation {
 }
 
 function isCommandConfirmation(value: unknown): value is CommandConfirmation {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const conf = v.confirmation as Record<string, unknown> | null | undefined;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { status?: unknown }).status === "needs_confirmation" &&
-    typeof (value as { confirmation?: unknown }).confirmation === "object" &&
-    (value as { confirmation?: { commit?: unknown } }).confirmation != null &&
-    typeof (value as { confirmation: { commit?: unknown } }).confirmation.commit === "function"
+    v.status === "needs_confirmation" &&
+    typeof conf === "object" &&
+    conf !== null &&
+    typeof conf.commit === "function"
   );
 }
 
 function isCommandResultOk(value: unknown): value is { status: "ok"; data: unknown } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { status?: unknown }).status === "ok" &&
-    "data" in (value as object) &&
-    !("warnings" in (value as object)) // distinguish from card WriteResult
-  );
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  // Card WriteResult ok-results always carry a `warnings` field; command results never do.
+  return v.status === "ok" && "data" in v && !("warnings" in v);
 }
 
 /** Build the per-turn context block (current shell snapshot). */
