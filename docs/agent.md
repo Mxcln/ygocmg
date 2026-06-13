@@ -9,7 +9,7 @@ AI Agent 是嵌入 YGOCMG 的对话式助手，用户用自然语言对**当前�
 ## 范围
 
 - 单一 provider：DeepSeek，非流式（后端一次性返回完整响应）。
-- 工具调用循环：3 个只读工具 + 3 个写工具，写操作复用后端两段式确认门。
+- 工具调用循环：7 个只读工具 + 3 个写工具，写操作复用后端两段式确认门。
 - 对话历史仅存内存，关闭应用即清空，不持久化。
 - API key 以明文存于全局配置，不使用系统凭据库。
 
@@ -56,11 +56,11 @@ HTTP 经后端转发而非 webview 直连：避免 CORS 与在网络面板暴露
 - 模型返回 `finish_reason == "tool_calls"` 时，串行执行每个工具调用（写确认逐个处理），把 tool 结果回写进 wire 历史后再次请求。
 - 模型返回最终文本时结束本轮。
 - 最大工具循环轮数为 8，超过则提示停止以避免死循环。
-- 当前状态 block 注入工作区名、激活 pack 名/id、当前视图（来自 `useShellStore`），让模型知道操作对象。agent 看不到 UI 选中态，指代不明时需用户给出卡名/编号并通过 `list_cards` 定位。
+- 当前状态 block 注入工作区名、激活 pack 名/id、当前视图、已打开 pack 列表，以及用户当前选中态——编辑抽屉打开的卡（Selected card）和批量勾选的卡（Checked cards），均来自 `useShellStore`。选中态只给名字+id 轻摘要；模型需要完整字段时用 id 调 `get_card`。仍看不到列表单击高亮态，指代不明时让用户澄清或用 `list_cards` 定位。
 
 ## 工具集与确认门
 
-只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）。
+只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）。
 
 写工具：`create_card`、`update_card`、`move_cards`。
 
@@ -121,4 +121,4 @@ agent 相关设置集中在设置面板的独立 **"AI 助手"** tab（`settings
 
 - API key 明文存配置文件，未用系统凭据库（`global_config.json` 不应提交）。
 - 对话历史不持久化，关闭即清。
-- 无指代消解（看不到 UI 选中态），无流式输出，无 provider 抽象，无 AI 写操作额外 review 层。这些是当前阶段的有意取舍，扩展方向见 `history/` 中的设计稿。
+- 选中态感知限于编辑抽屉与批量勾选，看不到列表单击高亮态。无流式输出，无 provider 抽象，无 AI 写操作额外 review 层。这些是当前阶段的有意取舍，扩展方向见 `history/` 中的设计稿。
