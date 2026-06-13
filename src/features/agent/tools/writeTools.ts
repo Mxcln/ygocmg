@@ -1,5 +1,16 @@
 import { cardApi } from "../../../shared/api/cardApi";
-import type { CardEntity, WriteResult } from "../../../shared/contracts/card";
+import type {
+  Attribute,
+  CardEntity,
+  LinkMarker,
+  MonsterFlag,
+  Ot,
+  PrimaryType,
+  Race,
+  SpellSubtype,
+  TrapSubtype,
+  WriteResult,
+} from "../../../shared/contracts/card";
 import type { AgentTool } from "./types";
 import { requirePack, ToolError } from "./types";
 
@@ -11,13 +22,47 @@ function toCardInput(card: CardEntity): CardInput {
   return rest;
 }
 
-/** Apply scalar patches the model supplied, leaving everything else untouched. */
-function applyScalarPatch(input: CardInput, args: Record<string, unknown>): CardInput {
-  const next: CardInput = { ...input };
-  if (typeof args.atk === "number") next.atk = args.atk;
-  if (typeof args.def === "number") next.def = args.def;
-  if (typeof args.level === "number") next.level = args.level;
-  return next;
+// Enum value sets, mirroring src/shared/contracts/card.ts. Used both for the
+// tool JSON Schema (so the model sees valid values) and for runtime validation
+// (so a bad value fails here with a clear message rather than confusing the backend).
+const PRIMARY_TYPES: PrimaryType[] = ["monster", "spell", "trap"];
+const OTS: Ot[] = ["ocg", "tcg", "custom"];
+const MONSTER_FLAGS: MonsterFlag[] = [
+  "normal", "effect", "fusion", "ritual", "synchro", "xyz", "pendulum", "link",
+  "tuner", "token", "gemini", "spirit", "union", "flip", "toon",
+];
+const RACES: Race[] = [
+  "warrior", "spellcaster", "dragon", "zombie", "machine", "aqua", "pyro", "rock",
+  "winged_beast", "plant", "insect", "thunder", "fish", "sea_serpent", "reptile",
+  "psychic", "divine_beast", "beast", "beast_warrior", "dinosaur", "fairy", "fiend",
+  "illusion", "cyberse", "creator_god", "wyrm",
+];
+const ATTRIBUTES: Attribute[] = ["light", "dark", "earth", "water", "fire", "wind", "divine"];
+const SPELL_SUBTYPES: SpellSubtype[] = [
+  "normal", "continuous", "quick_play", "ritual", "field", "equip",
+];
+const TRAP_SUBTYPES: TrapSubtype[] = ["normal", "continuous", "counter"];
+const LINK_MARKERS: LinkMarker[] = [
+  "top", "bottom", "left", "right",
+  "top_left", "top_right", "bottom_left", "bottom_right",
+];
+
+/** Validate a scalar enum value the model supplied; throws ToolError on a bad value. */
+function asEnum<T extends string>(field: string, value: unknown, allowed: T[]): T {
+  if (typeof value !== "string" || !(allowed as string[]).includes(value)) {
+    throw new ToolError(
+      `Invalid ${field}: ${JSON.stringify(value)}. Allowed values: ${allowed.join(", ")}.`,
+    );
+  }
+  return value as T;
+}
+
+/** Validate an array of enum values; throws ToolError on any bad element. */
+function asEnumArray<T extends string>(field: string, value: unknown, allowed: T[]): T[] {
+  if (!Array.isArray(value)) {
+    throw new ToolError(`Invalid ${field}: expected an array.`);
+  }
+  return value.map((v) => asEnum(field, v, allowed));
 }
 
 /** Patch name/desc for a given language (defaults to the card's first language). */
@@ -42,21 +87,92 @@ function applyTextPatch(input: CardInput, args: Record<string, unknown>): CardIn
   };
 }
 
+/** Apply every supplied field onto the card input, validating enums. Unsupplied fields are left untouched. */
+function applyPatch(input: CardInput, args: Record<string, unknown>): CardInput {
+  const next: CardInput = { ...input };
+
+  // Numeric scalars (atk/def/level are nullable; null clears them for spells/traps).
+  if (typeof args.code === "number") next.code = args.code;
+  if (typeof args.alias === "number") next.alias = args.alias;
+  if (typeof args.category === "number") next.category = args.category;
+  if (typeof args.atk === "number" || args.atk === null) next.atk = args.atk as number | null;
+  if (typeof args.def === "number" || args.def === null) next.def = args.def as number | null;
+  if (typeof args.level === "number" || args.level === null) {
+    next.level = args.level as number | null;
+  }
+
+  // Enum scalars.
+  if (args.primary_type !== undefined) {
+    next.primary_type = asEnum("primary_type", args.primary_type, PRIMARY_TYPES);
+  }
+  if (args.ot !== undefined) next.ot = asEnum("ot", args.ot, OTS);
+  if (args.race !== undefined) {
+    next.race = args.race === null ? null : asEnum("race", args.race, RACES);
+  }
+  if (args.attribute !== undefined) {
+    next.attribute = args.attribute === null ? null : asEnum("attribute", args.attribute, ATTRIBUTES);
+  }
+  if (args.spell_subtype !== undefined) {
+    next.spell_subtype =
+      args.spell_subtype === null ? null : asEnum("spell_subtype", args.spell_subtype, SPELL_SUBTYPES);
+  }
+  if (args.trap_subtype !== undefined) {
+    next.trap_subtype =
+      args.trap_subtype === null ? null : asEnum("trap_subtype", args.trap_subtype, TRAP_SUBTYPES);
+  }
+
+  // Enum / numeric arrays.
+  if (args.monster_flags !== undefined) {
+    next.monster_flags =
+      args.monster_flags === null ? null : asEnumArray("monster_flags", args.monster_flags, MONSTER_FLAGS);
+  }
+  if (args.setcodes !== undefined) {
+    if (!Array.isArray(args.setcodes) || args.setcodes.some((s) => typeof s !== "number")) {
+      throw new ToolError("Invalid setcodes: expected an array of integers.");
+    }
+    next.setcodes = args.setcodes as number[];
+  }
+
+  // Nested structures.
+  if (args.pendulum !== undefined) {
+    if (args.pendulum === null) {
+      next.pendulum = null;
+    } else {
+      const p = args.pendulum as Record<string, unknown>;
+      if (typeof p.left_scale !== "number" || typeof p.right_scale !== "number") {
+        throw new ToolError("Invalid pendulum: expected { left_scale: number, right_scale: number }.");
+      }
+      next.pendulum = { left_scale: p.left_scale, right_scale: p.right_scale };
+    }
+  }
+  if (args.link !== undefined) {
+    if (args.link === null) {
+      next.link = null;
+    } else {
+      const l = args.link as Record<string, unknown>;
+      next.link = { markers: asEnumArray("link.markers", l.markers, LINK_MARKERS) };
+    }
+  }
+
+  return next;
+}
+
 export const updateCardTool: AgentTool = {
   name: "update_card",
   description:
-    "Update fields of an existing card in the active pack. Call this when the user asks " +
-    "to change, edit, or modify a card (e.g. its ATK/DEF/level, name, or description). " +
-    "Get the card's id from list_cards first. Only the fields you pass are changed; " +
-    "the rest are preserved.",
+    "Update any editable field of an existing card in the active pack. Call this when the user " +
+    "asks to change, edit, or modify a card — including its name/description, ATK/DEF/level, " +
+    "card type (monster/spell/trap), monster race and attribute, monster abilities " +
+    "(normal/effect/fusion/synchro/xyz/link/pendulum/tuner/etc.), spell/trap subtype, " +
+    "pendulum scales, link markers, setcodes, ot, alias, category, or code. " +
+    "Get the card's id and current values from list_cards / get_card first. Only the fields " +
+    "you pass are changed; the rest are preserved. When changing the card type you usually " +
+    "also need to set the fields that type requires (e.g. spell_subtype for a spell).",
   readOnly: false,
   parameters: {
     type: "object",
     properties: {
       cardId: { type: "string", description: "The card id to update (from list_cards)." },
-      atk: { type: "integer", description: "New ATK value." },
-      def: { type: "integer", description: "New DEF value." },
-      level: { type: "integer", description: "New level/rank/link value." },
       name: { type: "string", description: "New card name." },
       desc: { type: "string", description: "New card description/effect text." },
       language: {
@@ -64,6 +180,69 @@ export const updateCardTool: AgentTool = {
         description:
           "Language code for name/desc changes (e.g. 'zh-CN'). Defaults to the card's first language.",
       },
+      atk: { type: ["integer", "null"], description: "New ATK value. null clears it (non-monsters)." },
+      def: { type: ["integer", "null"], description: "New DEF value. null clears it (non-monsters)." },
+      level: {
+        type: ["integer", "null"],
+        description: "New level/rank/link rating. null clears it (non-monsters).",
+      },
+      primary_type: {
+        type: "string",
+        enum: PRIMARY_TYPES,
+        description: "Card kind: monster, spell, or trap.",
+      },
+      race: {
+        type: ["string", "null"],
+        enum: [...RACES, null],
+        description: "Monster race/type (e.g. dragon, spellcaster, warrior). null for non-monsters.",
+      },
+      attribute: {
+        type: ["string", "null"],
+        enum: [...ATTRIBUTES, null],
+        description: "Monster attribute (light/dark/earth/water/fire/wind/divine). null for non-monsters.",
+      },
+      monster_flags: {
+        type: ["array", "null"],
+        items: { type: "string", enum: MONSTER_FLAGS },
+        description:
+          "Monster abilities/summon types, e.g. ['normal'], ['effect','tuner'], ['synchro']. null for non-monsters.",
+      },
+      spell_subtype: {
+        type: ["string", "null"],
+        enum: [...SPELL_SUBTYPES, null],
+        description: "Spell subtype (normal/continuous/quick_play/ritual/field/equip). Spells only.",
+      },
+      trap_subtype: {
+        type: ["string", "null"],
+        enum: [...TRAP_SUBTYPES, null],
+        description: "Trap subtype (normal/continuous/counter). Traps only.",
+      },
+      pendulum: {
+        type: ["object", "null"],
+        properties: {
+          left_scale: { type: "integer" },
+          right_scale: { type: "integer" },
+        },
+        required: ["left_scale", "right_scale"],
+        description: "Pendulum scales. null to clear pendulum data.",
+      },
+      link: {
+        type: ["object", "null"],
+        properties: {
+          markers: { type: "array", items: { type: "string", enum: LINK_MARKERS } },
+        },
+        required: ["markers"],
+        description: "Link arrow markers. null to clear link data.",
+      },
+      setcodes: {
+        type: "array",
+        items: { type: "integer" },
+        description: "Archetype/set codes as integers.",
+      },
+      ot: { type: "string", enum: OTS, description: "Origin/format scope: ocg, tcg, or custom." },
+      alias: { type: "integer", description: "Alias code (alternate-art original code), 0 if none." },
+      category: { type: "integer", description: "Category bitmask integer." },
+      code: { type: "integer", description: "Card passcode. Usually auto-assigned; change with care." },
     },
     required: ["cardId"],
   },
@@ -72,7 +251,7 @@ export const updateCardTool: AgentTool = {
     const cardId = String(args.cardId);
     const detail = await cardApi.getCard({ workspaceId, packId, cardId });
     let input = toCardInput(detail.card);
-    input = applyScalarPatch(input, args);
+    input = applyPatch(input, args);
     input = applyTextPatch(input, args);
     return cardApi.updateCard({ workspaceId, packId, cardId, card: input });
   },

@@ -64,9 +64,9 @@ HTTP 经后端转发而非 webview 直连：避免 CORS 与在网络面板暴露
 
 ## 工具集与确认门
 
-只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）。
+只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）、`list_setnames`（合并 pack 与标准 setname，返回 `{key, name, source}` 列表，供模型在系列名与 setcode 数字之间双向翻译；pack 同 key 覆盖 standard，镜像 `useMergedSetnameEntries` 的合并逻辑）。
 
-卡片写工具：`create_card`、`update_card`、`move_cards`。
+卡片写工具：`create_card`、`update_card`、`move_cards`。`update_card` 覆盖全部可编辑字段（name/desc、atk/def/level、primary_type、race、attribute、monster_flags、spell_subtype、trap_subtype、pendulum、link markers、setcodes、ot、alias、category、code）：读全卡 → 仅对传入字段打补丁 → 回写，枚举字段在工具层校验取值（非法值就地报错，不丢给后端）。系列成员关系是卡片的 `setcodes` 数字数组，模型应先用 `list_setnames` 查到对应 key 再写入。
 
 pack 写工具：`switch_pack`、`open_pack`、`close_pack`、`create_pack`、`update_pack_meta`、`delete_pack`。它们经命令层编排（见下），在 UI 即时生效。`delete_pack` 为破坏性操作，需用户确认。agent 不暴露 workspace 切换与 config 修改工具——这些超出 pack/card 边界，由用户在 UI 操作。
 

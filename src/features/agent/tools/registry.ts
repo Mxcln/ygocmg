@@ -7,6 +7,7 @@ import {
   getPackInfoTool,
   listPacksTool,
   suggestCardCodeTool,
+  listSetnamesTool,
 } from "./readTools";
 import { createCardTool, moveCardsTool, updateCardTool } from "./writeTools";
 import {
@@ -27,6 +28,7 @@ export const AGENT_TOOLS: AgentTool[] = [
   getPackInfoTool,
   listPacksTool,
   suggestCardCodeTool,
+  listSetnamesTool,
   createCardTool,
   updateCardTool,
   moveCardsTool,

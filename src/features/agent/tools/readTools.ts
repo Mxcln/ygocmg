@@ -2,7 +2,9 @@ import { cardApi } from "../../../shared/api/cardApi";
 import { standardPackApi } from "../../../shared/api/standardPackApi";
 import { packApi } from "../../../shared/api/packApi";
 import { configApi } from "../../../shared/api/configApi";
+import { stringsApi } from "../../../shared/api/stringsApi";
 import { useShellStore } from "../../../shared/stores/shellStore";
+import { mergeSetnameEntries } from "../../card/setnameEntries";
 import type { AgentTool } from "./types";
 import { requirePack, ToolError } from "./types";
 
@@ -196,5 +198,72 @@ export const suggestCardCodeTool: AgentTool = {
   async execute(_args, ctx) {
     const { workspaceId, packId } = requirePack(ctx);
     return cardApi.suggestCardCode({ workspaceId, packId, preferredStart: null });
+  },
+};
+
+export const listSetnamesTool: AgentTool = {
+  name: "list_setnames",
+  description:
+    "List archetype/series (setname) entries available for the active pack, each as a " +
+    "{ key, name, source } row where key is the numeric setcode written onto cards' " +
+    "`setcodes` field, name is the human-readable series name, and source is 'pack' " +
+    "(defined in this pack) or 'standard' (from the official reference). Call this to " +
+    "translate between series names and setcodes — e.g. to find which key to put in a " +
+    "card's setcodes when the user names a series, or to explain a card's existing " +
+    "setcodes by name. Pack entries take precedence over standard ones with the same key.",
+  readOnly: true,
+  parameters: {
+    type: "object",
+    properties: {
+      keyword: {
+        type: "string",
+        description: "Optional case-insensitive substring to filter series by name.",
+      },
+    },
+  },
+  async execute(args, ctx) {
+    const { workspaceId, packId } = requirePack(ctx);
+    const shell = useShellStore.getState();
+    const metadata = shell.packMetadataMap[packId];
+    const packLang = metadata?.display_language_order?.[0] ?? "en-US";
+
+    const config = await configApi.loadConfig();
+    const standardLang = config.standard_pack_source_language ?? null;
+
+    const [packStrings, standardSetnames] = await Promise.all([
+      stringsApi.listPackStrings({
+        workspaceId,
+        packId,
+        language: packLang,
+        kindFilter: "setname",
+        keyFilter: null,
+        keyword: null,
+        page: 1,
+        pageSize: 10000,
+      }),
+      standardLang
+        ? standardPackApi.listSetnames({ language: standardLang })
+        : Promise.resolve([]),
+    ]);
+
+    const entries = mergeSetnameEntries(
+      packStrings.items.map((item) => ({
+        key: item.key,
+        name: item.value,
+        source: "pack" as const,
+      })),
+      standardSetnames.map((item) => ({
+        key: item.key,
+        name: item.value,
+        source: "standard" as const,
+      })),
+    );
+
+    const keyword = typeof args.keyword === "string" ? args.keyword.toLowerCase() : null;
+    const filtered = keyword
+      ? entries.filter((e) => e.name.toLowerCase().includes(keyword))
+      : entries;
+
+    return { items: filtered, total: filtered.length };
   },
 };
