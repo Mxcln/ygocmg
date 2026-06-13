@@ -36,6 +36,7 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [targetPackId, setTargetPackId] = useState("");
   const selectionCleanupRef = useRef<{ packId: string; revision: number } | null>(null);
+  const cardNameCacheRef = useRef<Map<string, string>>(new Map());
   const workspaceId = useShellStore((s) => s.workspaceId);
   const activePackId = useShellStore((s) => s.activePackId);
   const openPackIds = useShellStore((s) => s.openPackIds);
@@ -43,6 +44,7 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
   const openDialog = useShellStore((s) => s.openDialog);
   const closeDialog = useShellStore((s) => s.closeDialog);
   const setPackOverviews = useShellStore((s) => s.setPackOverviews);
+  const setCheckedCards = useShellStore((s) => s.setCheckedCards);
   const activeMeta = useShellStore((s) =>
     s.activePackId ? s.packMetadataMap[s.activePackId] : null,
   );
@@ -70,10 +72,12 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
   useEffect(() => {
     selectionCleanupRef.current = null;
     setSelectedCardIds([]);
+    setCheckedCards([]);
+    cardNameCacheRef.current.clear();
     setSelectionMode(false);
     setMoveDialogOpen(false);
     setTargetPackId("");
-  }, [activePackId]);
+  }, [activePackId, setCheckedCards]);
 
   async function loadPage(query: CardBrowserQuery) {
     const page = await cardApi.listCards({
@@ -101,8 +105,20 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
     onEditCard({ id: card.id, name: card.name });
   }
 
+  const handleSelectionChange = useCallback(
+    (cardIds: string[]) => {
+      setSelectedCardIds(cardIds);
+      const cache = cardNameCacheRef.current;
+      setCheckedCards(cardIds.map((id) => ({ id, name: cache.get(id) ?? id })));
+    },
+    [setCheckedCards],
+  );
+
   const handlePageLoaded = useCallback(
     (page: CardBrowserPage) => {
+      for (const row of page.items) {
+        cardNameCacheRef.current.set(row.id, row.name);
+      }
       if (!workspaceId || !activePackId || selectedCardIds.length === 0) return;
       const previous = selectionCleanupRef.current;
       if (previous?.packId === activePackId && previous.revision === page.revision) return;
@@ -126,17 +142,23 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
             return;
           }
           const existingIds = new Set(allCards.items.map((card) => card.id));
-          setSelectedCardIds((current) => current.filter((id) => existingIds.has(id)));
+          setSelectedCardIds((current) => {
+            const next = current.filter((id) => existingIds.has(id));
+            const cache = cardNameCacheRef.current;
+            setCheckedCards(next.map((id) => ({ id, name: cache.get(id) ?? id })));
+            return next;
+          });
         } catch {
           // Selection cleanup is best-effort; normal list/query errors are already shown by the browser panel.
         }
       })();
     },
-    [activePackId, selectedCardIds.length, workspaceId],
+    [activePackId, selectedCardIds.length, workspaceId, setCheckedCards],
   );
 
   async function refreshAfterBatch() {
     setSelectedCardIds([]);
+    setCheckedCards([]);
     setSelectionMode(false);
     setMoveDialogOpen(false);
     void queryClient.invalidateQueries({ queryKey: ["cards"] });
@@ -274,7 +296,7 @@ export function CardListPanel({ config, onEditCard, onNewCard, onNotice }: CardL
         onNewCard={onNewCard}
         onPageLoaded={handlePageLoaded}
         selectedCardIds={selectedCardIds}
-        onSelectionChange={setSelectedCardIds}
+        onSelectionChange={handleSelectionChange}
         selectionMode={selectionMode}
         onSelectionModeChange={setSelectionMode}
         selectionToolbar={renderSelectionToolbar()}
