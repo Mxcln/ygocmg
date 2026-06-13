@@ -65,13 +65,6 @@ function isCommandConfirmation(value: unknown): value is CommandConfirmation {
   );
 }
 
-function isCommandResultOk(value: unknown): value is { status: "ok"; data: unknown } {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  // Card WriteResult ok-results always carry a `warnings` field; command results never do.
-  return v.status === "ok" && "data" in v && !("warnings" in v);
-}
-
 /** Build the per-turn context block (current shell snapshot). */
 export function buildContextBlock(snapshot: {
   workspaceName: string | null;
@@ -132,13 +125,9 @@ async function runToolCall(
     if (!tool.readOnly && isCommandConfirmation(result)) {
       return handleCommandConfirmation(result, call, hooks);
     }
-    // Card write tools: backend two-phase token model.
+    // Card write tools and pack command ok-results both shaped {status, data}.
     if (!tool.readOnly && isWriteResult(result)) {
       return handleWriteResult(result, call, args, hooks);
-    }
-    // Command-layer ok results: unwrap to data for the model.
-    if (!tool.readOnly && isCommandResultOk(result)) {
-      return JSON.stringify({ status: "ok", data: result.data ?? null });
     }
     return JSON.stringify(result ?? null);
   } catch (err) {
