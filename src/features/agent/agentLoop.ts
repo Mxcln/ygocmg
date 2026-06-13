@@ -6,6 +6,7 @@ import type {
   ToolCall,
 } from "../../shared/contracts/agent";
 import { agentApi } from "../../shared/api/agentApi";
+import { queryClient } from "../../app/providers";
 import { getTool, TOOL_DEFINITIONS } from "./tools/registry";
 import type { ToolContext } from "./tools/types";
 import { buildSystemPrompt } from "./systemPrompt";
@@ -136,6 +137,17 @@ async function runToolCall(
   }
 }
 
+/**
+ * Refresh card caches after an agent card write. UI editors invalidate these
+ * keys themselves; agent writes go through this loop, so we mirror it here.
+ * `["cards"]` matches every paged list query; `["card"]` matches every single
+ * card detail query (both via React Query prefix matching).
+ */
+function invalidateCardCaches(): void {
+  void queryClient.invalidateQueries({ queryKey: ["cards"] });
+  void queryClient.invalidateQueries({ queryKey: ["card"] });
+}
+
 async function handleWriteResult(
   result: WriteResult<unknown>,
   call: ToolCall,
@@ -143,6 +155,7 @@ async function handleWriteResult(
   hooks: LoopHooks,
 ): Promise<string> {
   if (result.status === "ok") {
+    invalidateCardCaches();
     return JSON.stringify({ status: "ok", data: result.data });
   }
 
@@ -164,6 +177,7 @@ async function handleWriteResult(
     const confirmed = await cardApi.confirmCardWrite({
       confirmationToken: result.confirmation_token,
     });
+    invalidateCardCaches();
     return JSON.stringify({ status: "ok", data: confirmed });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
