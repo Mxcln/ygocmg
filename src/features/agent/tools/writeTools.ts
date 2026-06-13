@@ -1,7 +1,8 @@
 import { cardApi } from "../../../shared/api/cardApi";
 import { stringsApi } from "../../../shared/api/stringsApi";
 import { useShellStore } from "../../../shared/stores/shellStore";
-import { parseHexInput } from "../../../shared/utils/format";
+import { parseHexInput, formatStringKeyHex } from "../../../shared/utils/format";
+import { queryClient } from "../../../app/providers";
 import type {
   Attribute,
   CardEntity,
@@ -457,3 +458,57 @@ async function resolveSetnameKey(
   }
   return suggestion.suggested_key;
 }
+
+export const deleteSetnameTool: AgentTool = {
+  name: "delete_setname",
+  description:
+    "Delete a custom series/archetype name from the active pack by its setcode key. " +
+    "This is destructive and asks the user to confirm before deleting. It removes the " +
+    "setname string only; it does NOT alter cards that still reference the key in their " +
+    "setcodes, so check list_cards / update_card if you also need to detach it from cards. " +
+    "Get the key from list_setnames first; pass it as hex (e.g. '0x1234').",
+  readOnly: false,
+  parameters: {
+    type: "object",
+    properties: {
+      key: {
+        type: "string",
+        description: "The setcode key of the series to delete, as hex (e.g. '0x1234').",
+      },
+    },
+    required: ["key"],
+  },
+  async execute(args, ctx) {
+    const { workspaceId, packId } = requirePack(ctx);
+    const rawKey = args.key;
+    if (typeof rawKey !== "string" || !rawKey.trim()) {
+      throw new ToolError("key is required; pass the series setcode key as hex (e.g. '0x1234').");
+    }
+    const key = parseHexInput(rawKey);
+    if (Number.isNaN(key) || key < 0) {
+      throw new ToolError(
+        `Invalid setcode key: ${JSON.stringify(rawKey)}. Use a hex value like '0x1234'.`,
+      );
+    }
+
+    // The backend delete has no confirmation token, so gate it with the command-layer
+    // commit-closure pattern (like delete_pack). The closure refreshes caches itself
+    // since handleCommandConfirmation does not.
+    return {
+      status: "needs_confirmation" as const,
+      confirmation: {
+        summary: `Delete series (setname) ${formatStringKeyHex(key)} from the active pack. This cannot be undone and does not detach it from cards.`,
+        commit: async () => {
+          const result = await stringsApi.deletePackStrings({
+            workspaceId,
+            packId,
+            entries: [{ kind: "setname", key }],
+          });
+          void queryClient.invalidateQueries({ queryKey: ["strings"] });
+          void queryClient.invalidateQueries({ queryKey: ["pack-setnames"] });
+          return result;
+        },
+      },
+    };
+  },
+};
