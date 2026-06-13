@@ -48,3 +48,21 @@ export async function updatePackMeta(input: UpdatePackMetadataInput, deps: Comma
   await refreshOverviews(deps);
   return { status: "ok", data: updated };
 }
+
+export async function deletePack(
+  packId: string,
+  packName: string,
+  deps: CommandDeps,
+): Promise<CommandResult<void>> {
+  return {
+    status: "needs_confirmation",
+    confirmation: {
+      summary: `Delete pack "${packName}" (${packId}). This cannot be undone.`,
+      commit: async () => {
+        await packApi.deletePack({ packId });
+        deps.shell.removeOpenPack(packId);
+        await refreshOverviews(deps);
+      },
+    },
+  };
+}

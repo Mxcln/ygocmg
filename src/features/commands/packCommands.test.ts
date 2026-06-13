@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { switchPack, openPack, createPack, closePack, updatePackMeta } from "./packCommands";
+import { switchPack, openPack, createPack, closePack, updatePackMeta, deletePack } from "./packCommands";
 import type { CommandDeps } from "./types";
 import type { PackMetadata } from "../../shared/contracts/pack";
 import { packApi } from "../../shared/api/packApi";
@@ -100,5 +100,26 @@ describe("updatePackMeta", () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["cards", "p1"] });
     expect(shell.setPackOverviews).toHaveBeenCalled();
     expect(res.status).toBe("ok");
+  });
+});
+
+describe("deletePack", () => {
+  it("returns needs_confirmation without touching the backend", async () => {
+    const { deps } = makeDeps();
+    const res = await deletePack("p1", "Pack One", deps);
+    expect(res.status).toBe("needs_confirmation");
+    if (res.status !== "needs_confirmation") throw new Error("expected confirmation");
+    expect(res.confirmation.summary).toContain("Pack One");
+    expect(packApi.deletePack).not.toHaveBeenCalled();
+  });
+
+  it("commit deletes the pack, removes from store, refreshes overviews", async () => {
+    const { deps, shell } = makeDeps();
+    const res = await deletePack("p1", "Pack One", deps);
+    if (res.status !== "needs_confirmation") throw new Error("expected confirmation");
+    await res.confirmation.commit();
+    expect(packApi.deletePack).toHaveBeenCalledWith({ packId: "p1" });
+    expect(shell.removeOpenPack).toHaveBeenCalledWith("p1");
+    expect(shell.setPackOverviews).toHaveBeenCalled();
   });
 });
