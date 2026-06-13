@@ -4,12 +4,15 @@
 
 ## 产品定位
 
-AI Agent 是嵌入 YGOCMG 的对话式助手，用户用自然语言对**当前激活的 custom pack** 完成卡片管理操作（查询、创建、修改、移动）。它由 DeepSeek 模型驱动，通过工具调用复用应用已有的后端业务规则，不绕过校验与确认流程。
+AI Agent 是嵌入 YGOCMG 的对话式助手，用户用自然语言完成两个层级的操作：**卡片管理**（在当前激活的 custom pack 内查询、创建、修改、移动卡片）和 **pack 管理**（在当前 workspace 内打开/切换/关闭/新建/删除 pack、改 pack metadata）。它由 DeepSeek 模型驱动，通过工具调用复用应用已有的后端业务规则，不绕过校验与确认流程。
+
+agent 的操作边界对标成熟代码 agent：pack 是卡片的作用域与容器（≈ 目录 / manifest），归 agent；而切换 workspace（≈ 打开另一个 folder）与修改应用设置（≈ 改 editor settings）刻意排除，留给用户在 UI 操作。
 
 ## 范围
 
 - 单一 provider：DeepSeek，非流式（后端一次性返回完整响应）。
-- 工具调用循环：7 个只读工具 + 3 个写工具，写操作复用后端两段式确认门。
+- 工具调用循环：7 个只读工具 + 9 个写工具（3 个卡片写 + 6 个 pack 写）。
+- pack 写操作经一个 UI/agent 共用的**命令层**（纯函数 + 注入依赖）编排；卡片写复用后端两段式确认门。
 - 对话历史仅存内存，关闭应用即清空，不持久化。
 - API key 以明文存于全局配置，不使用系统凭据库。
 
@@ -23,8 +26,8 @@ AI Agent 是嵌入 YGOCMG 的对话式助手，用户用自然语言对**当前�
   Agent Loop (useAgentLoop → agentLoop.runAgentTurn)
    - 组装 system prompt + 状态 block + 历史 messages + 工具定义
    - agentApi.chat() → 后端 llm_chat → DeepSeek
-   - 解析 tool_calls → 工具注册表分发 → 执行体（包装 src/shared/api/*）
-   - 写工具返回 needs_confirmation 时暂停，由 UI 内联确认
+   - 解析 tool_calls → 工具注册表分发 → 执行体（包装 src/shared/api/* 或 pack 命令层）
+   - 卡片写工具返回 needs_confirmation 时暂停（后端 token）；pack 删除返回命令层 needs_confirmation 时暂停（commit 闭包），均由 UI 内联确认
         │ Tauri IPC (llm_chat)
         ▼
 后端 (Rust)
@@ -44,7 +47,8 @@ AI Agent 是嵌入 YGOCMG 的对话式助手，用户用自然语言对**当前�
 | 边栏 UI / 对话渲染 | 前端 React | 右侧边栏、消息渲染、内联确认卡片 |
 | 对话状态 | 前端 Zustand (`agentStore`) | wire 历史、display 列表、pending 确认、状态机 |
 | Agent loop | 前端 TS (`agentLoop` / `useAgentLoop`) | 循环、工具分发、组装 DeepSeek 请求 |
-| 工具执行体 | 前端 TS (`features/agent/tools/*`) | 包装 `src/shared/api/*` wrapper |
+| 工具执行体 | 前端 TS (`features/agent/tools/*`) | 包装 `src/shared/api/*` wrapper 或 pack 命令层 |
+| pack 命令层 | 前端 TS (`features/commands/*`) | 纯函数编排 pack 操作，UI 与 agent 共用 |
 | LLM HTTP 转发 | 后端 Rust (`application/llm`) | reqwest 转发 + 注入 key（非流式） |
 | 业务规则 | 后端 Rust | 现有 service 层，agent 不引入新业务规则 |
 
@@ -62,10 +66,23 @@ HTTP 经后端转发而非 webview 直连：避免 CORS 与在网络面板暴露
 
 只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）。
 
-写工具：`create_card`、`update_card`、`move_cards`。
+卡片写工具：`create_card`、`update_card`、`move_cards`。
 
-- 工具执行体调用 `src/shared/api/*` 现有 wrapper，不重新实现校验/编号/确认逻辑。
-- 写工具返回的 `WriteResult` 若为 `needs_confirmation`，loop 暂停并在对话流内联渲染确认卡片（warnings/preview），用户点"应用 / 取消"。应用时用 confirmation token 调后端完成写入。
+pack 写工具：`switch_pack`、`open_pack`、`close_pack`、`create_pack`、`update_pack_meta`、`delete_pack`。它们经命令层编排（见下），在 UI 即时生效。`delete_pack` 为破坏性操作，需用户确认。agent 不暴露 workspace 切换与 config 修改工具——这些超出 pack/card 边界，由用户在 UI 操作。
+
+### 命令层（UI / agent 共用）
+
+pack 写操作的编排逻辑收敛在一个与 React 无关的**命令层**（`src/features/commands/`）：每个命令是纯函数 `(...args, deps) => Promise<CommandResult<T>>`，副作用句柄（shellStore 的 pack actions + queryClient）通过 `deps` 注入。`CommandDeps = { shell, queryClient }`，不含 config/workspace。
+
+- UI 适配器 `useCommands()` 在 React 内用 `useQueryClient` + shellStore 选择器组装 `deps`；agent 适配器 `buildAgentDeps()` 在 React 外用 `useShellStore.getState()` + 模块级 `queryClient` 单例组装。两者调同一组命令，实现 UI 与 agent 在 pack 操作上的一致。
+- `App.tsx` 的 `persistActivePack` / `handleClosePack` 已收敛为转调命令；其余受 Modal 持有后端调用的 handler 维持原状（避免二次后端调用）。
+
+### 两套确认门并存
+
+- **卡片写（后端 token）**：写工具返回的 `WriteResult` 若为 `needs_confirmation`，loop 暂停并内联渲染确认卡片（warnings/preview），用户应用时用 confirmation token 调后端完成写入。
+- **pack 删除（命令层 commit 闭包）**：`delete_pack` 命令返回 `{status:"needs_confirmation", confirmation:{summary, commit}}`，不立即执行。agent 侧由 loop 的命令确认分支走 `requestConfirmation`，确认后调 `commit()`；UI 侧由 `useCommands` 的 `deletePackWithDialog` 经 `AppDialog` 确认后调 `commit()`。
+- 两套机制数据模型不同（后端 token vs 前端闭包），有意并存不强行统一；loop 中 `confirmationToken` 放宽为 `string | null` 以共用同一确认 UI 通道。
+- 工具执行体调用 `src/shared/api/*` 或 pack 命令层，不重新实现校验/编号/确认逻辑。
 
 ## 回复语言
 
@@ -97,7 +114,8 @@ agent 相关设置集中在设置面板的独立 **"AI 助手"** tab（`settings
 
 前端：
 
-- `src/features/agent/` — 边栏 UI（`AgentSidebar`）、loop（`agentLoop.ts` / `useAgentLoop.ts`）、system prompt（`systemPrompt.ts`）、Markdown 渲染（`MarkdownMessage.tsx`）、工具注册表与执行体（`tools/*`，包装 `src/shared/api/*`）。
+- `src/features/agent/` — 边栏 UI（`AgentSidebar`）、loop（`agentLoop.ts` / `useAgentLoop.ts`）、system prompt（`systemPrompt.ts`）、Markdown 渲染（`MarkdownMessage.tsx`）、工具注册表与执行体（`tools/*`，卡片工具包装 `src/shared/api/*`，pack 工具 `tools/packTools.ts` 转调命令层）。
+- `src/features/commands/` — pack 命令层：`types.ts`（`CommandDeps` / `CommandResult` / `ConfirmationRequest`）、`packCommands.ts`（六个 pack 命令）、`useCommands.ts`（UI 适配器）、`buildAgentDeps.ts`（agent 适配器）。`queryClient` 单例从 `src/app/providers.tsx` 导出供 agent 适配器访问。
 - `src/shared/api/agentApi.ts` — 包装 `llm_chat` command。
 - `src/shared/contracts/agent.ts` — DeepSeek 请求/响应消息类型（OpenAI 兼容格式）。
 - `src/shared/stores/agentStore.ts` — 对话历史、display、pending 状态。
@@ -121,4 +139,4 @@ agent 相关设置集中在设置面板的独立 **"AI 助手"** tab（`settings
 
 - API key 明文存配置文件，未用系统凭据库（`global_config.json` 不应提交）。
 - 对话历史不持久化，关闭即清。
-- 选中态感知限于编辑抽屉与批量勾选，看不到列表单击高亮态。无流式输出，无 provider 抽象，无 AI 写操作额外 review 层。这些是当前阶段的有意取舍，扩展方向见 `history/` 中的设计稿。
+- 选中态感知限于编辑抽屉与批量勾选，看不到列表单击高亮态。无流式输出，无 provider 抽象，无 AI 写操作额外 review 层。agent 操作限 pack/card 层级，不含 workspace 切换、config 修改、导入导出。这些是当前阶段的有意取舍，扩展方向见 `history/` 中的设计稿。
