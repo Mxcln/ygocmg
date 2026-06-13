@@ -113,7 +113,7 @@ DeepSeek API 是 **OpenAI 兼容**格式。来源：[Tool Calls 指南](https://
   "model": "deepseek-v4-flash",
   "thinking": { "type": "disabled" },   // flash 默认 enabled，工具调用器关掉
   "messages": [
-    { "role": "system", "content": "<system prompt>" },
+    { "role": "system", "content": "<system prompt + 语言指令 + 当前状态 block>" },
     { "role": "user", "content": "列出当前包里的卡" }
   ],
   "tools": [
@@ -341,9 +341,21 @@ key 的读取**只发生在 Rust 的 `llm_chat` command 里**（从 `GlobalConfi
 
 ### 7.4 设置 UI
 
-- settings 里加一个 DeepSeek API key 输入框（密码型输入，写入 `deepseek_api_key`）。
+- agent 相关设置集中在 settings 的独立 **"AI 助手"** tab（`settings.tab.agent`），不再混在 General tab 里。
+- **DeepSeek API key 输入框**（密码型输入，写入 `deepseek_api_key`）。
 - 明示提示：**"对话内容与相关卡片数据会发送给 DeepSeek 服务商。"**
+- **回复语言下拉**（写入 `agent_language`）：`auto`（跟随程序 UI 语言，默认）或显式 locale（`en-US` / `ja-JP` / `zh-CN`）。
 - key 为空时，agent 边栏显示"未配置 API key"引导。
+
+### 7.5 回复语言（system prompt 注入）
+
+agent 回复语言由 `agent_language` 决定，不再隐式跟随对话输入语言：
+
+- `auto` → 解析为当前程序 UI locale（`useAppI18n().locale`）；否则用显式值。
+- 解析在前端 `useAgentLoop` 完成，把目标 locale 传给 `runAgentTurn` → `buildSystemPrompt(locale)`。
+- `buildSystemPrompt` 在基础 system prompt 后追加一条语言指令，要求模型用目标语言撰写回复，但保持卡名 / code 等数据值不变。
+- 这是 prompt 层的软约束（引导而非强制），不做回复后语言检测重试。
+- 后端 `GlobalConfig.agent_language` 取值受 `SUPPORTED_AGENT_LANGUAGES`（`auto` + 三种 locale）校验与归一，非法值回落 `auto`；旧 config 文件无此字段时 serde 默认 `auto`。
 
 ---
 
@@ -361,13 +373,14 @@ MVP 直接做右侧边栏（不走"先 panel 后边栏"渐进路径）。理由�
 - **可收缩到图标条**，一键唤出（参考左侧边栏 toggle 模式，复用 `shell_sidebar_*` 的样式约定）。
 - **顶部上下文 chip**：显示"当前包：XXX"，呼应 §6.1 的状态注入。
 - **确认操作内联渲染**：写操作的 `needs_confirmation` 确认卡片直接出现在对话流（复用现有 `AppDialog` 视觉），"应用 / 取消"按钮在消息里点。
+- **assistant 回复 Markdown 渲染**：助手消息经 `MarkdownMessage`（react-markdown + remark-gfm）渲染，支持 GFM（表格 / 任务列表 / 代码块等）；**不启用原始 HTML**，模型输出无法注入 markup（防 XSS），链接强制外部打开。user / error / notice 仍是纯文本。
 - **非模态**：边栏开着时主工作区仍可交互。
 - **加载态**：非流式意味着请求期间整条 assistant 消息一次性出现，需要一个"思考中"的 loading 指示（spinner / 占位气泡）覆盖等待时间。
 
 ### 8.3 组件落点
 
-- `src/features/agent/` — 边栏 UI、agent loop hook、工具注册表。
-- 边栏挂进 `src/app/App.tsx` 主 shell（与左侧 pack list 对称的右槽）。
+- `src/features/agent/` — 边栏 UI（`AgentSidebar`）、agent loop（`agentLoop.ts` / `useAgentLoop.ts`）、system prompt（`systemPrompt.ts`）、Markdown 渲染（`MarkdownMessage.tsx`）、工具注册表。
+- 边栏挂进 `src/app/App.tsx` 主 shell（与左侧 pack list 对称的右槽），并接收 `agentLanguage` prop。
 
 
 ---
@@ -396,16 +409,18 @@ MVP 跑通后，按真实需求逐步引入。每项都是独立增量，不需�
 **前端：**
 - `src/shared/api/agentApi.ts` — 包装 `llm_chat` command。
 - `src/shared/contracts/agent.ts` — DeepSeek 请求/响应消息类型（OpenAI 兼容格式）。
-- `src/features/agent/` — 边栏 UI、agent loop hook、工具注册表（包装 `src/shared/api/*` wrapper）。
+- `src/features/agent/` — 边栏 UI、agent loop hook、`MarkdownMessage`、工具注册表（包装 `src/shared/api/*` wrapper）。
 - `src/shared/stores/agentStore.ts` — 对话历史 + pending 状态。
-- `src/shared/contracts/config.ts` — `GlobalConfig` 加 `deepseek_api_key`。
-- settings UI — DeepSeek key 输入 + 数据外发提示。
+- `src/shared/contracts/config.ts` — `GlobalConfig` 加 `deepseek_api_key`、`agent_language`（`AgentLanguage = "auto" | LanguageCode`）。
+- settings UI — 独立 "AI 助手" tab：DeepSeek key 输入 + 数据外发提示 + 回复语言下拉。
+- 依赖：`react-markdown` + `remark-gfm`（assistant 回复 Markdown 渲染）。
 
 **后端：**
 - `Cargo.toml`：`reqwest`（带 `json` feature；MVP 非流式，**不需要** `stream`）。
 - 新 command `llm_chat`：注册到 `tauri_commands.rs` + `src-tauri/src/main.rs` 的 `generate_handler!`，实现放 `presentation/commands`。
 - 新 application 服务 `application/llm/`：从 `GlobalConfig` 取 key、reqwest POST 转发、返回完整 JSON。
-- `domain/config/model.rs`：`GlobalConfig` 加 `deepseek_api_key` 字段（与前端 contract 同步）。
+- `domain/config/model.rs`：`GlobalConfig` 加 `deepseek_api_key`、`agent_language` 字段（与前端 contract 同步）。
+- `domain/config/rules.rs`：`agent_language` 的默认值、`SUPPORTED_AGENT_LANGUAGES` 校验与归一。
 
 > `llm_chat` 的契约：输入 `{ body: <DeepSeek 请求 JSON> }`（前端组好，不含 key），后端注入 `Authorization` header 后转发，输出 DeepSeek 完整响应 JSON。Rust 不解析业务字段，只做"注入 key + 转发"。
 
