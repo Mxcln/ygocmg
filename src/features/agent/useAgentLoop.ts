@@ -1,7 +1,9 @@
 import { useCallback, useRef } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { useAgentStore } from "../../shared/stores/agentStore";
+import { useAppI18n } from "../../shared/i18n";
 import type { ChatMessage } from "../../shared/contracts/agent";
+import type { AgentLanguage } from "../../shared/contracts/config";
 import { formatError } from "../../shared/utils/format";
 import {
   buildContextBlock,
@@ -17,8 +19,11 @@ function nextId(): string {
   return `m${messageCounter}`;
 }
 
-export function useAgentLoop() {
+export function useAgentLoop(agentLanguage: AgentLanguage) {
   const store = useAgentStore;
+  const { locale } = useAppI18n();
+  // The agent replies in the configured language; "auto" follows the app UI language.
+  const replyLocale = agentLanguage === "auto" ? locale : agentLanguage;
   // The confirmation gate: the loop awaits this promise; the UI resolves it.
   const confirmResolverRef = useRef<((apply: boolean) => void) | null>(null);
 
@@ -86,14 +91,14 @@ export function useAgentLoop() {
 
     try {
       const history = useAgentStore.getState().wireMessages;
-      await runAgentTurn(history, contextBlock, ctx, hooks);
+      await runAgentTurn(history, contextBlock, ctx, hooks, replyLocale);
     } catch (err) {
       hooks.showError(formatError(err));
     } finally {
       useAgentStore.getState().setStatus("idle");
       confirmResolverRef.current = null;
     }
-  }, [store]);
+  }, [store, replyLocale]);
 
   return { sendMessage, resolveConfirmation };
 }

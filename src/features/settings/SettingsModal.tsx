@@ -20,7 +20,7 @@ import { requestClose, useCloseRequest } from "../../app/hooks/useBackNavigation
 import type { ThemeSettings } from "../../shared/theme/theme";
 import type { AppMessageId } from "../../shared/i18n";
 
-type SettingsTab = "general" | "languages" | "standardPack" | "codePolicy";
+type SettingsTab = "general" | "languages" | "standardPack" | "codePolicy" | "agent";
 
 const BRAND_COLOR_PRESETS: ReadonlyArray<{ id: string; color: string; label: AppMessageId }> = [
   { id: "teal", color: "#115e5f", label: "settings.brandColor.preset.teal" },
@@ -210,6 +210,9 @@ export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme 
           <button type="button" className={activeTab === "codePolicy" ? "active" : ""} onClick={() => setActiveTab("codePolicy")}>
             {t("settings.tab.codePolicy")}
           </button>
+          <button type="button" className={activeTab === "agent" ? "active" : ""} onClick={() => setActiveTab("agent")}>
+            {t("settings.tab.agent")}
+          </button>
         </aside>
 
         <div className={shared.modalPanel}>
@@ -372,26 +375,6 @@ export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme 
                   </div>
                 </div>
               </section>
-
-              <section className={styles.settingsGroup}>
-                <h4 className={styles.groupTitle}>{t("agent.title")}</h4>
-                <label className={shared.field}>
-                  <span>{t("settings.deepseekApiKey")}</span>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={draft.deepseek_api_key ?? ""}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        deepseek_api_key: e.target.value.trim() === "" ? null : e.target.value,
-                      })
-                    }
-                    placeholder={t("settings.deepseekApiKey.placeholder")}
-                  />
-                </label>
-                <span className={shared.fieldHint}>{t("settings.deepseekApiKey.help")}</span>
-              </section>
             </div>
           )}
 
@@ -523,6 +506,48 @@ export function SettingsModal({ config, onConfigSaved, onNotice, onPreviewTheme 
                     }
                   />
                 </label>
+              </section>
+            </div>
+          )}
+
+          {activeTab === "agent" && (
+            <div className={styles.settingsTabContent}>
+              <section className={styles.settingsGroup}>
+                <h4 className={styles.groupTitle}>{t("agent.title")}</h4>
+                <label className={shared.field}>
+                  <span>{t("settings.deepseekApiKey")}</span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={draft.deepseek_api_key ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        deepseek_api_key: e.target.value.trim() === "" ? null : e.target.value,
+                      })
+                    }
+                    placeholder={t("settings.deepseekApiKey.placeholder")}
+                  />
+                </label>
+                <span className={shared.fieldHint}>{t("settings.deepseekApiKey.help")}</span>
+
+                <label className={shared.field}>
+                  <span>{t("settings.agentLanguage")}</span>
+                  <select
+                    value={draft.agent_language}
+                    onChange={(event) =>
+                      setDraft({ ...draft, agent_language: event.target.value as GlobalConfig["agent_language"] })
+                    }
+                  >
+                    <option value="auto">{t("settings.agentLanguage.auto")}</option>
+                    {APP_LOCALE_OPTIONS.map((locale) => (
+                      <option key={locale.id} value={locale.id}>
+                        {locale.label} ({locale.id})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className={shared.fieldHint}>{t("settings.agentLanguage.help")}</span>
               </section>
             </div>
           )}

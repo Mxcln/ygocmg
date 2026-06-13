@@ -8,7 +8,7 @@ import type {
 import { agentApi } from "../../shared/api/agentApi";
 import { getTool, TOOL_DEFINITIONS } from "./tools/registry";
 import type { ToolContext } from "./tools/types";
-import { AGENT_SYSTEM_PROMPT } from "./systemPrompt";
+import { buildSystemPrompt } from "./systemPrompt";
 
 const MODEL = "deepseek-v4-flash";
 const MAX_ROUNDS = 8;
@@ -150,16 +150,18 @@ export async function runAgentTurn(
   contextBlock: string,
   ctx: ToolContext,
   hooks: LoopHooks,
+  locale: string,
 ): Promise<void> {
   // The first user message of this turn gets the context block prepended.
   const working = [...history];
+  const systemPrompt = buildSystemPrompt(locale);
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const body: ChatRequestBody = {
       model: MODEL,
       thinking: { type: "disabled" },
       messages: [
-        { role: "system", content: `${AGENT_SYSTEM_PROMPT}\n\n${contextBlock}` },
+        { role: "system", content: `${systemPrompt}\n\n${contextBlock}` },
         ...working,
       ],
       tools: TOOL_DEFINITIONS,

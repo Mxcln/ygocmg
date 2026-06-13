@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useShellStore } from "../../shared/stores/shellStore";
 import { useAgentStore } from "../../shared/stores/agentStore";
+import type { AgentLanguage } from "../../shared/contracts/config";
 import { useAppI18n } from "../../shared/i18n";
 import { formatValidationIssue } from "../../shared/utils/format";
 import { useAgentLoop } from "./useAgentLoop";
+import { MarkdownMessage } from "./MarkdownMessage";
 import styles from "./AgentSidebar.module.css";
 
 interface AgentSidebarProps {
   hasApiKey: boolean;
+  agentLanguage: AgentLanguage;
   collapsed: boolean;
   width: number;
   onToggleCollapsed: () => void;
@@ -18,6 +21,7 @@ interface AgentSidebarProps {
 
 export function AgentSidebar({
   hasApiKey,
+  agentLanguage,
   collapsed,
   width,
   onToggleCollapsed,
@@ -29,7 +33,7 @@ export function AgentSidebar({
   const status = useAgentStore((s) => s.status);
   const pending = useAgentStore((s) => s.pendingConfirmation);
   const clearConversation = useAgentStore((s) => s.clearConversation);
-  const { sendMessage, resolveConfirmation } = useAgentLoop();
+  const { sendMessage, resolveConfirmation } = useAgentLoop(agentLanguage);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +122,8 @@ export function AgentSidebar({
                     <span className={styles.toolBadge}>{m.toolName}</span>
                     <code className={styles.toolArgs}>{m.text}</code>
                   </span>
+                ) : m.role === "assistant" ? (
+                  <MarkdownMessage text={m.text} />
                 ) : (
                   <span className={styles.msgText}>{m.text}</span>
                 )}

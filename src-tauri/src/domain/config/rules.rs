@@ -9,6 +9,9 @@ use crate::domain::language::rules::{
 
 pub const DEFAULT_APP_LANGUAGE: &str = "en-US";
 pub const SUPPORTED_APP_LANGUAGES: [&str; 3] = ["en-US", "ja-JP", "zh-CN"];
+pub const DEFAULT_AGENT_LANGUAGE: &str = "auto";
+/// Accepted values for `agent_language`: "auto" (follow the UI language) plus the supported app languages.
+pub const SUPPORTED_AGENT_LANGUAGES: [&str; 4] = ["auto", "en-US", "ja-JP", "zh-CN"];
 
 pub fn default_global_config() -> GlobalConfig {
     GlobalConfig {
@@ -31,6 +34,7 @@ pub fn default_global_config() -> GlobalConfig {
         high_contrast: false,
         custom_brand_color: None,
         deepseek_api_key: None,
+        agent_language: DEFAULT_AGENT_LANGUAGE.to_string(),
     }
 }
 
@@ -82,6 +86,16 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
     }
 
     issues.extend(validate_text_language_catalog(config));
+
+    if !SUPPORTED_AGENT_LANGUAGES.contains(&config.agent_language.as_str()) {
+        issues.push(
+            ValidationIssue::error(
+                "config.agent_language_unsupported",
+                target.clone().with_field("agent_language"),
+            )
+            .with_param("language", &config.agent_language),
+        );
+    }
 
     if let Some(language) = &config.standard_pack_source_language {
         issues.extend(validate_language_id(
@@ -188,6 +202,7 @@ pub fn validate_global_config(config: &GlobalConfig) -> Vec<ValidationIssue> {
 pub fn normalize_global_config(config: &GlobalConfig) -> GlobalConfig {
     let mut next = config.clone();
     next.app_language = normalize_app_language(&next.app_language);
+    next.agent_language = normalize_agent_language(&next.agent_language);
     next.text_language_catalog = normalize_text_language_catalog(&next.text_language_catalog);
     next.standard_pack_source_language = next
         .standard_pack_source_language
@@ -223,6 +238,15 @@ fn normalize_app_language(language: &str) -> String {
         normalized.to_string()
     } else {
         DEFAULT_APP_LANGUAGE.to_string()
+    }
+}
+
+fn normalize_agent_language(language: &str) -> String {
+    let normalized = language.trim();
+    if SUPPORTED_AGENT_LANGUAGES.contains(&normalized) {
+        normalized.to_string()
+    } else {
+        DEFAULT_AGENT_LANGUAGE.to_string()
     }
 }
 

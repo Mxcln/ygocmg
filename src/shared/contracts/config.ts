@@ -32,4 +32,8 @@ export interface GlobalConfig {
   high_contrast: boolean;
   custom_brand_color: string | null;
   deepseek_api_key: string | null;
+  /** Agent reply language: "auto" follows the app UI language, otherwise an explicit locale. */
+  agent_language: AgentLanguage;
 }
+
+export type AgentLanguage = "auto" | LanguageCode;

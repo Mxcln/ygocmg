@@ -16,3 +16,23 @@ export const AGENT_SYSTEM_PROMPT = `You are an AI assistant embedded in YGOCMG, 
 ## Style
 - Be concise. Briefly confirm what you did or report what you found.
 - If a tool returns an error, read it and either fix your call or explain the problem to the user. Do not loop endlessly.`;
+
+/** Human-readable language name per UI locale, used to instruct the model which language to reply in. */
+const LOCALE_LANGUAGE_NAMES: Record<string, string> = {
+  "en-US": "English",
+  "ja-JP": "Japanese (日本語)",
+  "zh-CN": "Simplified Chinese (简体中文)",
+};
+
+/**
+ * Build the full system prompt, appending a directive that the assistant must
+ * reply in the app's current UI language. Card data and tool arguments are not
+ * translated — only the assistant's own prose.
+ */
+export function buildSystemPrompt(locale: string): string {
+  const language = LOCALE_LANGUAGE_NAMES[locale] ?? "English";
+  return `${AGENT_SYSTEM_PROMPT}
+
+## Language
+- Always write your replies to the user in ${language}, regardless of the language the user types in. Keep card names, codes, and other data values unchanged.`;
+}

@@ -472,6 +472,7 @@ function AppShell({
 
         <AgentSidebar
           hasApiKey={Boolean(config.deepseek_api_key && config.deepseek_api_key.trim())}
+          agentLanguage={config.agent_language}
           collapsed={rightSidebarCollapsed}
           width={rightSidebarWidth}
           onToggleCollapsed={toggleRightSidebarCollapsed}

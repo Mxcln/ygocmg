@@ -49,6 +49,8 @@ pub struct GlobalConfig {
     pub custom_brand_color: Option<String>,
     #[serde(default)]
     pub deepseek_api_key: Option<String>,
+    #[serde(default = "default_agent_language")]
+    pub agent_language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -71,4 +73,8 @@ fn default_shell_window_width() -> u32 {
 
 fn default_shell_window_height() -> u32 {
     640
+}
+
+fn default_agent_language() -> String {
+    "auto".to_string()
 }
