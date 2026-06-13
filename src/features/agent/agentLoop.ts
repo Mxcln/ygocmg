@@ -48,6 +48,32 @@ function isWriteResult(value: unknown): value is WriteResult<unknown> {
   );
 }
 
+interface CommandConfirmation {
+  status: "needs_confirmation";
+  confirmation: { summary: string; commit: () => Promise<unknown> };
+}
+
+function isCommandConfirmation(value: unknown): value is CommandConfirmation {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { status?: unknown }).status === "needs_confirmation" &&
+    typeof (value as { confirmation?: unknown }).confirmation === "object" &&
+    (value as { confirmation?: { commit?: unknown } }).confirmation != null &&
+    typeof (value as { confirmation: { commit?: unknown } }).confirmation.commit === "function"
+  );
+}
+
+function isCommandResultOk(value: unknown): value is { status: "ok"; data: unknown } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { status?: unknown }).status === "ok" &&
+    "data" in (value as object) &&
+    !("warnings" in (value as object)) // distinguish from card WriteResult
+  );
+}
+
 /** Build the per-turn context block (current shell snapshot). */
 export function buildContextBlock(snapshot: {
   workspaceName: string | null;
@@ -104,9 +130,17 @@ async function runToolCall(
     hooks.showToolRun(tool.name, summarizeArgs(tool.name, args));
     const result = await tool.execute(args, ctx);
 
-    // Write tools return a WriteResult that may require backend confirmation.
+    // Command-layer confirmation (delete_pack): commit-closure model.
+    if (!tool.readOnly && isCommandConfirmation(result)) {
+      return handleCommandConfirmation(result, call, hooks);
+    }
+    // Card write tools: backend two-phase token model.
     if (!tool.readOnly && isWriteResult(result)) {
       return handleWriteResult(result, call, args, hooks);
+    }
+    // Command-layer ok results: unwrap to data for the model.
+    if (!tool.readOnly && isCommandResultOk(result)) {
+      return JSON.stringify({ status: "ok", data: result.data ?? null });
     }
     return JSON.stringify(result ?? null);
   } catch (err) {
@@ -147,6 +181,31 @@ async function handleWriteResult(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return JSON.stringify({ error: `Confirmation failed: ${message}` });
+  }
+}
+
+async function handleCommandConfirmation(
+  result: CommandConfirmation,
+  call: ToolCall,
+  hooks: LoopHooks,
+): Promise<string> {
+  const apply = await hooks.requestConfirmation({
+    toolCallId: call.id,
+    toolName: call.function.name,
+    confirmationToken: null,
+    warnings: [],
+    preview: null,
+    summary: result.confirmation.summary,
+  });
+  if (!apply) {
+    return JSON.stringify({ status: "cancelled_by_user" });
+  }
+  try {
+    const data = await result.confirmation.commit();
+    return JSON.stringify({ status: "ok", data: data ?? null });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return JSON.stringify({ error: `Operation failed: ${message}` });
   }
 }
 
