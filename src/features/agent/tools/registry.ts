@@ -9,7 +9,7 @@ import {
   suggestCardCodeTool,
   listSetnamesTool,
 } from "./readTools";
-import { createCardTool, moveCardsTool, updateCardTool } from "./writeTools";
+import { createCardTool, createSetnameTool, moveCardsTool, updateCardTool } from "./writeTools";
 import {
   switchPackTool,
   openPackTool,
@@ -31,6 +31,7 @@ export const AGENT_TOOLS: AgentTool[] = [
   listSetnamesTool,
   createCardTool,
   updateCardTool,
+  createSetnameTool,
   moveCardsTool,
   switchPackTool,
   openPackTool,

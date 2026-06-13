@@ -128,7 +128,7 @@ async function runToolCall(
     }
     // Card write tools and pack command ok-results both shaped {status, data}.
     if (!tool.readOnly && isWriteResult(result)) {
-      return handleWriteResult(result, call, args, hooks);
+      return handleWriteResult(result, call, args, tool, hooks);
     }
     return JSON.stringify(result ?? null);
   } catch (err) {
@@ -138,24 +138,32 @@ async function runToolCall(
 }
 
 /**
- * Refresh card caches after an agent card write. UI editors invalidate these
- * keys themselves; agent writes go through this loop, so we mirror it here.
- * `["cards"]` matches every paged list query; `["card"]` matches every single
- * card detail query (both via React Query prefix matching).
+ * Refresh React Query caches after an agent write. The default mirrors what the
+ * card editors invalidate; tools that touch other data (e.g. pack strings)
+ * declare their own `invalidateKeys`. `["cards"]` matches every paged list
+ * query and `["card"]` every single card detail (React Query prefix matching).
  */
-function invalidateCardCaches(): void {
-  void queryClient.invalidateQueries({ queryKey: ["cards"] });
-  void queryClient.invalidateQueries({ queryKey: ["card"] });
+const DEFAULT_INVALIDATE_KEYS: readonly (readonly unknown[])[] = [["cards"], ["card"]];
+
+function invalidateCaches(tool: { invalidateKeys?: readonly (readonly unknown[])[] }): void {
+  const keys = tool.invalidateKeys ?? DEFAULT_INVALIDATE_KEYS;
+  for (const queryKey of keys) {
+    void queryClient.invalidateQueries({ queryKey });
+  }
 }
 
 async function handleWriteResult(
   result: WriteResult<unknown>,
   call: ToolCall,
   args: Record<string, unknown>,
+  tool: {
+    confirmWrite?: (confirmationToken: string) => Promise<unknown>;
+    invalidateKeys?: readonly (readonly unknown[])[];
+  },
   hooks: LoopHooks,
 ): Promise<string> {
   if (result.status === "ok") {
-    invalidateCardCaches();
+    invalidateCaches(tool);
     return JSON.stringify({ status: "ok", data: result.data });
   }
 
@@ -174,10 +182,11 @@ async function handleWriteResult(
   }
 
   try {
-    const confirmed = await cardApi.confirmCardWrite({
-      confirmationToken: result.confirmation_token,
-    });
-    invalidateCardCaches();
+    const confirm = tool.confirmWrite
+      ? (token: string) => tool.confirmWrite!(token)
+      : (token: string) => cardApi.confirmCardWrite({ confirmationToken: token });
+    const confirmed = await confirm(result.confirmation_token);
+    invalidateCaches(tool);
     return JSON.stringify({ status: "ok", data: confirmed });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

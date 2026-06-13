@@ -66,7 +66,7 @@ HTTP 经后端转发而非 webview 直连：避免 CORS 与在网络面板暴露
 
 只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）、`list_setnames`（合并 pack 与标准 setname，返回 `{key, name, source}` 列表，供模型在系列名与 setcode 数字之间双向翻译；pack 同 key 覆盖 standard，镜像 `useMergedSetnameEntries` 的合并逻辑）。
 
-卡片写工具：`create_card`、`update_card`、`move_cards`。`update_card` 覆盖全部可编辑字段（name/desc、atk/def/level、primary_type、race、attribute、monster_flags、spell_subtype、trap_subtype、pendulum、link markers、setcodes、ot、alias、category、code）：读全卡 → 仅对传入字段打补丁 → 回写，枚举字段在工具层校验取值（非法值就地报错，不丢给后端）。系列成员关系是卡片的 `setcodes` 数字数组，模型应先用 `list_setnames` 查到对应 key 再写入。
+卡片写工具：`create_card`、`update_card`、`move_cards`、`create_setname`。`update_card` 覆盖全部可编辑字段（name/desc、atk/def/level、primary_type、race、attribute、monster_flags、spell_subtype、trap_subtype、pendulum、link markers、setcodes、ot、alias、category、code）：读全卡 → 仅对传入字段打补丁 → 回写，枚举字段在工具层校验取值（非法值就地报错，不丢给后端）。系列成员关系是卡片的 `setcodes` 数字数组，模型应先用 `list_setnames` 查到对应 key 再写入。`create_setname` 新建/重命名 pack 自定义系列名（写 setname string）：可传 hex key，省略则在自定义区段（0x1000 起）自动分配下一个空位；返回的 key 再由 `update_card` 写入卡片 setcodes。该工具走 pack-strings 确认门（`confirmPackStringsWrite`）而非卡片确认门，刷新 strings 与 setname 相关缓存。
 
 pack 写工具：`switch_pack`、`open_pack`、`close_pack`、`create_pack`、`update_pack_meta`、`delete_pack`。它们经命令层编排（见下），在 UI 即时生效。`delete_pack` 为破坏性操作，需用户确认。agent 不暴露 workspace 切换与 config 修改工具——这些超出 pack/card 边界，由用户在 UI 操作。
 
@@ -79,7 +79,7 @@ pack 写操作的编排逻辑收敛在一个与 React 无关的**命令层**（`
 
 ### 两套确认门并存
 
-- **卡片写（后端 token）**：写工具返回的 `WriteResult` 若为 `needs_confirmation`，loop 暂停并内联渲染确认卡片（warnings/preview），用户应用时用 confirmation token 调后端完成写入。
+- **卡片写（后端 token）**：写工具返回的 `WriteResult` 若为 `needs_confirmation`，loop 暂停并内联渲染确认卡片（warnings/preview），用户应用时用 confirmation token 调后端完成写入。确认端点和写后缓存刷新由工具声明：`AgentTool` 的可选 `confirmWrite`（默认 `cardApi.confirmCardWrite`）与 `invalidateKeys`（默认卡片缓存 `["cards"]`/`["card"]`）。`create_setname` 即借此走 `confirmPackStringsWrite` 并刷新 strings/setname 缓存，三个卡片写工具沿用默认。
 - **pack 删除（命令层 commit 闭包）**：`delete_pack` 命令返回 `{status:"needs_confirmation", confirmation:{summary, commit}}`，不立即执行。agent 侧由 loop 的命令确认分支走 `requestConfirmation`，确认后调 `commit()`。命令层另提供 UI 适配器 `useCommands().deletePackWithDialog`（经 `AppDialog` 确认后调 `commit()`）供 UI 复用；现阶段 `PackMetadataPanel` 的删除入口仍走其自有的 `openDialog` + `packApi.deletePack` 路径，UI 侧收敛是渐进的。
 - 两套机制数据模型不同（后端 token vs 前端闭包），有意并存不强行统一；loop 中 `confirmationToken` 放宽为 `string | null` 以共用同一确认 UI 通道。
 - 工具执行体调用 `src/shared/api/*` 或 pack 命令层，不重新实现校验/编号/确认逻辑。

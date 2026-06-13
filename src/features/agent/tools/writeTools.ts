@@ -1,4 +1,7 @@
 import { cardApi } from "../../../shared/api/cardApi";
+import { stringsApi } from "../../../shared/api/stringsApi";
+import { useShellStore } from "../../../shared/stores/shellStore";
+import { parseHexInput } from "../../../shared/utils/format";
 import type {
   Attribute,
   CardEntity,
@@ -359,3 +362,105 @@ export const moveCardsTool: AgentTool = {
     });
   },
 };
+
+/** Resolve the pack's primary display language, used for setname strings. */
+function packDisplayLanguage(packId: string): string {
+  const meta = useShellStore.getState().packMetadataMap[packId];
+  return meta?.display_language_order?.[0] ?? "en-US";
+}
+
+export const createSetnameTool: AgentTool = {
+  name: "create_setname",
+  description:
+    "Create (or rename) a custom series/archetype name in the active pack, so it can be " +
+    "assigned to cards via update_card's setcodes field. Call this when the user wants a " +
+    "NEW series that does not yet exist — check list_setnames first to avoid duplicates. " +
+    "The setcode key is a hex number (e.g. '0x1234'); if omitted, the next free key in the " +
+    "pack's custom range is allocated. Writing a name for an existing key renames that series. " +
+    "After creating, use update_card to add the returned key to a card's setcodes.",
+  readOnly: false,
+  // Setname writes go through the pack-strings confirmation gate, not the card one.
+  confirmWrite: (confirmationToken) =>
+    stringsApi.confirmPackStringsWrite({ confirmationToken }),
+  // Refresh the strings browser and the setname maps used by editors and list_setnames.
+  invalidateKeys: [["strings"], ["pack-setnames"], ["standard-setnames"]],
+  parameters: {
+    type: "object",
+    properties: {
+      name: { type: "string", description: "The series/archetype name to set." },
+      key: {
+        type: "string",
+        description:
+          "Optional hex setcode key (e.g. '0x1234'). Omit to auto-allocate the next free key.",
+      },
+      language: {
+        type: "string",
+        description:
+          "Language code for the name (e.g. 'zh-CN'). Defaults to the pack's primary display language.",
+      },
+    },
+    required: ["name"],
+  },
+  async execute(args, ctx): Promise<WriteResult<unknown>> {
+    const { workspaceId, packId } = requirePack(ctx);
+    const name = typeof args.name === "string" ? args.name.trim() : "";
+    if (!name) {
+      throw new ToolError("name is required and must be a non-empty string.");
+    }
+    const language =
+      typeof args.language === "string" && args.language
+        ? args.language
+        : packDisplayLanguage(packId);
+
+    const key = await resolveSetnameKey(workspaceId, packId, language, args.key);
+
+    return stringsApi.upsertPackString({
+      workspaceId,
+      packId,
+      language,
+      entry: { kind: "setname", key, value: name },
+    });
+  },
+};
+
+/** Page size large enough to scan all setnames in one call for key checks/allocation. */
+const SETNAME_SCAN_SIZE = 10000;
+/** Default start of the custom setcode range when auto-allocating keys. */
+const CUSTOM_SETCODE_START = 0x1000;
+
+/**
+ * Resolve the setcode key to write. If the model supplied one, parse it as hex
+ * and use it (rename-or-create at that key). Otherwise allocate the next free
+ * key in the pack at or above CUSTOM_SETCODE_START.
+ */
+async function resolveSetnameKey(
+  workspaceId: string,
+  packId: string,
+  language: string,
+  rawKey: unknown,
+): Promise<number> {
+  if (typeof rawKey === "string" && rawKey.trim()) {
+    const parsed = parseHexInput(rawKey);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new ToolError(
+        `Invalid setcode key: ${JSON.stringify(rawKey)}. Use a hex value like '0x1234'.`,
+      );
+    }
+    return parsed;
+  }
+
+  const existing = await stringsApi.listPackStrings({
+    workspaceId,
+    packId,
+    language,
+    kindFilter: "setname",
+    keyFilter: null,
+    keyword: null,
+    page: 1,
+    pageSize: SETNAME_SCAN_SIZE,
+  });
+  const used = new Set(existing.items.map((item) => item.key));
+  let candidate = CUSTOM_SETCODE_START;
+  while (used.has(candidate)) candidate += 1;
+  return candidate;
+}

@@ -17,6 +17,17 @@ export interface AgentTool {
   parameters: object;
   /** read-only tools auto-execute; write tools may hit the backend confirmation gate. */
   readOnly: boolean;
+  /**
+   * Confirm endpoint for a needs_confirmation WriteResult from this tool.
+   * The loop calls this with the confirmation_token when the user applies.
+   * Defaults to cardApi.confirmCardWrite (the card write gate) when omitted.
+   */
+  confirmWrite?: (confirmationToken: string) => Promise<unknown>;
+  /**
+   * React Query key prefixes to invalidate after a successful write (ok or
+   * confirmed). Prefix-matched. Defaults to the card caches (["cards"], ["card"]).
+   */
+  invalidateKeys?: readonly (readonly unknown[])[];
   /** Calls the corresponding src/shared/api wrapper. Returns any JSON-serializable result. */
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<unknown>;
 }
