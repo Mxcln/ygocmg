@@ -6,6 +6,10 @@ import * as packCommands from "../../commands/packCommands";
 import type { AgentTool } from "./types";
 import { ToolError } from "./types";
 
+// Pack-level operations derive their targets from args and live shell state via
+// buildAgentDeps(); they intentionally do not use ToolContext's workspaceId/packId
+// (those are card-level concerns), so `execute` omits the `ctx` parameter here.
+
 export const switchPackTool: AgentTool = {
   name: "switch_pack",
   description:
