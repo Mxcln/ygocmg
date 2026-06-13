@@ -11,6 +11,7 @@ import { formatError } from "../shared/utils/format";
 import { WorkspaceModal } from "../features/workspace/WorkspaceModal";
 import { SettingsModal } from "../features/settings/SettingsModal";
 import { AddPackModal } from "../features/pack/AddPackModal";
+import { useCommands } from "../features/commands/useCommands";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppDialog } from "../features/dialogs/AppDialog";
 import { StandardPackView } from "../features/standardPack/StandardPackView";
@@ -302,13 +303,13 @@ function AppShell({
   beginRightSidebarResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useAppI18n();
+  const commands = useCommands();
   const modal = useShellStore((s) => s.modal);
   const dialog = useShellStore((s) => s.dialog);
   const closeModal = useShellStore((s) => s.closeModal);
   const openModal = useShellStore((s) => s.openModal);
   const activePackId = useShellStore((s) => s.activePackId);
   const activeView = useShellStore((s) => s.activeView);
-  const setActivePack = useShellStore((s) => s.setActivePack);
   const setActiveStandardPack = useShellStore((s) => s.setActiveStandardPack);
   const addOpenPack = useShellStore((s) => s.addOpenPack);
   const removeOpenPack = useShellStore((s) => s.removeOpenPack);
@@ -344,9 +345,8 @@ function AppShell({
   }
 
   async function persistActivePack(packId: string) {
-    setActivePack(packId);
     try {
-      await packApi.setActivePack({ packId });
+      await commands.switchPack(packId);
     } catch (err) {
       handleNotice("error", t("app.notice.switchPackFailed"), formatError(err));
     }
@@ -402,8 +402,7 @@ function AppShell({
 
   async function handleClosePack(packId: string) {
     try {
-      await packApi.closePack({ packId });
-      removeOpenPack(packId);
+      await commands.closePack(packId);
     } catch (err) {
       handleNotice("error", t("app.notice.closePackFailed"), formatError(err));
     }
