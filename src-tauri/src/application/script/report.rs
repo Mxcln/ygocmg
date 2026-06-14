@@ -128,19 +128,14 @@ fn final_status(
 
 fn confidence_for(
     status: LuaValidationStatusDto,
-    stages: &[LuaValidationStageResultDto],
+    _stages: &[LuaValidationStageResultDto],
     _issues: &[LuaValidationIssueDto],
 ) -> LuaValidationConfidenceDto {
-    if status == LuaValidationStatusDto::Inconclusive
-        || stages
-            .iter()
-            .any(|stage| stage.status == LuaValidationStatusDto::Inconclusive)
-    {
-        LuaValidationConfidenceDto::Low
-    } else if status == LuaValidationStatusDto::Warning {
-        LuaValidationConfidenceDto::Medium
-    } else {
-        LuaValidationConfidenceDto::High
+    match status {
+        LuaValidationStatusDto::Fail => LuaValidationConfidenceDto::High,
+        LuaValidationStatusDto::Warning => LuaValidationConfidenceDto::Medium,
+        LuaValidationStatusDto::Pass => LuaValidationConfidenceDto::High,
+        LuaValidationStatusDto::Inconclusive => LuaValidationConfidenceDto::Low,
     }
 }
 
@@ -240,6 +235,54 @@ mod tests {
             crate::application::script::dto::LuaValidationConfidenceDto::Medium
         );
         assert_eq!(report.issues, vec![issue]);
+    }
+
+    #[test]
+    fn assemble_report_keeps_high_confidence_when_static_failure_dominates_unsupported_stage() {
+        let issue = LuaValidationIssueDto {
+            severity: LuaValidationIssueSeverityDto::Error,
+            stage: LuaValidationLevelDto::Static,
+            code: "missing_initial_effect".to_string(),
+            message: "Lua script does not define initial_effect(c).".to_string(),
+            line: None,
+            column: None,
+            suggestion: Some("Define function s.initial_effect(c).".to_string()),
+        };
+
+        let report = assemble_report(vec![
+            stage(LuaValidationStatusDto::Fail, vec![issue]),
+            unsupported_stage_result(LuaValidationLevelDto::OcgcoreInit, 1),
+        ]);
+
+        assert_eq!(report.status, LuaValidationStatusDto::Fail);
+        assert_eq!(
+            report.confidence,
+            crate::application::script::dto::LuaValidationConfidenceDto::High
+        );
+    }
+
+    #[test]
+    fn assemble_report_keeps_medium_confidence_when_static_warning_dominates_unsupported_stage() {
+        let issue = LuaValidationIssueDto {
+            severity: LuaValidationIssueSeverityDto::Warning,
+            stage: LuaValidationLevelDto::Static,
+            code: "dangerous_lua_api".to_string(),
+            message: "Script uses os.execute.".to_string(),
+            line: Some(4),
+            column: None,
+            suggestion: Some("Remove shell execution from card scripts.".to_string()),
+        };
+
+        let report = assemble_report(vec![
+            stage(LuaValidationStatusDto::Warning, vec![issue]),
+            unsupported_stage_result(LuaValidationLevelDto::OcgcoreInit, 1),
+        ]);
+
+        assert_eq!(report.status, LuaValidationStatusDto::Warning);
+        assert_eq!(
+            report.confidence,
+            crate::application::script::dto::LuaValidationConfidenceDto::Medium
+        );
     }
 
     #[test]
