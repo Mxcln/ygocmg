@@ -327,9 +327,35 @@ defense
 lscale
 rscale
 link_marker
+rule_code
 ```
 
 MVP 需要能为待测卡返回准确数据。对于 scenario 测试，未来还需要为辅助卡、目标卡、token 或同系列卡返回数据。
+
+YGOPro 源码对照：
+
+- 本地 `ref/ygopro_src/gframe/single_mode.cpp` 和 `ref/ygopro_src/gframe/single_duel.cpp` 会在创建 duel 前注册：
+
+```cpp
+set_script_reader(DataManager::ScriptReaderEx);
+set_card_reader(DataManager::CardReader);
+set_message_handler(...);
+```
+
+- `ref/ygopro_src/gframe/data_manager.cpp` 的 `DataManager::ReadDB` 负责读取 `.cdb`。它使用 `select * from datas,texts where datas.id=texts.id`，把 `datas` 表中的 `id / alias / setcode / type / atk / def / level / race / attribute / category` 等字段加载到 `_datas` 内存表，并把 `texts` 表加载到 `_strings`。
+- `DataManager::ReadDB` 会把 YGOPro CDB 的紧凑字段转换为 ocgcore 可用数据：`setcode` 被拆到 `setcode[]`，Link 怪兽的 `def` 被转为 `link_marker`，`level` 的低 8 位转为等级，高位拆为左右灵摆刻度。
+- `DataManager::CardReader(code, pData)` 只是从 `_datas` 找 code 并填充 `card_data`；找不到时清空 `pData`。也就是说，YGOPro 客户端读 CDB，ocgcore 只通过回调拿结果。
+- `ref/ygopro_src/ocgcore/duel.cpp` 的 `duel::new_card(code)` 会调用 `read_card(code, &(pcard->data))`，然后注册卡片并加载脚本。攻击力、属性、种族、类型等规则查询最终都依赖这次 `card_reader` 填充。
+
+因此，ocgcore 本身不直接打开或解析 `.cdb`。`.cdb -> DataManager -> card_reader -> ocgcore card_data` 是 YGOPro 宿主程序承担的桥接层。
+
+对 YGOCMG 验证平台的含义：
+
+- MVP helper 不必直接读取 `.cdb`；更推荐由后端把当前 `CardEntity`、custom pack 数据和标准包只读索引转换成 helper 输入。
+- helper 内部维护 `code -> card_data` 的内存表，并在 `card_reader` 回调中填充 ocgcore 需要的数据。
+- 这样可以验证尚未导出为 `.cdb` 的当前编辑状态，也可以在 scenario 测试中显式声明本局需要的辅助卡和 token 数据。
+- 如果 scenario 或脚本引用了未知 code，应输出 `missing_card_data` / `inconclusive` 类 issue，而不是让 ocgcore 静默使用空数据后给出不可信结果。
+- 只有当未来需要完全复刻某个 YGOPro 运行目录时，才考虑让 helper 直接加载 CDB；即便如此，也应作为可选输入源，而不是 MVP 的唯一数据通道。
 
 实现建议：
 
