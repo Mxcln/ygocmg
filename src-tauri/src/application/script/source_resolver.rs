@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io::ErrorKind, path::PathBuf};
 
 use crate::application::script::dto::ValidateLuaScriptInput;
 use crate::bootstrap::AppState;
@@ -73,12 +73,6 @@ impl<'a> ScriptSourceResolver<'a> {
 
         let script_path =
             crate::domain::resource::path_rules::script_path(&snapshot.pack_path, card.code);
-        if !script_path.exists() {
-            return Ok(ScriptSourceResolution::MissingScript {
-                card_code: card.code,
-                script_path,
-            });
-        }
 
         match std::fs::read_to_string(&script_path) {
             Ok(script_text) => Ok(ScriptSourceResolution::Ready(ResolvedScriptSource {
@@ -87,6 +81,12 @@ impl<'a> ScriptSourceResolver<'a> {
                 source_kind: ScriptSourceKind::Saved,
                 script_path: Some(script_path),
             })),
+            Err(source) if source.kind() == ErrorKind::NotFound => {
+                Ok(ScriptSourceResolution::MissingScript {
+                    card_code: card.code,
+                    script_path,
+                })
+            }
             Err(source) => Ok(ScriptSourceResolution::ReadFailed {
                 card_code: card.code,
                 script_path,
