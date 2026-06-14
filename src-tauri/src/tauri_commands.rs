@@ -17,7 +17,6 @@ use crate::application::dto::resource::{
     CreateEmptyScriptInput, DeleteFieldImageInput, DeleteMainImageInput, DeleteScriptInput,
     ImportFieldImageInput, ImportMainImageInput, ImportScriptInput, OpenScriptExternalInput,
 };
-use crate::application::script::dto::{LuaValidationReportDto, ValidateLuaScriptInput};
 use crate::application::dto::standard_pack::{
     GetStandardCardInput, ListStandardSetnamesInput, OpenStandardScriptExternalInput,
     SearchStandardCardsInput, SearchStandardStringsInput,
@@ -28,6 +27,7 @@ use crate::application::dto::strings::{
     RemovePackStringTranslationInput, SuggestSetnameKeyInput, UpsertPackStringInput,
     UpsertPackStringRecordInput,
 };
+use crate::application::script::dto::{LuaValidationReportDto, ValidateLuaScriptInput};
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppError;
 use crate::domain::config::model::GlobalConfig;
