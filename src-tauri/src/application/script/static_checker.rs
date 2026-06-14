@@ -154,7 +154,7 @@ fn check_callback_references(
         if !line.contains(setter) {
             continue;
         }
-        for reference in callback_references(line, card_code) {
+        for reference in direct_setter_callback_references(line, setter, card_code) {
             if !functions.contains_key(&reference) {
                 issues.push(issue(
                     LuaValidationIssueSeverityDto::Error,
@@ -169,26 +169,46 @@ fn check_callback_references(
     issues
 }
 
-fn callback_references(line: &str, card_code: u32) -> Vec<String> {
+fn direct_setter_callback_references(line: &str, setter: &str, card_code: u32) -> Vec<String> {
+    let marker = format!("{setter}(");
     let mut references = Vec::new();
-    collect_prefix_references(line, "s.", &mut references);
-    collect_prefix_references(line, &format!("c{card_code}."), &mut references);
+    let mut start = 0;
+
+    while let Some(offset) = line[start..].find(&marker) {
+        let argument_start = start + offset + marker.len();
+        let argument = line[argument_start..].trim_start();
+        if let Some(reference) = direct_callback_reference_at_start(argument, card_code) {
+            references.push(reference);
+        }
+        start = argument_start;
+    }
+
     references
 }
 
-fn collect_prefix_references(line: &str, prefix: &str, references: &mut Vec<String>) {
-    let mut start = 0;
-    while let Some(offset) = line[start..].find(prefix) {
-        let absolute = start + offset;
-        let after_prefix = absolute + prefix.len();
-        let name = line[after_prefix..]
-            .chars()
-            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
-            .collect::<String>();
-        if !name.is_empty() {
-            references.push(format!("{prefix}{name}"));
-        }
-        start = after_prefix + name.len();
+fn direct_callback_reference_at_start(value: &str, card_code: u32) -> Option<String> {
+    direct_prefix_reference_at_start(value, "s.")
+        .or_else(|| direct_prefix_reference_at_start(value, &format!("c{card_code}.")))
+}
+
+fn direct_prefix_reference_at_start(value: &str, prefix: &str) -> Option<String> {
+    let rest = value.strip_prefix(prefix)?;
+    let name = rest
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect::<String>();
+    if name.is_empty() {
+        return None;
+    }
+
+    let after_name = &rest[name.len()..];
+    let next = after_name.chars().next();
+    if matches!(next, None | Some(')') | Some(','))
+        || next.is_some_and(|ch| ch.is_ascii_whitespace())
+    {
+        Some(format!("{prefix}{name}"))
+    } else {
+        None
     }
 }
 
@@ -203,11 +223,11 @@ fn check_direct_callback_like_references(
             || line.contains("SetCost")
             || line.contains("SetTarget")
             || line.contains("SetOperation")
-            || !(line.contains("Duel.") || line.contains("aux."))
+            || !contains_callback_taking_call(line)
         {
             continue;
         }
-        for reference in callback_references(line, card_code) {
+        for reference in unindexed_callback_references(line, card_code) {
             if !functions.contains_key(&reference) {
                 issues.push(issue(
                     LuaValidationIssueSeverityDto::Error,
@@ -222,6 +242,46 @@ fn check_direct_callback_like_references(
     issues
 }
 
+fn contains_callback_taking_call(line: &str) -> bool {
+    const CALLS: [&str; 7] = [
+        "MatchingCard(",
+        "MatchingGroup(",
+        "SelectMatchingCard(",
+        "IsExistingMatchingCard(",
+        "CheckReleaseGroup(",
+        "ReleaseGroupCost(",
+        "Filter(",
+    ];
+
+    CALLS.iter().any(|call| line.contains(call))
+}
+
+fn unindexed_callback_references(line: &str, card_code: u32) -> Vec<String> {
+    let mut references = Vec::new();
+    collect_unindexed_prefix_references(line, "s.", &mut references);
+    collect_unindexed_prefix_references(line, &format!("c{card_code}."), &mut references);
+    references
+}
+
+fn collect_unindexed_prefix_references(line: &str, prefix: &str, references: &mut Vec<String>) {
+    let mut start = 0;
+    while let Some(offset) = line[start..].find(prefix) {
+        let absolute = start + offset;
+        let after_prefix = absolute + prefix.len();
+        let name = line[after_prefix..]
+            .chars()
+            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+            .collect::<String>();
+        if !name.is_empty() {
+            let after_name = after_prefix + name.len();
+            if !line[after_name..].starts_with('[') {
+                references.push(format!("{prefix}{name}"));
+            }
+        }
+        start = after_prefix + name.len();
+    }
+}
+
 fn check_target_bodies(
     lines: &[(u32, String, String)],
     functions: &BTreeMap<String, FunctionDef>,
@@ -231,7 +291,11 @@ fn check_target_bodies(
     let mut target_refs = BTreeSet::new();
     for (_, _raw, line) in lines {
         if line.contains("SetTarget") {
-            target_refs.extend(callback_references(line, card_code));
+            target_refs.extend(direct_setter_callback_references(
+                line,
+                "SetTarget",
+                card_code,
+            ));
         }
     }
 
@@ -445,6 +509,72 @@ end
     }
 
     #[test]
+    fn aux_target_bool_function_data_field_is_not_an_undefined_callback() {
+        let script = r#"
+local s,id,o=GetID()
+s.listed_names={12345678}
+function s.initial_effect(c)
+  local e1=Effect.CreateEffect(c)
+  e1:SetTarget(aux.TargetBoolFunction(Card.IsCode,s.listed_names[1]))
+  c:RegisterEffect(e1)
+end
+"#;
+
+        let issues = StaticChecker::check(script, 99999999);
+
+        assert!(
+            !issues.iter().any(|issue| {
+                issue.code == "undefined_effect_callback"
+                    || issue.code == "undefined_script_function_reference"
+            }),
+            "{issues:#?}"
+        );
+    }
+
+    #[test]
+    fn duel_hint_data_field_is_not_an_undefined_script_function_reference() {
+        let script = r#"
+local s,id,o=GetID()
+s.listed_names={12345678}
+function s.initial_effect(c)
+  Duel.Hint(HINT_CARD,0,s.listed_names[1])
+end
+"#;
+
+        let issues = StaticChecker::check(script, 99999999);
+
+        assert!(
+            !issues
+                .iter()
+                .any(|issue| issue.code == "undefined_script_function_reference"),
+            "{issues:#?}"
+        );
+    }
+
+    #[test]
+    fn assignment_style_functions_are_collected_for_setter_callbacks() {
+        let script = r#"
+local s,id,o=GetID()
+s.initial_effect=function(c)
+  local e1=Effect.CreateEffect(c)
+  e1:SetOperation(s.thop)
+  c:RegisterEffect(e1)
+end
+s.thop=function(e,tp,eg,ep,ev,re,r,rp)
+end
+"#;
+
+        let issues = StaticChecker::check(script, 99999999);
+
+        assert!(
+            !issues
+                .iter()
+                .any(|issue| issue.code == "undefined_effect_callback"),
+            "{issues:#?}"
+        );
+    }
+
+    #[test]
     fn dangerous_lua_api_is_a_warning() {
         let script = r#"
 local s,id,o=GetID()
@@ -458,6 +588,25 @@ end
         assert!(issues.iter().any(|issue| {
             issue.code == "dangerous_lua_api"
                 && issue.severity == LuaValidationIssueSeverityDto::Warning
+                && issue.line == Some(4)
+        }));
+    }
+
+    #[test]
+    fn common_api_typo_is_an_error() {
+        let script = r#"
+local s,id,o=GetID()
+function s.initial_effect(c)
+  Duel.SpecialSummom(tp,12345678,0,tp,tp,false,false,POS_FACEUP)
+end
+"#;
+
+        let issues = StaticChecker::check(script, 99999999);
+
+        assert!(issues.iter().any(|issue| {
+            issue.code == "common_api_typo"
+                && issue.severity == LuaValidationIssueSeverityDto::Error
+                && issue.message.contains("Duel.SpecialSummom")
                 && issue.line == Some(4)
         }));
     }
