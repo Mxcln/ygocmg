@@ -41,3 +41,5 @@ GEMINI.md
 review/
 !docs/review/
 !docs/review/**
+
+third_party/cache/

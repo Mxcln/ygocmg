@@ -22,6 +22,8 @@
 - `engineering_conventions.md`
 - `frontend_refactoring_plan.md`
 - `implementation_packages.md`
+- `lua_script_generation_research_2026-06-14.md`
+- `lua_script_validation_platform_report_2026-06-15.md`
 - `p3.5-review.md`
 - `P3.5-summary.md`
 - `p3-backend.md`
