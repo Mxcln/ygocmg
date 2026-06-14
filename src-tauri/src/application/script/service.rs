@@ -159,4 +159,12 @@ mod tests {
         assert_eq!(report.status, LuaValidationStatusDto::Inconclusive);
         assert_eq!(report.issues[0].code, "script_not_found");
     }
+
+    #[test]
+    fn read_failed_report_is_inconclusive() {
+        let report = read_failed_report(99999999, "access denied".to_string());
+
+        assert_eq!(report.status, LuaValidationStatusDto::Inconclusive);
+        assert_eq!(report.issues[0].code, "script_read_failed");
+    }
 }

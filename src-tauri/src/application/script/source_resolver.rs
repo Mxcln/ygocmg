@@ -189,7 +189,90 @@ mod tests {
         }
     }
 
+    #[test]
+    fn non_custom_pack_returns_pack_not_custom_error() {
+        let (_temp, state) = state_with_open_pack_kind(PackKind::Standard, false);
+        let input = ValidateLuaScriptInput {
+            workspace_id: "workspace-1".to_string(),
+            pack_id: "pack-1".to_string(),
+            card_id: "card-1".to_string(),
+            script_text: Some("draft script".to_string()),
+            levels: None,
+        };
+
+        let error = ScriptSourceResolver::new(&state)
+            .resolve(&input)
+            .unwrap_err();
+
+        assert_eq!(error.code, "script_validation.pack_not_custom");
+    }
+
+    #[test]
+    fn missing_card_returns_card_not_found_error() {
+        let (_temp, state) = state_with_open_pack(false);
+        let input = ValidateLuaScriptInput {
+            workspace_id: "workspace-1".to_string(),
+            pack_id: "pack-1".to_string(),
+            card_id: "missing-card".to_string(),
+            script_text: Some("draft script".to_string()),
+            levels: None,
+        };
+
+        let error = ScriptSourceResolver::new(&state)
+            .resolve(&input)
+            .unwrap_err();
+
+        assert_eq!(error.code, "card.not_found");
+    }
+
+    #[test]
+    fn saved_script_read_failure_returns_read_failed_resolution() {
+        let (_temp, state) = state_with_unreadable_saved_script();
+        let input = ValidateLuaScriptInput {
+            workspace_id: "workspace-1".to_string(),
+            pack_id: "pack-1".to_string(),
+            card_id: "card-1".to_string(),
+            script_text: None,
+            levels: None,
+        };
+
+        let resolved = ScriptSourceResolver::new(&state).resolve(&input).unwrap();
+
+        match resolved {
+            ScriptSourceResolution::ReadFailed {
+                card_code,
+                script_path,
+                message,
+            } => {
+                assert_eq!(card_code, 99999999);
+                assert!(script_path.ends_with("scripts/c99999999.lua"));
+                assert!(!message.is_empty());
+            }
+            other => panic!("expected read failed source, got {other:#?}"),
+        }
+    }
+
     fn state_with_open_pack(write_script: bool) -> (tempfile::TempDir, AppState) {
+        state_with_open_pack_kind(PackKind::Custom, write_script)
+    }
+
+    fn state_with_unreadable_saved_script() -> (tempfile::TempDir, AppState) {
+        let (temp, state) = state_with_open_pack(false);
+        let script_path = temp
+            .path()
+            .join("workspace")
+            .join("packs")
+            .join("pack-one")
+            .join("scripts")
+            .join("c99999999.lua");
+        std::fs::create_dir(script_path).unwrap();
+        (temp, state)
+    }
+
+    fn state_with_open_pack_kind(
+        pack_kind: PackKind,
+        write_script: bool,
+    ) -> (tempfile::TempDir, AppState) {
         let temp = tempdir().unwrap();
         let app_dir = temp.path().join("app-data");
         let workspace_path = temp.path().join("workspace");
@@ -217,7 +300,7 @@ mod tests {
         };
         let pack_metadata = PackMetadata {
             id: "pack-1".to_string(),
-            kind: PackKind::Custom,
+            kind: pack_kind,
             name: "Pack".to_string(),
             pack_code: None,
             author: "author".to_string(),
@@ -269,7 +352,7 @@ mod tests {
                 "pack-1".to_string(),
                 PackOverview {
                     id: "pack-1".to_string(),
-                    kind: PackKind::Custom,
+                    kind: pack_metadata.kind.clone(),
                     name: "Pack".to_string(),
                     author: "author".to_string(),
                     version: "1.0.0".to_string(),
