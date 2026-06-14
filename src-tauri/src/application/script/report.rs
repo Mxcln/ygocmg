@@ -306,13 +306,17 @@ mod tests {
             report.confidence,
             crate::application::script::dto::LuaValidationConfidenceDto::Low
         );
-        assert!(report
-            .limitations
-            .iter()
-            .any(|limitation| limitation.contains("ocgcore_init")));
-        assert!(!report
-            .limitations
-            .iter()
-            .any(|limitation| limitation.contains("OcgcoreInit")));
+        assert!(
+            report
+                .limitations
+                .iter()
+                .any(|limitation| limitation.contains("ocgcore_init"))
+        );
+        assert!(
+            !report
+                .limitations
+                .iter()
+                .any(|limitation| limitation.contains("OcgcoreInit"))
+        );
     }
 }
