@@ -53,6 +53,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 - 资源操作包括导入/删除主卡图、导入/删除场地图、创建空脚本、导入/删除脚本、用外部编辑器打开脚本。
 - 资源状态通过 `has_image`、`has_field_image`、`has_script` 暴露给前端。
 - 资源写入、批量删除资源、批量移动资源和编号一致性由后端负责，前端只通过 API wrapper 发起操作。
+- 自定义包中的卡片脚本支持静态验证：后端可读取当前保存的 `scripts/c{code}.lua`，或验证调用方传入的未保存 `scriptText` 草稿，并返回结构化状态、阶段结果、issues 和 limitations。当前实现只做 deterministic static check，不运行 ocgcore，也不证明效果语义正确。
 
 ## 导入
 

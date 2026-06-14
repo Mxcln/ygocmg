@@ -48,6 +48,12 @@
 - Contracts 是前后端边界，不等同于后端内部存储模型。
 - React Query 用于缓存和刷新后端读取结果。
 
+## Lua 脚本验证架构
+
+Lua 脚本验证是后端 application 层能力，入口为 `validate_lua_script`。前端只通过 `src/shared/api/scriptApi.ts` 提交 workspace、pack、card 和可选 `scriptText`，不直接读取脚本文件或实现验证规则。
+
+当前实现的第一阶段包含 `ScriptValidationService`、`ScriptSourceResolver`、`StaticChecker` 和报告聚合。它只做静态检查：可发现缺少 `initial_effect`、未定义 callback、危险 Lua API 和少量高置信拼写错误；不会启动 ocgcore，也不会证明脚本能在真实 duel 中加载或效果语义正确。
+
 ## Shell 与运行时状态
 
 - App 启动后加载 config 和最近 workspace 注册表。

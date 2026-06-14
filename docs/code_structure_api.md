@@ -38,6 +38,7 @@
 - `cardApi`：list/get/create/update/delete card、bulk delete/move card、推荐编号、确认 card 写入和确认 card 批量写入。
 - `stringsApi`：list/get/upsert/delete Pack Strings、删除翻译、确认 strings 写入、`suggestSetnameKey`（按 config 推荐 base 区段建议下一个空闲顶级 setname key）。
 - `resourceApi`：主卡图、场地图、脚本的导入/删除/创建/外部打开。
+- `scriptApi`：验证 custom pack 中单张卡的 Lua 脚本，支持保存脚本和未保存 `scriptText` 草稿，当前阶段返回静态检查报告。
 - `importApi`：preview/execute import pack。
 - `exportApi`：preview/execute export bundle。
 - `standardPackApi`：标准包状态、重建索引、搜索标准卡/strings、读取标准卡、打开标准脚本、列出标准 setnames。
@@ -54,6 +55,7 @@
 - Card：`list_cards`、`get_card`、`create_card`、`update_card`、`delete_card`、`bulk_delete_cards`、`move_cards`、`confirm_card_write`、`confirm_card_batch_write`、`suggest_card_code`
 - Pack Strings：`list_pack_strings`、`get_pack_string`、`suggest_setname_key`、`upsert_pack_string`、`upsert_pack_string_record`、`delete_pack_strings`、`remove_pack_string_translation`、confirm commands
 - Resource：main image、field image、script import/delete/create/open commands
+- Script Validation：`validate_lua_script`
 - Import/Export：preview 和 execute commands
 - Standard Pack：status、rebuild、search、get、open standard script、list setnames
 - Jobs：`get_job_status`、`list_active_jobs`
@@ -68,6 +70,7 @@
 - Pack Strings types live in `strings.ts`.
 - Import/export preview and job acceptance types live in `import.ts` and `export.ts`.
 - Resource asset state and inputs live in `resource.ts`.
+- Lua script validation input、issue、stage result 和 report types live in `script.ts`.
 - Standard pack status/search/detail types live in `standardPack.ts`.
 - DeepSeek chat 请求/响应消息类型（OpenAI 兼容格式）live in `agent.ts`；`config.ts` 含 `deepseek_api_key` 与 `agent_language`。
 
