@@ -24,7 +24,7 @@ pub fn assemble_report(stages: Vec<LuaValidationStageResultDto>) -> LuaValidatio
                 .iter()
                 .any(|issue| issue.code == "level_not_implemented")
         })
-        .map(|stage| format!("{:?}", stage.stage))
+        .map(|stage| level_label(stage.stage))
         .collect::<Vec<_>>();
     if !unsupported.is_empty() {
         limitations.push(format!(
@@ -118,7 +118,7 @@ fn final_status(
     } else if stages.is_empty()
         || stages
             .iter()
-            .all(|stage| stage.status == LuaValidationStatusDto::Inconclusive)
+            .any(|stage| stage.status == LuaValidationStatusDto::Inconclusive)
     {
         LuaValidationStatusDto::Inconclusive
     } else {
@@ -134,7 +134,7 @@ fn confidence_for(
     if status == LuaValidationStatusDto::Inconclusive
         || stages
             .iter()
-            .all(|stage| stage.status == LuaValidationStatusDto::Inconclusive)
+            .any(|stage| stage.status == LuaValidationStatusDto::Inconclusive)
     {
         LuaValidationConfidenceDto::Low
     } else if status == LuaValidationStatusDto::Warning {
@@ -158,6 +158,15 @@ fn summary_for(status: LuaValidationStatusDto, issue_count: usize) -> String {
         LuaValidationStatusDto::Inconclusive => {
             "Lua script validation is inconclusive for the requested input.".to_string()
         }
+    }
+}
+
+fn level_label(level: LuaValidationLevelDto) -> &'static str {
+    match level {
+        LuaValidationLevelDto::Static => "static",
+        LuaValidationLevelDto::OcgcoreInit => "ocgcore_init",
+        LuaValidationLevelDto::Smoke => "smoke",
+        LuaValidationLevelDto::Scenario => "scenario",
     }
 }
 
@@ -240,5 +249,27 @@ mod tests {
         assert_eq!(result.status, LuaValidationStatusDto::Inconclusive);
         assert_eq!(result.issues[0].code, "level_not_implemented");
         assert_eq!(result.issues[0].stage, LuaValidationLevelDto::OcgcoreInit);
+    }
+
+    #[test]
+    fn assemble_report_is_inconclusive_when_any_requested_stage_is_inconclusive() {
+        let report = assemble_report(vec![
+            stage(LuaValidationStatusDto::Pass, Vec::new()),
+            unsupported_stage_result(LuaValidationLevelDto::OcgcoreInit, 1),
+        ]);
+
+        assert_eq!(report.status, LuaValidationStatusDto::Inconclusive);
+        assert_eq!(
+            report.confidence,
+            crate::application::script::dto::LuaValidationConfidenceDto::Low
+        );
+        assert!(report
+            .limitations
+            .iter()
+            .any(|limitation| limitation.contains("ocgcore_init")));
+        assert!(!report
+            .limitations
+            .iter()
+            .any(|limitation| limitation.contains("OcgcoreInit")));
     }
 }
