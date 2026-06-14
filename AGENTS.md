@@ -22,6 +22,7 @@ YGOCMG 是一个基于 Tauri 2、React 和 TypeScript 的本地卡包管理工�
 - 前后端边界类型放在 `src/shared/contracts/*`。
 - Tauri 后端入口在 `src-tauri/src/main.rs`，命令表面在 `src-tauri/src/tauri_commands.rs`。
 - 后端分层主要是 `application`、`domain`、`infrastructure`、`runtime`、`presentation`。
+- 参考资料放在了 `ref`，其中`ref/ygopro_src`是ygopro源码， `ref/expansions`是参考扩展包的结构
 
 ## 工作规则
 
