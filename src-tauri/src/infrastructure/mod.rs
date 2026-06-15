@@ -1,6 +1,7 @@
 pub mod assets;
 pub mod fs;
 pub mod json_store;
+pub mod ocgcore_validator;
 pub mod pack_locator;
 pub mod standard_baseline;
 pub mod standard_pack;

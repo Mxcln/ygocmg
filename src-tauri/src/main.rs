@@ -65,6 +65,7 @@ fn main() {
             tauri_commands::import_script,
             tauri_commands::delete_script,
             tauri_commands::open_script_external,
+            tauri_commands::validate_lua_script,
             tauri_commands::preview_export_bundle,
             tauri_commands::execute_export_bundle,
             tauri_commands::preview_import_pack,

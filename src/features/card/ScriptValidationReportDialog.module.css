@@ -1,0 +1,216 @@
+.dialogLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 145;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.dialogBackdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay);
+}
+
+.dialogBox {
+  position: relative;
+  z-index: 1;
+  width: min(760px, calc(100vw - 80px));
+  max-height: min(680px, calc(100vh - 80px));
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.reportContent {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  color: var(--text-1);
+}
+
+.summaryBlock {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.summaryBlock[data-status="pass"] {
+  border-color: var(--success-line);
+  background: var(--success-soft);
+}
+
+.summaryBlock[data-status="warning"],
+.summaryBlock[data-status="inconclusive"] {
+  border-color: var(--warning-line);
+  background: var(--warning-soft);
+}
+
+.summaryBlock[data-status="fail"] {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+}
+
+.summaryBlock p,
+.issueItem p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.summaryMeta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.summaryMeta div {
+  display: grid;
+  gap: 2px;
+}
+
+.kicker {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.section {
+  display: grid;
+  gap: 8px;
+}
+
+.section h3 {
+  margin: 0;
+  color: var(--text-0);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stageList {
+  display: grid;
+  gap: 6px;
+}
+
+.stageRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) repeat(3, auto);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.stageRow span {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.stageRow[data-status="pass"] strong {
+  color: var(--success-strong);
+}
+
+.stageRow[data-status="warning"],
+.stageRow[data-status="inconclusive"] {
+  border-color: var(--warning-line);
+}
+
+.stageRow[data-status="fail"] {
+  border-color: var(--danger-line);
+}
+
+.issueList,
+.limitList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issueItem {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.issueItem[data-severity="error"] {
+  border-color: var(--danger-line);
+}
+
+.issueItem[data-severity="warning"] {
+  border-color: var(--warning-line);
+}
+
+.issueHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.issueHead strong,
+.issueHead span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.issueHead span {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-1);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.suggestion {
+  color: var(--text-2);
+}
+
+.limitList {
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.limitList li {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .dialogBox {
+    width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+  }
+
+  .stageRow {
+    grid-template-columns: 1fr;
+  }
+
+  .stageRow span {
+    white-space: normal;
+  }
+}

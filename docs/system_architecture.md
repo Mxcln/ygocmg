@@ -48,6 +48,16 @@
 - Contracts 是前后端边界，不等同于后端内部存储模型。
 - React Query 用于缓存和刷新后端读取结果。
 
+## Lua 脚本验证架构
+
+Lua 脚本验证是后端 application 层能力，入口为 `validate_lua_script`。前端只通过 `src/shared/api/scriptApi.ts` 提交 workspace、pack、card 和可选 `scriptText`，不直接读取脚本文件或实现验证规则。
+
+当前实现包含 `ScriptValidationService`、`ScriptSourceResolver`、`StaticChecker`、`ocgcore_init` application adapter 和报告聚合。默认验证阶段为 `static + ocgcore_init`：静态检查可发现缺少 `initial_effect`、未定义 callback、危险 Lua API 和少量高置信拼写错误；`ocgcore_init` 通过独立 helper 进程验证 `new_card -> load_card_script -> initial_effect`，确认脚本可被真实 ocgcore 加载并完成初始化。
+
+`tools/script-validator-helper` 包含独立的 ocgcore load/init helper 源码、构建脚本和 fixture runner。Tauri 主进程不直接链接 ocgcore；`src-tauri/src/infrastructure/ocgcore_validator` 负责写入 helper input JSON、启动 helper、设置 timeout、解析 stdout JSON，并把 helper 缺失、超时、崩溃或非法输出转换为 `ocgcore_init` 的 `inconclusive` stage。`ocgcore_init` 只代表脚本 load/init 成功，不代表效果语义正确；smoke 和 scenario 仍返回未实现阶段。
+
+Agent 和 UI 入口都是薄调用层：Agent 的 `validate_lua_script` 工具与卡片资源栏的验证按钮均调用 `src/shared/api/scriptApi.ts`，不直接读取脚本文件、不实现验证规则、不自动修改脚本。卡片资源栏把报告展示在本地弹窗中；Agent 工具把 `LuaValidationReport` 作为结构化 JSON 返回给工具调用循环。
+
 ## Shell 与运行时状态
 
 - App 启动后加载 config 和最近 workspace 注册表。
@@ -80,7 +90,7 @@
 ## AI Agent 架构
 
 - AI Agent 是对话式卡片管理能力，前端驱动工具调用循环，后端仅做 DeepSeek HTTP 转发（注入明文 API key，非流式），不引入新业务规则。
-- agent 工具体复用 `src/shared/api/*`，写操作经后端两段式确认门；标准卡只暴露只读工具。
+- agent 工具体复用 `src/shared/api/*`，写操作经后端两段式确认门；标准卡只暴露只读工具；Lua 脚本验证工具只读并复用 `scriptApi`。
 - 详见 `agent.md`。
 
 ## 主题与配置

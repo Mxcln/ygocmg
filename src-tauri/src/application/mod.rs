@@ -7,6 +7,7 @@ pub mod jobs;
 pub mod llm;
 pub mod pack;
 pub mod resource;
+pub mod script;
 pub mod standard_pack;
 pub mod strings;
 pub mod workspace;

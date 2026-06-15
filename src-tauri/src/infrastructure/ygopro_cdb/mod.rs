@@ -52,6 +52,19 @@ pub struct YgoProCardRecord {
     pub raw_level: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OcgcoreCardData {
+    pub raw_type: u32,
+    pub attack: i32,
+    pub defense: i32,
+    pub level: u32,
+    pub race: u32,
+    pub attribute: u32,
+    pub lscale: u32,
+    pub rscale: u32,
+    pub link_marker: u32,
+}
+
 pub fn load_cards_from_cdb(cdb_path: &Path) -> AppResult<Vec<YgoProCardRecord>> {
     let connection = Connection::open_with_flags(cdb_path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|source| {
@@ -484,6 +497,22 @@ struct EncodedCardData {
     raw_attribute: u64,
 }
 
+pub fn encode_card_data_for_ocgcore(card: &CardEntity) -> AppResult<OcgcoreCardData> {
+    let encoded = encode_card(card)?;
+    let is_link = encoded.raw_type & TYPE_LINK != 0;
+    Ok(OcgcoreCardData {
+        raw_type: encoded.raw_type as u32,
+        attack: encoded.atk,
+        defense: if is_link { 0 } else { encoded.def },
+        level: (encoded.raw_level & 0xff) as u32,
+        race: encoded.raw_race as u32,
+        attribute: encoded.raw_attribute as u32,
+        lscale: ((encoded.raw_level >> 24) & 0xff) as u32,
+        rscale: ((encoded.raw_level >> 16) & 0xff) as u32,
+        link_marker: if is_link { encoded.def as u32 } else { 0 },
+    })
+}
+
 fn encode_card(card: &CardEntity) -> AppResult<EncodedCardData> {
     let mut raw_type = match card.primary_type {
         PrimaryType::Monster => TYPE_MONSTER,
@@ -711,5 +740,63 @@ fn parse_race(value: u64) -> Option<Race> {
         0x1000000 => Some(Race::Cyberse),
         0x2000000 => Some(Race::Illusion),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use crate::domain::card::model::{
+        Attribute, CardEntity, CardTexts, MonsterFlag, Ot, PrimaryType, Race,
+    };
+    use crate::domain::common::time::now_utc;
+
+    use super::*;
+
+    #[test]
+    fn encode_card_data_for_ocgcore_maps_effect_monster_fields() {
+        let now = now_utc();
+        let card = CardEntity {
+            id: "card-1".to_string(),
+            code: 99999999,
+            alias: 123,
+            setcodes: vec![0x1234, 0x5678],
+            ot: Ot::Custom,
+            category: 0,
+            primary_type: PrimaryType::Monster,
+            texts: BTreeMap::from([(
+                "en".to_string(),
+                CardTexts {
+                    name: "Validator".to_string(),
+                    desc: String::new(),
+                    strings: Vec::new(),
+                },
+            )]),
+            monster_flags: Some(vec![MonsterFlag::Effect]),
+            atk: Some(1500),
+            def: Some(1200),
+            race: Some(Race::Warrior),
+            attribute: Some(Attribute::Light),
+            level: Some(4),
+            pendulum: None,
+            link: None,
+            spell_subtype: None,
+            trap_subtype: None,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let encoded = encode_card_data_for_ocgcore(&card).unwrap();
+
+        assert_eq!(encoded.raw_type, (TYPE_MONSTER | TYPE_EFFECT) as u32);
+        assert_eq!(encoded.attack, 1500);
+        assert_eq!(encoded.defense, 1200);
+        assert_eq!(encoded.level, 4);
+        assert_eq!(encoded.race, 0x1);
+        assert_eq!(encoded.attribute, 0x10);
+        assert_eq!(encoded.link_marker, 0);
+        assert_eq!(encoded.lscale, 0);
+        assert_eq!(encoded.rscale, 0);
     }
 }

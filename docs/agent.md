@@ -11,7 +11,7 @@ agent 的操作边界对标成熟代码 agent：pack 是卡片的作用域与容
 ## 范围
 
 - 单一 provider：DeepSeek，非流式（后端一次性返回完整响应）。
-- 工具调用循环：8 个只读工具 + 12 个写工具（6 个卡片/系列名写 + 6 个 pack 写）。
+- 工具调用循环：9 个只读工具 + 12 个写工具（6 个卡片/系列名写 + 6 个 pack 写）。
 - pack 写操作经一个 UI/agent 共用的**命令层**（纯函数 + 注入依赖）编排；卡片写复用后端两段式确认门。
 - 对话历史仅存内存，关闭应用即清空，不持久化。
 - API key 以明文存于全局配置，不使用系统凭据库。
@@ -64,7 +64,9 @@ HTTP 经后端转发而非 webview 直连：避免 CORS 与在网络面板暴露
 
 ## 工具集与确认门
 
-只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）、`list_setnames`（合并 pack 与标准 setname，返回 `{key, name, source}` 列表，供模型在系列名与 setcode 数字之间双向翻译；pack 同 key 覆盖 standard，镜像 `useMergedSetnameEntries` 的合并逻辑）。
+只读工具：`list_cards`、`get_card`、`search_standard_cards`（标准卡为只读参考库，与用户 pack 严格区分）、`get_config`（业务相关配置，不含 API key）、`get_pack_info`（已打开 pack 的完整 metadata，省略 packId 用当前激活 pack）、`list_packs`（workspace 内全部 pack 的 overview，含未打开的）、`suggest_card_code`（按编号策略推荐下一个可用 code）、`list_setnames`（合并 pack 与标准 setname，返回 `{key, name, source}` 列表，供模型在系列名与 setcode 数字之间双向翻译；pack 同 key 覆盖 standard，镜像 `useMergedSetnameEntries` 的合并逻辑）、`validate_lua_script`（验证当前选中卡或指定卡片的已保存 Lua 脚本，默认返回 static + `ocgcore_init` 报告）。
+
+`validate_lua_script` 只读并复用 `scriptApi.validateLuaScript`，不会读取脚本文件、修改脚本或自动修复。省略 `cardId` 时使用当前 Selected card；没有 Selected card 时要求模型让用户指定卡片或先打开卡片。工具可显式传 `levels`，但仅允许 `static`、`ocgcore_init`、`smoke`、`scenario`；默认不传 levels，让后端使用当前默认。`ocgcore_init` 只证明脚本可加载并执行 `initial_effect`，不证明效果语义正确。
 
 卡片写工具：`create_card`、`update_card`、`move_cards`、`delete_cards`、`create_setname`、`delete_setname`。`update_card` 覆盖全部可编辑字段（name/desc、atk/def/level、primary_type、race、attribute、monster_flags、spell_subtype、trap_subtype、pendulum、link markers、setcodes、ot、alias、category、code）：读全卡 → 仅对传入字段打补丁 → 回写，枚举字段在工具层校验取值（非法值就地报错，不丢给后端）。`move_cards` 与 `delete_cards` 均为批量形态，传一个 card id 即表示单张操作；`delete_cards` 调用后端批量删除并默认同时删除主卡图、场地图和脚本资源，确认时走 `confirmCardBatchWrite`。系列成员关系是卡片的 `setcodes` 数字数组，模型应先用 `list_setnames` 查到对应 key 再写入。`create_setname` 新建/重命名 pack 自定义系列名（写 setname string）。setcode key 是 16 位值：低 12 位为 base（系列本体），高 4 位为 child（子系列索引，顶级系列为 0）。可传 hex key（含 child 半字节，用于构造子系列）；省略时由后端 `suggest_setname_key` 命令在 config 推荐 base 区段（`setname_base_recommended_min/max`，默认 0x0300–0x0FFF）内分配下一个空闲顶级 base，避开当前包/工作区其他包/标准包已用 base。返回的 key 再由 `update_card` 写入卡片 setcodes。该工具走 pack-strings 确认门（`confirmPackStringsWrite`）而非卡片确认门，刷新 strings 与 setname 相关缓存。该 config 区段同时驱动 setname 写入时的越界警告（`validate.rs`），与 card code 推荐区段对称。`delete_setname` 按 setcode key（hex）删除自定义系列名：后端 `delete_pack_strings` 直接返回 ok、无确认 token，故该工具走命令层 commit 闭包确认模式（同 `delete_pack`，loop 的 `isCommandConfirmation` 分支处理），闭包内调 `deletePackStrings` 并自行刷新 strings/setname 缓存。它只删名字，不解除卡片 setcodes 中对该 key 的引用。
 
@@ -114,7 +116,7 @@ agent 相关设置集中在设置面板的独立 **"AI 助手"** tab（`settings
 
 前端：
 
-- `src/features/agent/` — 边栏 UI（`AgentSidebar`）、loop（`agentLoop.ts` / `useAgentLoop.ts`）、system prompt（`systemPrompt.ts`）、Markdown 渲染（`MarkdownMessage.tsx`）、工具注册表与执行体（`tools/*`，卡片工具包装 `src/shared/api/*`，pack 工具 `tools/packTools.ts` 转调命令层）。
+- `src/features/agent/` — 边栏 UI（`AgentSidebar`）、loop（`agentLoop.ts` / `useAgentLoop.ts`）、system prompt（`systemPrompt.ts`）、Markdown 渲染（`MarkdownMessage.tsx`）、工具注册表与执行体（`tools/*`，卡片工具包装 `src/shared/api/*`，`tools/scriptTools.ts` 包装 Lua 脚本验证，pack 工具 `tools/packTools.ts` 转调命令层）。
 - `src/features/commands/` — pack 命令层：`types.ts`（`CommandDeps` / `CommandResult` / `ConfirmationRequest`）、`packCommands.ts`（六个 pack 命令）、`useCommands.ts`（UI 适配器）、`buildAgentDeps.ts`（agent 适配器）。`queryClient` 单例从 `src/app/providers.tsx` 导出供 agent 适配器访问。
 - `src/shared/api/agentApi.ts` — 包装 `llm_chat` command。
 - `src/shared/contracts/agent.ts` — DeepSeek 请求/响应消息类型（OpenAI 兼容格式）。
@@ -133,6 +135,7 @@ agent 相关设置集中在设置面板的独立 **"AI 助手"** tab（`settings
 - agent 工具体走 `src/shared/api/*`，不绕过（CLAUDE.md 规则）。
 - 业务规则、校验、确认 token、编号策略全部留在后端。
 - 标准卡只读：agent 仅暴露 `search_standard_cards` 等只读工具，不当可编辑包处理。
+- 脚本验证只读：`validate_lua_script` 仅返回后端验证报告，不修改脚本，不承诺效果语义正确。
 - 新 feature 在 `src/features/agent/`，新 API wrapper 在 `src/shared/api/`，新边界类型在 `src/shared/contracts/`，遵循既有分层。
 
 ## 已知限制

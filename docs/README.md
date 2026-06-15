@@ -25,6 +25,11 @@
 
 使用历史文档时应先用当前代码或核心文档核对。若历史文档中有仍然有效的稳定事实，应迁移或重写到核心文档，而不是继续引用历史路径。
 
+近期调研：
+
+- `history/lua_script_generation_research_2026-06-14.md`：AI Agent 根据卡片效果生成 YGOPro Lua 脚本的检索、模板、ocgcore 验证和 workflow/tool 分层调研。
+- `history/lua_script_validation_platform_report_2026-06-15.md`：Lua 脚本验证平台设计、ocgcore 可行性 spike 结论和 MVP 实现计划。
+
 ## 维护规则
 
 - 功能行为变化：更新 `functional_spec.md`。

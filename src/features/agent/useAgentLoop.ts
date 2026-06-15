@@ -45,6 +45,7 @@ export function useAgentLoop(agentLanguage: AgentLanguage) {
     const ctx: ToolContext = {
       workspaceId: shell.workspaceId,
       packId: shell.activePackId,
+      selectedCardId: shell.selectedCard?.id ?? null,
     };
     const activePackName =
       (shell.activePackId && shell.packMetadataMap[shell.activePackId]?.name) || null;

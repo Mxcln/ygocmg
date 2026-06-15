@@ -1,0 +1,6 @@
+[submodule "third_party/ocgcore"]
+	path = third_party/ocgcore
+	url = https://github.com/Fluorohydride/ygopro-core.git
+[submodule "third_party/ygopro-scripts"]
+	path = third_party/ygopro-scripts
+	url = https://github.com/Fluorohydride/ygopro-scripts.git

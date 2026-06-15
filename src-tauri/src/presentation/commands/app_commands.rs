@@ -31,6 +31,7 @@ use crate::application::dto::strings::{
     SetnameKeySuggestionDto, SuggestSetnameKeyInput, UpsertPackStringInput,
     UpsertPackStringRecordInput,
 };
+use crate::application::script::dto::{LuaValidationReportDto, ValidateLuaScriptInput};
 use crate::bootstrap::AppState;
 use crate::domain::common::error::AppResult;
 use crate::domain::config::model::GlobalConfig;
@@ -399,6 +400,13 @@ pub fn delete_script(
 
 pub fn open_script_external(state: &AppState, input: OpenScriptExternalInput) -> AppResult<()> {
     crate::application::resource::service::ResourceService::new(state).open_script_external(input)
+}
+
+pub fn validate_lua_script(
+    state: &AppState,
+    input: ValidateLuaScriptInput,
+) -> AppResult<LuaValidationReportDto> {
+    crate::application::script::service::ScriptValidationService::new(state).validate(input)
 }
 
 pub fn preview_export_bundle(

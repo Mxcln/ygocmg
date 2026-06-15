@@ -9,6 +9,7 @@ import {
   suggestCardCodeTool,
   listSetnamesTool,
 } from "./readTools";
+import { validateLuaScriptTool } from "./scriptTools";
 import {
   createCardTool,
   createSetnameTool,
@@ -36,6 +37,7 @@ export const AGENT_TOOLS: AgentTool[] = [
   listPacksTool,
   suggestCardCodeTool,
   listSetnamesTool,
+  validateLuaScriptTool,
   createCardTool,
   updateCardTool,
   createSetnameTool,

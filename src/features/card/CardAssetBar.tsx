@@ -2,9 +2,12 @@ import { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { resourceApi } from "../../shared/api/resourceApi";
+import { scriptApi } from "../../shared/api/scriptApi";
 import { formatError } from "../../shared/utils/format";
 import type { CardAssetState, PrimaryType, SpellSubtype } from "../../shared/contracts/card";
+import type { LuaValidationReport } from "../../shared/contracts/script";
 import { useAppI18n } from "../../shared/i18n";
+import { ScriptValidationReportDialog } from "./ScriptValidationReportDialog";
 import styles from "./CardAssetBar.module.css";
 
 interface CardAssetBarProps {
@@ -47,7 +50,11 @@ export function CardAssetBar({
   const isFieldSpell = primaryType === "spell" && spellSubtype === "field";
   const isCreate = cardId === null;
   const [busy, setBusy] = useState(false);
+  const [validatingScript, setValidatingScript] = useState(false);
+  const [validationReport, setValidationReport] = useState<LuaValidationReport | null>(null);
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [imgKey, setImgKey] = useState(0);
+  const busyAny = busy || validatingScript;
 
   const imageSrc = assetState.has_image && packPath
     ? convertFileSrc(`${packPath}/pics/${cardCode}.jpg`)
@@ -173,6 +180,20 @@ export function CardAssetBar({
     }
   }
 
+  async function handleValidateScript() {
+    if (isCreate || !cardId) return;
+    setValidatingScript(true);
+    try {
+      const report = await scriptApi.validateLuaScript({ workspaceId, packId, cardId });
+      setValidationReport(report);
+      setValidationDialogOpen(true);
+    } catch (err) {
+      onError(formatError(err));
+    } finally {
+      setValidatingScript(false);
+    }
+  }
+
   async function handleDeleteScript() {
     if (isCreate || !cardId) return;
     setBusy(true);
@@ -188,111 +209,128 @@ export function CardAssetBar({
   }
 
   return (
-    <div className={styles.cardAssetBar}>
-      <div className={styles.cardPicPreview}>
-        {imageSrc ? (
-          <img key={imgKey} src={imageSrc} alt={t("card.asset.cardImageAlt")} />
-        ) : (
-          t("card.asset.noImage")
-        )}
-      </div>
+    <>
+      <div className={styles.cardAssetBar}>
+        <div className={styles.cardPicPreview}>
+          {imageSrc ? (
+            <img key={imgKey} src={imageSrc} alt={t("card.asset.cardImageAlt")} />
+          ) : (
+            t("card.asset.noImage")
+          )}
+        </div>
 
-      <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>{t("card.asset.image")}</span>
-        <button
-          type="button"
-          className={styles.assetSegBtn}
-          disabled={isCreate || busy}
-          onClick={() => void handleImportMainImage()}
-        >
-          {t("action.import")}
-        </button>
-        {assetState.has_image && (
-          <button
-            type="button"
-            className={`${styles.assetSegBtn} danger`}
-            disabled={isCreate || busy}
-            onClick={() => void handleDeleteMainImage()}
-          >
-            {t("action.delete")}
-          </button>
-        )}
-      </div>
-
-      <div className={styles.assetBtnGroup}>
-        <span className={styles.assetBtnGroupLabel}>{t("card.asset.script")}</span>
-        {assetState.has_script ? (
-          <>
-            <button
-              type="button"
-              className={styles.assetSegBtn}
-              disabled={isCreate || busy}
-              onClick={() => void handleImportScript()}
-            >
-              {t("action.import")}
-            </button>
-            <button
-              type="button"
-              className={styles.assetSegBtn}
-              disabled={isCreate || busy}
-              onClick={() => void handleEditScript()}
-            >
-              {t("action.edit")}
-            </button>
-            <button
-              type="button"
-              className={`${styles.assetSegBtn} danger`}
-              disabled={isCreate || busy}
-              onClick={() => void handleDeleteScript()}
-            >
-              {t("action.delete")}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              className={styles.assetSegBtn}
-              disabled={isCreate || busy}
-              onClick={() => void handleCreateScript()}
-            >
-              {t("action.create")}
-            </button>
-            <button
-              type="button"
-              className={styles.assetSegBtn}
-              disabled={isCreate || busy}
-              onClick={() => void handleImportScript()}
-            >
-              {t("action.import")}
-            </button>
-          </>
-        )}
-      </div>
-
-      {isFieldSpell && (
         <div className={styles.assetBtnGroup}>
-          <span className={styles.assetBtnGroupLabel}>{t("card.asset.field")}</span>
+          <span className={styles.assetBtnGroupLabel}>{t("card.asset.image")}</span>
           <button
             type="button"
             className={styles.assetSegBtn}
-            disabled={isCreate || busy}
-            onClick={() => void handleImportFieldImage()}
+            disabled={isCreate || busyAny}
+            onClick={() => void handleImportMainImage()}
           >
             {t("action.import")}
           </button>
-          {assetState.has_field_image && (
+          {assetState.has_image && (
             <button
               type="button"
               className={`${styles.assetSegBtn} danger`}
-              disabled={isCreate || busy}
-              onClick={() => void handleDeleteFieldImage()}
+              disabled={isCreate || busyAny}
+              onClick={() => void handleDeleteMainImage()}
             >
               {t("action.delete")}
             </button>
           )}
         </div>
-      )}
-    </div>
+
+        <div className={styles.assetBtnGroup}>
+          <span className={styles.assetBtnGroupLabel}>{t("card.asset.script")}</span>
+          {assetState.has_script ? (
+            <>
+              <button
+                type="button"
+                className={styles.assetSegBtn}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleImportScript()}
+              >
+                {t("action.import")}
+              </button>
+              <button
+                type="button"
+                className={styles.assetSegBtn}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleEditScript()}
+              >
+                {t("action.edit")}
+              </button>
+              <button
+                type="button"
+                className={styles.assetSegBtn}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleValidateScript()}
+              >
+                {validatingScript
+                  ? t("card.scriptValidation.validating")
+                  : t("card.scriptValidation.validate")}
+              </button>
+              <button
+                type="button"
+                className={`${styles.assetSegBtn} danger`}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleDeleteScript()}
+              >
+                {t("action.delete")}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.assetSegBtn}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleCreateScript()}
+              >
+                {t("action.create")}
+              </button>
+              <button
+                type="button"
+                className={styles.assetSegBtn}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleImportScript()}
+              >
+                {t("action.import")}
+              </button>
+            </>
+          )}
+        </div>
+
+        {isFieldSpell && (
+          <div className={styles.assetBtnGroup}>
+            <span className={styles.assetBtnGroupLabel}>{t("card.asset.field")}</span>
+            <button
+              type="button"
+              className={styles.assetSegBtn}
+              disabled={isCreate || busyAny}
+              onClick={() => void handleImportFieldImage()}
+            >
+              {t("action.import")}
+            </button>
+            {assetState.has_field_image && (
+              <button
+                type="button"
+                className={`${styles.assetSegBtn} danger`}
+                disabled={isCreate || busyAny}
+                onClick={() => void handleDeleteFieldImage()}
+              >
+                {t("action.delete")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <ScriptValidationReportDialog
+        report={validationReport}
+        open={validationDialogOpen}
+        onClose={() => setValidationDialogOpen(false)}
+      />
+    </>
   );
 }
