@@ -2,11 +2,18 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $helperRoot = Resolve-Path (Join-Path $scriptDir "..")
+$repoRoot = Resolve-Path (Join-Path $helperRoot "../..")
 
 & (Join-Path $scriptDir "bootstrap.ps1")
 
-$buildDir = Join-Path $helperRoot "build/cmake"
-$binDir = Join-Path $helperRoot "build/bin"
+function ConvertTo-CMakePath($path) {
+  return ([string]$path).Replace('\', '/')
+}
+
+$buildDir = ConvertTo-CMakePath (Join-Path $helperRoot "build/cmake")
+$binDir = ConvertTo-CMakePath (Join-Path $helperRoot "build/bin")
+$ocgcoreDir = ConvertTo-CMakePath (Join-Path $repoRoot "third_party/ocgcore")
+$luaSrcDir = ConvertTo-CMakePath (Join-Path $helperRoot "build/deps/lua-5.4.7")
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 $generatorArgs = @()
@@ -19,8 +26,16 @@ if (Test-Path $vswhere) {
 }
 
 $runtimeOutputArg = "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$binDir"
-cmake -S $helperRoot -B $buildDir @generatorArgs $runtimeOutputArg
+$ocgcoreArg = "-DOCGCORE_DIR=$ocgcoreDir"
+$luaArg = "-DLUA_SRC_DIR=$luaSrcDir"
+cmake -S $helperRoot -B $buildDir @generatorArgs $runtimeOutputArg $ocgcoreArg $luaArg
+if ($LASTEXITCODE -ne 0) {
+  throw "CMake configure failed with exit code $LASTEXITCODE."
+}
 cmake --build $buildDir --config Release
+if ($LASTEXITCODE -ne 0) {
+  throw "CMake build failed with exit code $LASTEXITCODE."
+}
 
 $candidate = Join-Path $binDir "Release/script-validator-helper.exe"
 if (-not (Test-Path $candidate)) {
