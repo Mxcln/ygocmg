@@ -99,11 +99,10 @@ pub fn unsupported_stage_result(
             severity: LuaValidationIssueSeverityDto::Info,
             stage,
             code: "level_not_implemented".to_string(),
-            message: "This validation level is not implemented in the static validation MVP."
-                .to_string(),
+            message: "This validation level is not implemented yet.".to_string(),
             line: None,
             column: None,
-            suggestion: Some("Run static validation now; ocgcore and scenario stages will be added in later slices.".to_string()),
+            suggestion: Some("Run static and ocgcore_init validation now; smoke and scenario stages will be added in later slices.".to_string()),
         }],
         log: Vec::new(),
     }
@@ -317,11 +316,21 @@ mod tests {
 
     #[test]
     fn unsupported_stage_result_is_inconclusive() {
-        let result = unsupported_stage_result(LuaValidationLevelDto::OcgcoreInit, 0);
+        let result = unsupported_stage_result(LuaValidationLevelDto::Smoke, 0);
 
         assert_eq!(result.status, LuaValidationStatusDto::Inconclusive);
         assert_eq!(result.issues[0].code, "level_not_implemented");
-        assert_eq!(result.issues[0].stage, LuaValidationLevelDto::OcgcoreInit);
+        assert_eq!(result.issues[0].stage, LuaValidationLevelDto::Smoke);
+        assert!(
+            result.issues[0]
+                .suggestion
+                .as_deref()
+                .unwrap()
+                .contains("static and ocgcore_init")
+        );
+        assert!(
+            !result.issues[0].message.contains("MVP")
+        );
     }
 
     #[test]
