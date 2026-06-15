@@ -52,9 +52,9 @@
 
 Lua 脚本验证是后端 application 层能力，入口为 `validate_lua_script`。前端只通过 `src/shared/api/scriptApi.ts` 提交 workspace、pack、card 和可选 `scriptText`，不直接读取脚本文件或实现验证规则。
 
-当前实现的第一阶段包含 `ScriptValidationService`、`ScriptSourceResolver`、`StaticChecker` 和报告聚合。它只做静态检查：可发现缺少 `initial_effect`、未定义 callback、危险 Lua API 和少量高置信拼写错误；不会启动 ocgcore，也不会证明脚本能在真实 duel 中加载或效果语义正确。
+当前实现包含 `ScriptValidationService`、`ScriptSourceResolver`、`StaticChecker`、`OcgcoreInitValidator` 和报告聚合。默认验证阶段为 `static + ocgcore_init`：静态检查可发现缺少 `initial_effect`、未定义 callback、危险 Lua API 和少量高置信拼写错误；`ocgcore_init` 通过独立 helper 进程验证 `new_card -> load_card_script -> initial_effect`，确认脚本可被真实 ocgcore 加载并完成初始化。
 
-`tools/script-validator-helper` 包含独立的 ocgcore load/init helper 源码、构建脚本和 fixture runner。该 helper 通过独立进程边界验证 `new_card -> load_card_script -> initial_effect`，不使用裸 `preload_script` 作为卡片脚本验证路径。当前 Tauri `validate_lua_script` command 尚未调用 helper；`ocgcore_init` 仍在 application 层报告为未实现阶段，直到 Rust helper client 集成完成。
+`tools/script-validator-helper` 包含独立的 ocgcore load/init helper 源码、构建脚本和 fixture runner。Tauri 主进程不直接链接 ocgcore；`src-tauri/src/infrastructure/ocgcore_validator` 负责写入 helper input JSON、启动 helper、设置 timeout、解析 stdout JSON，并把 helper 缺失、超时、崩溃或非法输出转换为 `ocgcore_init` 的 `inconclusive` stage。`ocgcore_init` 只代表脚本 load/init 成功，不代表效果语义正确；smoke、scenario 和 Agent/UI 入口仍属于后续阶段。
 
 ## Shell 与运行时状态
 

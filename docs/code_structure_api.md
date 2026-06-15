@@ -27,9 +27,10 @@
 - `src-tauri/src/application`：use cases，按 config、workspace、pack、card、strings、resource、import、export、standard_pack、jobs 等模块拆分。
 - `src-tauri/src/domain`：领域模型和规则。
 - `src-tauri/src/infrastructure`：文件系统、JSON store、YGOPro CDB、标准包、strings conf 等适配。
+- `src-tauri/src/infrastructure/ocgcore_validator`：Rust helper client，负责调用独立 ocgcore 脚本验证 helper、处理 timeout 和 stdout JSON 转换。
 - `src-tauri/src/runtime`：sessions、jobs、events。
 - `src-tauri/src/presentation`：对外 DTO/适配层。
-- `tools/script-validator-helper`：独立 ocgcore 脚本验证 helper 源码、构建脚本和 fixtures；当前尚未接入 Tauri command。
+- `tools/script-validator-helper`：独立 ocgcore 脚本验证 helper 源码、构建脚本和 fixtures；由 Rust `ocgcore_validator` client 在 `ocgcore_init` 阶段调用。
 
 ## API Wrapper 分组
 
@@ -39,7 +40,7 @@
 - `cardApi`：list/get/create/update/delete card、bulk delete/move card、推荐编号、确认 card 写入和确认 card 批量写入。
 - `stringsApi`：list/get/upsert/delete Pack Strings、删除翻译、确认 strings 写入、`suggestSetnameKey`（按 config 推荐 base 区段建议下一个空闲顶级 setname key）。
 - `resourceApi`：主卡图、场地图、脚本的导入/删除/创建/外部打开。
-- `scriptApi`：验证 custom pack 中单张卡的 Lua 脚本，支持保存脚本和未保存 `scriptText` 草稿，当前阶段返回静态检查报告。
+- `scriptApi`：验证 custom pack 中单张卡的 Lua 脚本，支持保存脚本和未保存 `scriptText` 草稿；默认返回 static 与 `ocgcore_init` 阶段报告，helper 边界问题以 `inconclusive` stage 表达。
 - `importApi`：preview/execute import pack。
 - `exportApi`：preview/execute export bundle。
 - `standardPackApi`：标准包状态、重建索引、搜索标准卡/strings、读取标准卡、打开标准脚本、列出标准 setnames。
