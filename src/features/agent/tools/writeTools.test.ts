@@ -18,6 +18,7 @@ vi.mock("../../../shared/api/cardApi", () => ({
 const ctx: ToolContext = {
   workspaceId: "workspace-1",
   packId: "pack-1",
+  selectedCardId: null,
 };
 
 beforeEach(() => {

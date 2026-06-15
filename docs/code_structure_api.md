@@ -6,13 +6,13 @@
 
 - `src/main.tsx`：React 入口。
 - `src/app`：App shell、标题栏、侧边栏、工作区恢复、modal layer、notice、窗口和返回导航 hooks。
-- `src/features/card`：卡片列表、批量选择/移动/删除、搜索、编辑抽屉、卡片信息表单、文本表单、资源栏和 setname 合并逻辑。
+- `src/features/card`：卡片列表、批量选择/移动/删除、搜索、编辑抽屉、卡片信息表单、文本表单、资源栏、Lua 脚本验证报告弹窗和 setname 合并逻辑。
 - `src/features/pack`：打开/创建/导入 pack、pack metadata。
 - `src/features/strings`：Pack Strings 列表和浏览。
 - `src/features/standardPack`：标准包状态、索引重建、标准卡/strings 浏览、高级筛选、只读详情。
 - `src/features/workspace`：workspace 创建、打开和最近列表。
 - `src/features/settings`：全局配置编辑。
-- `src/features/agent`：AI Agent 右侧边栏、对话 loop、system prompt、Markdown 渲染、工具注册表与执行体（详见 `agent.md`）。
+- `src/features/agent`：AI Agent 右侧边栏、对话 loop、system prompt、Markdown 渲染、工具注册表与执行体（包括 `tools/scriptTools.ts` 的 Lua 脚本验证只读工具，详见 `agent.md`）。
 - `src/features/export`：导出 preview 和 execute。
 - `src/features/dialogs`：确认和 warning 对话框。
 - `src/shared/api`：Tauri command wrappers。
@@ -40,7 +40,7 @@
 - `cardApi`：list/get/create/update/delete card、bulk delete/move card、推荐编号、确认 card 写入和确认 card 批量写入。
 - `stringsApi`：list/get/upsert/delete Pack Strings、删除翻译、确认 strings 写入、`suggestSetnameKey`（按 config 推荐 base 区段建议下一个空闲顶级 setname key）。
 - `resourceApi`：主卡图、场地图、脚本的导入/删除/创建/外部打开。
-- `scriptApi`：验证 custom pack 中单张卡的 Lua 脚本，支持保存脚本和未保存 `scriptText` 草稿；默认返回 static 与 `ocgcore_init` 阶段报告，helper 边界问题以 `inconclusive` stage 表达。
+- `scriptApi`：验证 custom pack 中单张卡的 Lua 脚本，支持保存脚本和未保存 `scriptText` 草稿；默认返回 static 与 `ocgcore_init` 阶段报告，helper 边界问题以 `inconclusive` stage 表达；被卡片资源栏验证弹窗和 Agent `validate_lua_script` 工具复用。
 - `importApi`：preview/execute import pack。
 - `exportApi`：preview/execute export bundle。
 - `standardPackApi`：标准包状态、重建索引、搜索标准卡/strings、读取标准卡、打开标准脚本、列出标准 setnames。

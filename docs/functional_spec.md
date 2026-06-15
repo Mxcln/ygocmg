@@ -50,10 +50,10 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 ## 资源管理
 
 - 每张卡可以关联主卡图、场地图和脚本。
-- 资源操作包括导入/删除主卡图、导入/删除场地图、创建空脚本、导入/删除脚本、用外部编辑器打开脚本。
+- 资源操作包括导入/删除主卡图、导入/删除场地图、创建空脚本、导入/删除脚本、用外部编辑器打开脚本、验证脚本。
 - 资源状态通过 `has_image`、`has_field_image`、`has_script` 暴露给前端。
 - 资源写入、批量删除资源、批量移动资源和编号一致性由后端负责，前端只通过 API wrapper 发起操作。
-- 自定义包中的卡片脚本支持验证：后端可读取当前保存的 `scripts/c{code}.lua`，或验证调用方传入的未保存 `scriptText` 草稿，并返回结构化状态、阶段结果、issues 和 limitations。默认验证包含 deterministic static check 和独立 helper 进程中的 ocgcore load/init；`ocgcore_init` 只证明脚本能加载并执行 `initial_effect`，不证明效果语义正确。helper 未构建、超时、崩溃或输出异常时，报告以 `inconclusive` 表达而不是让 Tauri command 失败。
+- 自定义包中的卡片脚本支持验证：后端可读取当前保存的 `scripts/c{code}.lua`，或验证调用方传入的未保存 `scriptText` 草稿，并返回结构化状态、阶段结果、issues 和 limitations。默认验证包含 deterministic static check 和独立 helper 进程中的 ocgcore load/init；`ocgcore_init` 只证明脚本能加载并执行 `initial_effect`，不证明效果语义正确。helper 未构建、超时、崩溃或输出异常时，报告以 `inconclusive` 表达而不是让 Tauri command 失败。用户可在卡片编辑抽屉资源栏验证当前已保存脚本并查看报告弹窗；AI Agent 也可通过只读工具验证当前选中卡或指定卡片的脚本。
 
 ## 导入
 
@@ -97,7 +97,7 @@ YGOCMG 是一个本地桌面应用，用于维护自定义 Yu-Gi-Oh 卡包。用
 ## AI Agent
 
 - AI Agent 是对话式助手，用户用自然语言对当前激活的 custom pack 完成卡片查询、创建、修改、移动和删除，由 DeepSeek 模型驱动。
-- agent 通过工具调用复用后端业务规则：只读工具（列卡、读卡、搜索标准卡、读配置、列 pack、建议 code、列 setname）和写工具（建卡、改卡、移动卡、删卡、建/改/删系列名）；改卡覆盖全部可编辑字段，移动和删除均使用批量工具形态，单卡操作传一个 card id；建系列名复用后端 setname key 建议，删系列名经用户确认；写操作经统一确认流程。
+- agent 通过工具调用复用后端业务规则：只读工具（列卡、读卡、搜索标准卡、读配置、列 pack、建议 code、列 setname、验证 Lua 脚本）和写工具（建卡、改卡、移动卡、删卡、建/改/删系列名）；改卡覆盖全部可编辑字段，移动和删除均使用批量工具形态，单卡操作传一个 card id；建系列名复用后端 setname key 建议，删系列名经用户确认；写操作经统一确认流程。
 - agent 以右侧边栏形式呈现，可收缩；助手回复以 Markdown 渲染，写操作确认卡片内联展示。
 - 回复语言由配置决定，可跟随程序 UI 语言或显式指定。
 - 未配置 DeepSeek API key 时边栏提示前往设置；对话历史不持久化。

@@ -8,6 +8,7 @@ import type { ToolDefinition } from "../../../shared/contracts/agent";
 export interface ToolContext {
   workspaceId: string | null;
   packId: string | null;
+  selectedCardId: string | null;
 }
 
 export interface AgentTool {
