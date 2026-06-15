@@ -39,6 +39,14 @@ powershell -ExecutionPolicy Bypass -File tools/script-validator-helper/scripts/b
 powershell -ExecutionPolicy Bypass -File tools/script-validator-helper/scripts/run-fixtures.ps1
 ```
 
+## Verified Fixture Behavior
+
+- `valid_getid.input.json` returns `pass`.
+- `missing_end.input.json` returns `fail` with `lua_syntax_error`.
+- `missing_core.input.json` returns `fail` with `missing_core_script`.
+
+The helper is not yet wired into `ScriptValidationService`; `validate_lua_script` still reports unsupported `ocgcore_init` until the Rust helper client slice lands.
+
 ## Contract
 
 The helper accepts:

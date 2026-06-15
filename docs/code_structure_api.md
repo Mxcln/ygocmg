@@ -29,6 +29,7 @@
 - `src-tauri/src/infrastructure`：文件系统、JSON store、YGOPro CDB、标准包、strings conf 等适配。
 - `src-tauri/src/runtime`：sessions、jobs、events。
 - `src-tauri/src/presentation`：对外 DTO/适配层。
+- `tools/script-validator-helper`：独立 ocgcore 脚本验证 helper 源码、构建脚本和 fixtures；当前尚未接入 Tauri command。
 
 ## API Wrapper 分组
 

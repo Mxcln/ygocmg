@@ -54,6 +54,8 @@ Lua 脚本验证是后端 application 层能力，入口为 `validate_lua_script
 
 当前实现的第一阶段包含 `ScriptValidationService`、`ScriptSourceResolver`、`StaticChecker` 和报告聚合。它只做静态检查：可发现缺少 `initial_effect`、未定义 callback、危险 Lua API 和少量高置信拼写错误；不会启动 ocgcore，也不会证明脚本能在真实 duel 中加载或效果语义正确。
 
+`tools/script-validator-helper` 包含独立的 ocgcore load/init helper 源码、构建脚本和 fixture runner。该 helper 通过独立进程边界验证 `new_card -> load_card_script -> initial_effect`，不使用裸 `preload_script` 作为卡片脚本验证路径。当前 Tauri `validate_lua_script` command 尚未调用 helper；`ocgcore_init` 仍在 application 层报告为未实现阶段，直到 Rust helper client 集成完成。
+
 ## Shell 与运行时状态
 
 - App 启动后加载 config 和最近 workspace 注册表。
