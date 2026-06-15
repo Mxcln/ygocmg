@@ -43,3 +43,4 @@ review/
 !docs/review/**
 
 third_party/cache/
+tools/script-validator-helper/build/

@@ -1,0 +1,24 @@
+{
+  "requestId": "fixture-missing-core",
+  "level": "ocgcore_init",
+  "card": {
+    "code": 99999999,
+    "alias": 0,
+    "setcodes": [],
+    "type": 33,
+    "level": 4,
+    "attribute": 16,
+    "race": 1,
+    "attack": 0,
+    "defense": 0,
+    "lscale": 0,
+    "rscale": 0,
+    "linkMarker": 0,
+    "ruleCode": 0
+  },
+  "scripts": {
+    "./script/c99999999.lua": "local s,id,o=GetID()\nfunction s.initial_effect(c)\nend\n"
+  },
+  "coreScriptRoot": "./does-not-exist",
+  "timeoutMs": 3000
+}
