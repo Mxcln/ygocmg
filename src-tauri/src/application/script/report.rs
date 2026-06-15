@@ -6,6 +6,8 @@ use crate::application::script::dto::{
 
 const STATIC_LIMITATION: &str =
     "Static validation does not prove ocgcore load/init success or effect semantics.";
+const OCGCORE_INIT_LIMITATION: &str =
+    "ocgcore_init only proves the script loads and initial_effect runs; it does not prove effect semantics.";
 
 pub fn assemble_report(stages: Vec<LuaValidationStageResultDto>) -> LuaValidationReportDto {
     let issues = stages
@@ -14,7 +16,33 @@ pub fn assemble_report(stages: Vec<LuaValidationStageResultDto>) -> LuaValidatio
         .collect::<Vec<_>>();
     let status = final_status(&stages, &issues);
     let confidence = confidence_for(status, &stages, &issues);
-    let mut limitations = vec![STATIC_LIMITATION.to_string()];
+    let mut limitations = Vec::new();
+    if stages
+        .iter()
+        .any(|stage| stage.stage == LuaValidationLevelDto::Static)
+    {
+        limitations.push(STATIC_LIMITATION.to_string());
+    }
+    if stages.iter().any(|stage| {
+        stage.stage == LuaValidationLevelDto::OcgcoreInit
+            && !stage.issues.iter().any(|issue| {
+                matches!(
+                    issue.code.as_str(),
+                    "helper_not_found"
+                        | "helper_timeout"
+                        | "helper_failed"
+                        | "helper_invalid_output"
+                        | "helper_spawn_failed"
+                        | "helper_process_failed"
+                        | "helper_temp_io_failed"
+                        | "helper_input_encode_failed"
+                        | "skipped_due_to_static_errors"
+                        | "level_not_implemented"
+                )
+            })
+    }) {
+        limitations.push(OCGCORE_INIT_LIMITATION.to_string());
+    }
 
     let unsupported = stages
         .iter()
@@ -141,14 +169,16 @@ fn confidence_for(
 
 fn summary_for(status: LuaValidationStatusDto, issue_count: usize) -> String {
     match status {
-        LuaValidationStatusDto::Pass => "Static validation passed.".to_string(),
+        LuaValidationStatusDto::Pass => {
+            "Lua script validation passed for the requested stages.".to_string()
+        }
         LuaValidationStatusDto::Warning => {
             format!(
-                "Static validation completed with {issue_count} warning or informational issue(s)."
+                "Lua script validation completed with {issue_count} warning or informational issue(s)."
             )
         }
         LuaValidationStatusDto::Fail => {
-            format!("Static validation failed with {issue_count} issue(s).")
+            format!("Lua script validation failed with {issue_count} issue(s).")
         }
         LuaValidationStatusDto::Inconclusive => {
             "Lua script validation is inconclusive for the requested input.".to_string()
@@ -317,6 +347,58 @@ mod tests {
                 .limitations
                 .iter()
                 .any(|limitation| limitation.contains("OcgcoreInit"))
+        );
+    }
+
+    #[test]
+    fn assemble_report_adds_ocgcore_limitation_when_stage_runs() {
+        let report = assemble_report(vec![
+            stage(LuaValidationStatusDto::Pass, Vec::new()),
+            LuaValidationStageResultDto {
+                stage: LuaValidationLevelDto::OcgcoreInit,
+                status: LuaValidationStatusDto::Pass,
+                duration_ms: 2,
+                issues: Vec::new(),
+                log: Vec::new(),
+            },
+        ]);
+
+        assert_eq!(report.status, LuaValidationStatusDto::Pass);
+        assert_eq!(
+            report.summary,
+            "Lua script validation passed for the requested stages."
+        );
+        assert!(
+            report
+                .limitations
+                .iter()
+                .any(|item| item.contains("ocgcore_init only proves"))
+        );
+    }
+
+    #[test]
+    fn assemble_report_does_not_add_unsupported_limitation_for_ocgcore_init() {
+        let report = assemble_report(vec![LuaValidationStageResultDto {
+            stage: LuaValidationLevelDto::OcgcoreInit,
+            status: LuaValidationStatusDto::Inconclusive,
+            duration_ms: 0,
+            issues: vec![LuaValidationIssueDto {
+                severity: LuaValidationIssueSeverityDto::Info,
+                stage: LuaValidationLevelDto::OcgcoreInit,
+                code: "helper_not_found".to_string(),
+                message: "helper missing".to_string(),
+                line: None,
+                column: None,
+                suggestion: None,
+            }],
+            log: Vec::new(),
+        }]);
+
+        assert!(
+            !report
+                .limitations
+                .iter()
+                .any(|item| item.contains("not available") && item.contains("ocgcore_init"))
         );
     }
 }
